@@ -1,17 +1,17 @@
 import type { IgdbGameLike, NormalizedRelease, ReleaseArtwork } from "../../../../shared/types";
 import type { ExistingReleaseMergeState } from "./releaseMerge";
 import { mergeReleaseForPersistence } from "./releaseMerge";
-import { evaluateCandidate, normalizeIgdbGame } from "./releasePolicy";
+import type { ReleasePolicy } from "./releasePolicy";
 
 // An IGDB game after the sync rules, decided once per run and shared by artwork enrichment and saving.
 export type SyncCandidate =
   | { igdbId: number; title: string; accepted: false; reason: string }
   | { igdbId: number; title: string; accepted: true; release: NormalizedRelease };
 
-export function prepareSyncCandidate(game: IgdbGameLike): SyncCandidate {
-  const decision = evaluateCandidate(game);
+export function prepareSyncCandidate(game: IgdbGameLike, policy: ReleasePolicy): SyncCandidate {
+  const decision = policy.evaluate(game);
   if (!decision.accepted) return { igdbId: game.id, title: game.name, accepted: false, reason: decision.reasons.join("; ") };
-  return { igdbId: game.id, title: game.name, accepted: true, release: normalizeIgdbGame(game) };
+  return { igdbId: game.id, title: game.name, accepted: true, release: policy.normalize(game) };
 }
 
 type ReleaseSyncPlan =

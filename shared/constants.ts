@@ -1,4 +1,4 @@
-import type { ReleaseCategory } from "./types";
+import type { PlatformFamily, ReleaseCategory } from "./types";
 
 export const ACCEPTED_GAME_TYPES = [0, 1, 2, 4, 8, 9, 10, 11] as const;
 
@@ -12,62 +12,6 @@ export const GAME_TYPE_LABELS: Record<number, ReleaseCategory> = {
   10: "Expanded Game",
   11: "Port"
 };
-
-export const APPROVED_COMPANIES = [
-  "Atlus",
-  "Sega",
-  "Sega Corporation",
-  "RGG Studio",
-  "Falcom",
-  "Nihon Falcom",
-  "NIS America",
-  "NIS America, Inc.",
-  "Capcom",
-  "Konami",
-  "Koei Tecmo",
-  "Koei Tecmo Games",
-  "Team NINJA",
-  "Square Enix",
-  "Bandai Namco",
-  "Bandai Namco Entertainment",
-  "Xbox Game Studios",
-  "Microsoft",
-  "Microsoft Studios",
-  "Bethesda Softworks",
-  "Bethesda Game Studios",
-  "Activision",
-  "Blizzard Entertainment",
-  "Ubisoft",
-  "Ubisoft Entertainment",
-  "EA",
-  "Electronic Arts",
-  "CD Projekt",
-  "CD Projekt Red",
-  "Warhorse Studios",
-  "Domesticated Ant Games",
-  "Devolver Digital",
-  "Bloober Team",
-  "Remedy",
-  "Remedy Entertainment",
-  "Archetype Entertainment",
-  "Wizards of the Coast",
-  "Ryu Ga Gotoku Studio",
-  "Xbox",
-  "Microsoft Gaming",
-  "ZeniMax Media",
-  "Activision Blizzard",
-  "Blizzard",
-  "Wizards",
-  "Electronic Arts Originals",
-  "EA Originals",
-  "Ubisoft Montreal",
-  "Ubisoft Quebec",
-  "Ubisoft Toronto",
-  "Capcom Development Division 1",
-  "Capcom Production Studio",
-  "Square Enix Creative Studio",
-  "Bandai Namco Studios"
-] as const;
 
 export const EXCLUDED_TITLE_TERMS = [
   "Digital Deluxe",
@@ -84,19 +28,34 @@ export const EXCLUDED_TITLE_TERMS = [
   "Demo",
   "Beta"
 ] as const;
-export const EXCLUDED_GENRE_TERMS = ["Sport", "Sports"] as const;
 export const MAX_RELEASE_ROWS = 5000;
 export const IGDB_REQUESTS_PER_SECOND = 4;
-export const MIN_RELEASE_DATE = "2026-01-01";
 
-export const ACCEPTED_PLATFORM_SLUGS = [
-  "win",
-  "xboxone",
-  "series-x-s"
+// IGDB platforms per family, by id and by slug (IGDB lists some ports without an id).
+export const PLATFORM_FAMILIES: Record<PlatformFamily, { label: string; ids: readonly number[]; slugs: readonly string[] }> = {
+  pc: { label: "PC", ids: [6], slugs: ["win"] },
+  xbox: { label: "Xbox", ids: [49, 169], slugs: ["xboxone", "series-x-s"] },
+  playstation: { label: "PlayStation", ids: [48, 167], slugs: ["ps4--1", "ps5"] },
+  switch: { label: "Nintendo Switch", ids: [130, 508], slugs: ["switch", "switch-2"] }
+};
+
+export const ALL_PLATFORM_FAMILIES = Object.keys(PLATFORM_FAMILIES) as PlatformFamily[];
+
+// Offered by "Add suggested publishers": large publishers most players know. Resolved to IGDB companies
+// by exact name when the user asks.
+export const SUGGESTED_PUBLISHERS = [
+  "Activision",
+  "Bandai Namco Entertainment",
+  "Bethesda Softworks",
+  "Capcom",
+  "CD Projekt",
+  "Devolver Digital",
+  "Electronic Arts",
+  "Konami",
+  "Nintendo",
+  "Sega",
+  "Sony Interactive Entertainment",
+  "Square Enix",
+  "Ubisoft Entertainment",
+  "Xbox Game Studios"
 ] as const;
-
-export const ACCEPTED_PLATFORM_IDS = [6, 49, 169] as const;
-export const REJECTED_LEGACY_PLATFORM_IDS = [12, 86] as const;
-export const EXCLUSIVE_PLATFORM_SLUGS = ["ps5", "switch", "switch-2"] as const;
-
-export const KNOWN_REPAIR_TITLES = [] as const;

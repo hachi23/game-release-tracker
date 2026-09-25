@@ -24,7 +24,8 @@ const migrations: Array<(db: TrackerDatabase) => void> = [
   migrateToV16,
   migrateToV17,
   migrateToV18,
-  migrateToV19
+  migrateToV19,
+  migrateToV20
 ];
 
 const LATEST_SCHEMA_VERSION = migrations.length;
@@ -566,4 +567,20 @@ function backfillCompletedGameDates(db: TrackerDatabase) {
     if (parsed.completionPrecision === "none") continue;
     update.run(parsed.completionDate, parsed.completionMonth, parsed.completionYear, parsed.completionPrecision, row.id);
   }
+}
+
+// v20 makes the sync policy the user's own: the tracked publishers are a table the Settings page edits
+// (by IGDB company id), which replaces the built-in publisher list and its name-lookup cache. Stored
+// eligibility no longer includes a fixed earliest date (the list applies the user's "track from" date),
+// so it is recomputed once.
+function migrateToV20(db: TrackerDatabase) {
+  db.exec(`
+    create table if not exists tracked_publishers (
+      company_id integer primary key,
+      name text not null,
+      added_at text not null default current_timestamp
+    );
+    drop table if exists publisher_sync_state;
+  `);
+  createReleaseStore(db).refreshAllEligibility();
 }

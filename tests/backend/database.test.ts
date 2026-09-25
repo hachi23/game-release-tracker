@@ -32,7 +32,7 @@ describe("database migrations and FTS", () => {
   test("enables WAL, tracks schema version, and preserves user state", () => {
     const db = tempDb();
     expect(db.pragma("journal_mode", { simple: true })).toBe("wal");
-    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 19 });
+    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 20 });
     expect(db.prepare("select name from sqlite_master where type = 'table' and name = 'release_trailers'").get()).toEqual({ name: "release_trailers" });
 
     db.prepare("insert into releases (id, title, normalized_title, date_text, date_precision, category) values (?, ?, ?, ?, ?, ?)").run("r1", "Exodus", "exodus", "2027", "Year", "Main");
@@ -59,7 +59,7 @@ describe("database migrations and FTS", () => {
 
   test("v15 creates the randomizer pick history table", () => {
     const db = tempDb();
-    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 19 });
+    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 20 });
     expect(db.prepare("select name from sqlite_master where type = 'table' and name = 'randomizer_picks'").get()).toEqual({ name: "randomizer_picks" });
     db.prepare("insert into randomizer_picks (igdb_id, title) values (?, ?)").run(1942, "The Witcher 3");
     expect(db.prepare("select igdb_id igdbId, filters_json filtersJson from randomizer_picks").get()).toEqual({ igdbId: 1942, filtersJson: "{}" });
@@ -90,17 +90,25 @@ describe("database migrations and FTS", () => {
     expect(db.prepare("select rowid from releases_fts where releases_fts match ?").all("metaphor")).toHaveLength(0);
   });
 
-  test("migration v16 backfills eligibility for rows from older versions and list reads exclude stale rows", () => {
+  test("migrations recompute eligibility from the date alone, and the list applies the track-from date", () => {
     const db = tempDb();
     db.prepare("update schema_version set version = 15").run();
-    db.prepare("insert into releases (id, title, normalized_title, date_text, release_date, date_precision, category, source_confidence) values (?, ?, ?, ?, ?, ?, ?, ?)").run("old", "Old Game", "old game", "Dec 31, 2025", "2025-12-31", "Exact", "Main", 90);
-    db.prepare("insert into releases (id, title, normalized_title, date_text, release_date, date_precision, category, source_confidence) values (?, ?, ?, ?, ?, ?, ?, ?)").run("new", "New Game", "new game", "Jan 1, 2026", "2026-01-01", "Exact", "Main", 90);
+    const insert = db.prepare("insert into releases (id, title, normalized_title, date_text, release_date, date_precision, category, source_confidence) values (?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.run("old", "Old Game", "old game", "Dec 31, 2025", "2025-12-31", "Exact", "Main", 90);
+    insert.run("new", "New Game", "new game", "Jan 1, 2026", "2026-01-01", "Exact", "Main", 90);
+    insert.run("tba", "Someday Game", "someday game", "TBA", null, "TBA", "Main", 10);
 
     runMigrations(db);
 
-    expect(db.prepare("select eligible, effective_sort_date from releases where id = ?").get("old")).toEqual({ eligible: 0, effective_sort_date: "2025-12-31" });
-    expect(db.prepare("select eligible, effective_sort_date from releases where id = ?").get("new")).toEqual({ eligible: 1, effective_sort_date: "2026-01-01" });
-    expect(listReleases(db, { includeHidden: true, includeReleased: true }).items.map(item => item.id)).toEqual(["new"]);
+    expect(db.prepare("select id, eligible from releases order by id").all()).toEqual([{ id: "new", eligible: 1 }, { id: "old", eligible: 1 }, { id: "tba", eligible: 0 }]);
+    expect(listReleases(db, { includeHidden: true, includeReleased: true }).items.map(item => item.id)).toEqual(["old", "new"]);
+    expect(listReleases(db, { includeHidden: true, includeReleased: true, releasedFrom: "2026-01-01" }).items.map(item => item.id)).toEqual(["new"]);
+  });
+
+  test("v20 replaces the built-in publisher list with the user's tracked publishers", () => {
+    const db = tempDb();
+
+    expect(db.prepare("select name from sqlite_master where name in ('tracked_publishers', 'publisher_sync_state')").all()).toEqual([{ name: "tracked_publishers" }]);
   });
 
   test("migration v18 fills the rating score from the rating text where it was never set", () => {

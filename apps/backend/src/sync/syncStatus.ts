@@ -1,5 +1,6 @@
 import type { TrackerDatabase } from "../database/db";
 import type { SyncStatus } from "../../../../shared/types";
+import { createSyncSettingsStore } from "./syncSettingsStore";
 
 export function getSyncStatus(db: TrackerDatabase): SyncStatus {
   const row = db.prepare("select * from sync_runs order by id desc limit 1").get() as Record<string, unknown> | undefined;
@@ -30,6 +31,7 @@ export function failInterruptedSyncRuns(db: TrackerDatabase) {
 }
 
 export function shouldAutoSync(db: TrackerDatabase, staleHours = 12) {
+  if (!createSyncSettingsStore(db).read().autoSync) return false;
   const row = db.prepare("select finished_at from sync_runs where status = 'success' order by id desc limit 1").get() as { finished_at?: string } | undefined;
   if (!row?.finished_at) return true;
   return Date.now() - new Date(row.finished_at).getTime() > staleHours * 60 * 60 * 1000;

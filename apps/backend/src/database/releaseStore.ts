@@ -238,7 +238,7 @@ export function createReleaseStore(db: TrackerDatabase) {
     },
 
     // Re-derives eligibility for every release in one transaction. Eligibility depends only on stored
-    // dates and MIN_RELEASE_DATE (writes keep it current), so this repairs rows after a policy change.
+    // dates (writes keep it current), so this repairs rows after a policy change.
     refreshAllEligibility() {
       const rows = db.prepare(`select id, ${dateFieldsSql} from releases`).all() as Array<ReleaseDateFields & { id: string }>;
       const update = eligibilityUpdate(db);

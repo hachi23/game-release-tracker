@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { computeSortDateAndEligibility, chooseBestReleaseDate, evaluateCandidate, isApprovedCompany, normalizeIgdbGame } from "../../apps/backend/src/sync/releasePolicy";
+import { computeSortDateAndEligibility, chooseBestReleaseDate, createReleasePolicy, normalizeIgdbGame } from "../../apps/backend/src/sync/releasePolicy";
 import { applyFieldPrecedence } from "../../apps/backend/src/sync/releaseMerge";
 import type { IgdbGameLike, ReleaseOverride } from "../../shared/types";
 
@@ -13,13 +13,18 @@ const baseGame: IgdbGameLike = {
   ],
   platforms: [{ id: 6, slug: "win", abbreviation: "PC", name: "PC" }, { id: 167, slug: "ps5", abbreviation: "PS5", name: "PlayStation 5" }],
   genres: [{ name: "Role-playing (RPG)" }],
-  involved_companies: [{ company: { name: "Atlus" }, developer: true, publisher: true }],
+  involved_companies: [{ company: { id: 1, name: "Atlus" }, developer: true, publisher: true }],
   hypes: 50,
   total_rating_count: 0,
   url: "https://www.igdb.com/games/persona-4-revival",
   slug: "persona-4-revival",
   updated_at: 1800000000
 };
+
+// Tracks Atlus (1) and Sega (2) on every platform from 2026; each test narrows what it needs.
+const policy = (rules: Partial<Parameters<typeof createReleasePolicy>[0]> = {}) =>
+  createReleasePolicy({ publisherIds: [1, 2], platforms: ["pc", "xbox", "playstation", "switch"], trackFrom: "2026-01-01", ...rules });
+const evaluateCandidate = (game: IgdbGameLike) => policy().evaluate(game);
 
 describe("release eligibility and sort dates", () => {
   test("computes eligibility and effective sort dates from exact, year, window, and TBA values", () => {
@@ -41,9 +46,8 @@ describe("release eligibility and sort dates", () => {
     });
   });
 
-  test("rejects releases before the fixed 2026 cutoff", () => {
-    expect(computeSortDateAndEligibility({ dateText: "Dec 31, 2025", releaseDate: "2025-12-31", datePrecision: "Exact", releaseWindow: null }).eligible).toBe(false);
-    expect(computeSortDateAndEligibility({ dateText: "Late 2025", releaseDate: null, datePrecision: "Window", releaseWindow: "Late 2025" }).eligible).toBe(false);
+  test("a stored release is eligible whenever it has a date; the track-from date is not part of it", () => {
+    expect(computeSortDateAndEligibility({ dateText: "Dec 31, 2019", releaseDate: "2019-12-31", datePrecision: "Exact", releaseWindow: null }).eligible).toBe(true);
   });
 });
 
@@ -55,46 +59,59 @@ describe("IGDB candidate rules", () => {
     }
   });
 
-  test("rejects sports, demos, deluxe editions, season passes, and platform exclusives", () => {
-    expect(evaluateCandidate({ ...baseGame, genres: [{ name: "Sports" }] }).accepted).toBe(false);
+  test("rejects demos, deluxe editions and season passes; sports games are welcome", () => {
+    expect(evaluateCandidate({ ...baseGame, genres: [{ name: "Sports" }] }).accepted).toBe(true);
     expect(evaluateCandidate({ ...baseGame, name: "Exodus Demo" }).accepted).toBe(false);
     expect(evaluateCandidate({ ...baseGame, name: "Persona 4 Revival Digital Deluxe" }).accepted).toBe(false);
     expect(evaluateCandidate({ ...baseGame, name: "Persona 4 Revival Guidebook Edition" }).accepted).toBe(false);
     expect(evaluateCandidate({ ...baseGame, name: "Persona 4 Revival Complete Launch Edition" }).accepted).toBe(false);
     expect(evaluateCandidate({ ...baseGame, name: "Persona 4 Revival Season Pass" }).accepted).toBe(false);
-    expect(evaluateCandidate({ ...baseGame, platforms: [{ abbreviation: "PS5", name: "PlayStation 5" }] }).accepted).toBe(false);
-    expect(evaluateCandidate({ ...baseGame, platforms: [{ abbreviation: "Switch", name: "Nintendo Switch" }] }).accepted).toBe(false);
+  });
+
+  test("keeps only games on a tracked platform family", () => {
+    const ps5Only = { ...baseGame, platforms: [{ id: 167, slug: "ps5", abbreviation: "PS5", name: "PlayStation 5" }] };
+    const switch2Only = { ...baseGame, platforms: [{ slug: "switch-2", name: "Nintendo Switch 2" }] };
+
+    expect(policy().evaluate(ps5Only).accepted).toBe(true);
+    expect(policy({ platforms: ["pc", "xbox"] }).evaluate(ps5Only)).toMatchObject({ accepted: false, reasons: ["not on a tracked platform"] });
+    expect(policy({ platforms: ["switch"] }).evaluate(switch2Only).accepted).toBe(true);
+  });
+
+  test("keeps only games by a tracked publisher, and releases from the track-from date on", () => {
+    expect(policy({ publisherIds: [2] }).evaluate(baseGame)).toMatchObject({ accepted: false, reasons: ["not by a tracked publisher"] });
+    expect(policy({ trackFrom: "2027-03-01" }).evaluate(baseGame)).toMatchObject({ accepted: false, reasons: ["before 2027-03-01"] });
+    expect(policy({ trackFrom: "2027-02-18" }).evaluate(baseGame).accepted).toBe(true);
   });
 
   test("does not accept incidental involved companies outside developer or publisher roles", () => {
     const result = evaluateCandidate({
       ...baseGame,
       involved_companies: [
-        { company: { name: "Atlus" }, developer: false, publisher: false },
-        { company: { name: "Small Port Studio" }, developer: true },
-        { company: { name: "Unknown Publisher" }, publisher: true }
+        { company: { id: 1, name: "Atlus" }, developer: false, publisher: false },
+        { company: { id: 90, name: "Small Port Studio" }, developer: true },
+        { company: { id: 91, name: "Unknown Publisher" }, publisher: true }
       ]
     });
 
     expect(result.accepted).toBe(false);
   });
 
-  test("prefers accepted-platform dates over earlier PlayStation/Switch dates", () => {
+  test("prefers a tracked platform's date over an earlier date on an untracked one", () => {
     const date = chooseBestReleaseDate({
       ...baseGame,
       release_dates: [
         { human: "Jan 1, 2027", date: 1798761600, platform: { id: 167, slug: "ps5", abbreviation: "PS5", name: "PlayStation 5" } },
         { human: "Mar 3, 2027", date: 1804032000, platform: { id: 169, slug: "series-x-s", abbreviation: "Series X|S", name: "Xbox Series X|S" } }
       ]
-    });
+    }, ["pc", "xbox"]);
 
     expect(date.dateText).toBe("Mar 3, 2027");
     expect(date.releaseDate).toBe("2027-03-03");
     expect(date.datePrecision).toBe("Exact");
   });
 
-  test("uses accepted-platform release date for 2026 cutoff", () => {
-    const result = evaluateCandidate({
+  test("the track-from date applies to the tracked platform's date", () => {
+    const result = policy({ platforms: ["pc"] }).evaluate({
       ...baseGame,
       release_dates: [
         { human: "Dec 15, 2025", date: 1765756800, platform: { id: 167, slug: "ps5", abbreviation: "PS5", name: "PlayStation 5" } },
@@ -105,16 +122,16 @@ describe("IGDB candidate rules", () => {
     expect(result.accepted).toBe(true);
   });
 
-  test("rejects legacy platform false positives", () => {
+  test("rejects platforms outside the four families", () => {
     expect(evaluateCandidate({ ...baseGame, platforms: [{ id: 86, slug: "turbografx16--1", abbreviation: "TG16", name: "PC Engine" }] }).accepted).toBe(false);
     expect(evaluateCandidate({ ...baseGame, platforms: [{ id: 12, slug: "xbox360", abbreviation: "X360", name: "Xbox 360" }] }).accepted).toBe(false);
     expect(evaluateCandidate({ ...baseGame, platforms: [{ abbreviation: "PC", name: "PC" }] }).accepted).toBe(false);
   });
 
-  test("accepts canonical publisher aliases and Xbox Series platform slugs", () => {
+  test("a tracked developer counts as well as a tracked publisher", () => {
     const result = evaluateCandidate({
       ...baseGame,
-      involved_companies: [{ company: { name: "Ryu Ga Gotoku Studio" }, developer: true, publisher: false }, { company: { name: "Sega" }, publisher: true }],
+      involved_companies: [{ company: { id: 2, name: "Sega" }, developer: true, publisher: false }, { company: { id: 90, name: "Other Publisher" }, publisher: true }],
       platforms: [{ id: 169, slug: "series-x-s", abbreviation: "Series X|S", name: "Xbox Series X|S" }],
       release_dates: [{ human: "Apr 2, 2027", date: 1806624000, platform: { id: 169, slug: "series-x-s", abbreviation: "Series X|S", name: "Xbox Series X|S" } }]
     });
@@ -180,57 +197,6 @@ describe("IGDB candidate rules", () => {
     expect(release.artworks).toEqual([{ imageId: "cover-only", source: "cover" }]);
   });
 
-  test("accepts Bandai Namco games regardless of Inc./Ltd. suffix on the IGDB company name", () => {
-    const echoesOfAincrad: IgdbGameLike = {
-      id: 393932,
-      name: "Echoes of Aincrad",
-      game_type: 0,
-      first_release_date: 1783641600,
-      release_dates: [{ human: "Jul 10, 2026", date: 1783641600, platform: { id: 6, slug: "win", abbreviation: "PC", name: "PC (Microsoft Windows)" } }],
-      platforms: [
-        { id: 169, slug: "series-x-s", abbreviation: "Series X|S", name: "Xbox Series X|S" },
-        { id: 6, slug: "win", abbreviation: "PC", name: "PC (Microsoft Windows)" },
-        { id: 167, slug: "ps5", abbreviation: "PS5", name: "PlayStation 5" }
-      ],
-      genres: [{ name: "Role-playing (RPG)" }],
-      involved_companies: [
-        { company: { name: "Bandai Namco Entertainment Inc." }, publisher: true },
-        { company: { name: "Game Studio Inc." }, developer: true }
-      ],
-      url: "https://www.igdb.com/games/echoes-of-aincrad",
-      slug: "echoes-of-aincrad"
-    };
-
-    expect(evaluateCandidate(echoesOfAincrad).accepted).toBe(true);
-  });
-
-  test("isApprovedCompany matches via token subset for multi-token terms and exact-only for single-token terms", () => {
-    expect(isApprovedCompany("Bandai Namco Entertainment")).toBe(true);
-    expect(isApprovedCompany("Bandai Namco Entertainment Inc.")).toBe(true);
-    expect(isApprovedCompany("Bandai Namco Entertainment Asia")).toBe(true);
-    expect(isApprovedCompany("BANDAI NAMCO Games Asia Pte Ltd")).toBe(true);
-    expect(isApprovedCompany("Bandai Namco Studios")).toBe(true);
-    expect(isApprovedCompany("Bandai Namco Studios Malaysia")).toBe(true);
-    expect(isApprovedCompany("Ryu Ga Gotoku Studio")).toBe(true);
-    expect(isApprovedCompany("Electronic Arts")).toBe(true);
-    expect(isApprovedCompany("Electronic Arts Originals")).toBe(true);
-    expect(isApprovedCompany("Ubisoft Montreal")).toBe(true);
-    expect(isApprovedCompany("Microsoft Gaming")).toBe(true);
-    expect(isApprovedCompany("Square Enix Creative Studio")).toBe(true);
-    expect(isApprovedCompany("Xbox Game Studios")).toBe(true);
-    expect(isApprovedCompany("Wizards of the Coast")).toBe(true);
-    expect(isApprovedCompany("Game Studio Inc.")).toBe(false);
-    expect(isApprovedCompany("Unknown Publisher")).toBe(false);
-    expect(isApprovedCompany("Kadokawa Corporation")).toBe(false);
-    expect(isApprovedCompany("")).toBe(false);
-    expect(isApprovedCompany("Sega")).toBe(true);
-    expect(isApprovedCompany("Xbox")).toBe(true);
-    expect(isApprovedCompany("EA")).toBe(true);
-    expect(isApprovedCompany("Some EA Partner Studio")).toBe(false);
-    expect(isApprovedCompany("Sega Sammy Holdings")).toBe(false);
-    expect(isApprovedCompany("Sega Corporation")).toBe(true);
-    expect(isApprovedCompany("Xbox Game Studios Publishing")).toBe(true);
-  });
 });
 
 describe("override precedence", () => {

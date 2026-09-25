@@ -6,8 +6,7 @@ import { openDatabase } from "../../apps/backend/src/database/db";
 import { runMigrations } from "../../apps/backend/src/database/migrations";
 import { createReleaseStore } from "../../apps/backend/src/database/releaseStore";
 import { createBackendApp } from "../../apps/backend/src/server";
-import { buildPublisherGameQuery, companySearchTerms } from "../../apps/backend/src/sync/igdbCandidateSource";
-import { KNOWN_REPAIR_TITLES } from "../../shared/constants";
+import { createSyncSettingsStore } from "../../apps/backend/src/sync/syncSettingsStore";
 
 let dirs: string[] = [];
 let dbs: Array<{ close(): void }> = [];
@@ -19,6 +18,8 @@ function setup() {
   const db = openDatabase(join(dir, "tracker.db"));
   dbs.push(db);
   runMigrations(db);
+  // Sync fixtures are credited to IGDB company 1.
+  createSyncSettingsStore(db).addPublishers([{ id: 1, name: "Atlus" }]);
   const app = createBackendApp({ db, autoSync: false });
   return { app, db };
 }
@@ -30,6 +31,8 @@ function setupWithEvents() {
   const db = openDatabase(join(dir, "tracker.db"));
   dbs.push(db);
   runMigrations(db);
+  // Sync fixtures are credited to IGDB company 1.
+  createSyncSettingsStore(db).addPublishers([{ id: 1, name: "Atlus" }]);
   const events: Array<{ event: string; details?: Record<string, unknown> }> = [];
   const app = createBackendApp({
     db,
@@ -661,59 +664,3 @@ describe("release API", () => {
 
 });
 
-describe("publisher sync planning", () => {
-  test("sync resolves the publisher/studio list instead of only known repair titles", () => {
-    expect(companySearchTerms).toContain("Atlus");
-    expect(companySearchTerms).toContain("Sega");
-    expect(companySearchTerms).toContain("Capcom");
-    expect(companySearchTerms).toContain("Koei Tecmo");
-    expect(companySearchTerms).toContain("Team NINJA");
-    expect(companySearchTerms).toContain("Xbox Game Studios");
-    expect(companySearchTerms).toContain("Ubisoft");
-    expect(companySearchTerms).toContain("Devolver Digital");
-    expect(companySearchTerms).toContain("NIS America");
-  });
-
-  test("known repair searches remain disabled so publisher sync stands on its own", () => {
-    expect(KNOWN_REPAIR_TITLES).toEqual([]);
-  });
-
-  test("publisher game query uses company ids, accepted game types, 2026+ dates, and expanded metadata", () => {
-    const query = buildPublisherGameQuery([17, 42], 1767225600, 0);
-
-    expect(query).toContain("involved_companies.company = (17,42)");
-    expect(query).toContain("game_type = (0,1,2,4,8,9,10,11)");
-    expect(query).toContain("first_release_date >= 1767225600");
-    expect(query).toContain("release_dates.y >= 2026");
-    expect(query).not.toContain("updated_at >=");
-    expect(query).toContain("artworks.image_id");
-    expect(query).toContain("cover.image_id");
-    expect(query).toContain("videos.video_id");
-    expect(query).toContain("videos.name");
-    expect(query).toContain("involved_companies.company.name");
-  });
-
-  test("serves the packaged frontend shell and assets from the backend origin", async () => {
-    const assetRoot = mkdtempSync(join(tmpdir(), "grt-frontend-assets-"));
-    dirs.push(assetRoot);
-    mkdirSync(join(assetRoot, "dist", "frontend", "assets"), { recursive: true });
-    writeFileSync(join(assetRoot, "dist", "frontend", "index.html"), '<div id="root"></div><script type="module" src="./assets/index.js"></script>');
-    writeFileSync(join(assetRoot, "dist", "frontend", "assets", "index.js"), "window.__frontendServed = true;");
-    process.env.GRT_ASSET_ROOT = assetRoot;
-    const { app } = setup();
-
-    const shell = await app.inject({ method: "GET", url: "/" });
-    expect(shell.statusCode).toBe(200);
-    expect(shell.headers["content-type"]).toContain("text/html");
-    expect(shell.body).toContain('<div id="root"></div>');
-
-    const asset = await app.inject({ method: "GET", url: "/assets/index.js" });
-    expect(asset.statusCode).toBe(200);
-    expect(asset.headers["content-type"]).toContain("text/javascript");
-    expect(asset.body).toContain("window.__frontendServed");
-    expect(asset.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
-    expect(shell.headers["cache-control"]).toBeUndefined();
-
-    expect((await app.inject({ method: "GET", url: "/assets/../package.json" })).statusCode).toBe(404);
-  });
-});

@@ -178,6 +178,26 @@ export interface SyncStatus {
   message?: string;
 }
 
+// The four platform families the user can track; each maps to IGDB platforms in PLATFORM_FAMILIES.
+export type PlatformFamily = "pc" | "xbox" | "playstation" | "switch";
+
+// A publisher or studio the user tracks, by IGDB company id.
+export interface TrackedPublisher {
+  id: number;
+  name: string;
+}
+
+// What the IGDB sync looks for. A new library tracks no publishers, every platform family, releases from
+// the start of the current year, and syncs only when the user asks.
+export interface SyncSettings {
+  publishers: TrackedPublisher[];
+  platforms: PlatformFamily[];
+  trackFrom: string;
+  autoSync: boolean;
+}
+
+export type SyncSettingsPatch = Partial<Pick<SyncSettings, "platforms" | "trackFrom" | "autoSync">>;
+
 export interface SettingsStatus {
   credentialStatus: { status: string; message?: string };
   autoSyncDue: boolean;

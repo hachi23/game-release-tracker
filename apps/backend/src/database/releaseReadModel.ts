@@ -12,6 +12,8 @@ export interface ReleaseFilters {
   datePrecision?: string;
   includeReleased?: boolean;
   includeHidden?: boolean;
+  // The earliest effective date to list (the user's "track from" setting).
+  releasedFrom?: string;
 }
 
 export function listReleases(db: TrackerDatabase, filters: ReleaseFilters) {
@@ -39,6 +41,10 @@ export function listReleases(db: TrackerDatabase, filters: ReleaseFilters) {
   if (filters.datePrecision) {
     params.datePrecision = filters.datePrecision;
     where.push("releases.date_precision = @datePrecision");
+  }
+  if (filters.releasedFrom) {
+    params.releasedFrom = filters.releasedFrom;
+    where.push("releases.effective_sort_date >= @releasedFrom");
   }
   if (!filters.includeHidden) where.push("coalesce(state.hidden, 0) = 0");
   if (!filters.includeReleased) where.push("coalesce(state.released, 0) = 0");

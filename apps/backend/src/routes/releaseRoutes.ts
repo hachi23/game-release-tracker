@@ -1,4 +1,5 @@
 import { createReleaseStore } from "../database/releaseStore";
+import { createSyncSettingsStore } from "../sync/syncSettingsStore";
 import { createManualRelease, deleteReleaseWithOptionalBlock, searchManualReleaseCandidates, updateRelease } from "../actions/releaseActions";
 import { sendActionResult } from "./actionResult";
 import type { BackendRouteContext } from "./context";
@@ -15,7 +16,8 @@ export function registerReleaseRoutes({ app, db, logger, igdb }: BackendRouteCon
       platform: query.platform,
       datePrecision: query.datePrecision,
       includeHidden: query.includeHidden === "true",
-      includeReleased: query.includeReleased === "true"
+      includeReleased: query.includeReleased === "true",
+      releasedFrom: createSyncSettingsStore(db).read().trackFrom
     });
   });
 

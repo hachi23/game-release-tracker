@@ -88,7 +88,7 @@ SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations
 | `completed_games` | Completed games | `id`, `title`, `normalized_title`, `identity_key`, `source_identity_key`, `user_platform`, `rating_raw`, `rating_score`, `hours_played`, `completion_date`, `completion_month`, `completion_year`, `completion_precision`, `notes`, `developer`, `publisher`, `igdb_id`, `cover_image_id`, `match_status`, `screenshots_json`, `source_type`, `missing_from_latest_import` |
 | `completed_match_overrides` | Manual IGDB match overrides | `identity_key`, `normalized_title`, `user_platform`, `igdb_id` |
 
-Schema v10 added IGDB theme, game-mode and rating columns plus `hours_played` to `completed_games`; v11 added `release_genres`; v12 added `completed_games.source_identity_key`; v13 made `releases.igdb_id` unique; v14 dropped the unused backlog, game-length and pick-history tables v10 had also created; v15 created the new `randomizer_picks` table; v16 runs the eligibility and completion-date repairs once; v17 adds `year_in_review_settings`; v18 retires Excel import state and fills missing `rating_score` values from `rating_raw`; v19 indexes `sources(release_id)` and removes duplicate FTS insert/update triggers.
+Schema v10 added IGDB theme, game-mode and rating columns plus `hours_played` to `completed_games`; v11 added `release_genres`; v12 added `completed_games.source_identity_key`; v13 made `releases.igdb_id` unique; v14 dropped the unused backlog, game-length and pick-history tables v10 had also created; v15 created the new `randomizer_picks` table; v16 runs the eligibility and completion-date repairs once; v17 adds `year_in_review_settings`; v18 retires Excel import state and fills missing `rating_score` values from `rating_raw`; v19 indexes `sources(release_id)` and removes duplicate FTS insert/update triggers; v20 adds `tracked_publishers` and drops `publisher_sync_state`.
 
 ### Randomizer table
 
@@ -177,6 +177,12 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 |---|---|---|
 | POST | `/api/sync/igdb` | Trigger IGDB sync run |
 | GET | `/api/sync/status` | Get last sync status |
+| GET | `/api/sync/settings` | Sync settings: tracked publishers, platform families, track-from date, auto-sync |
+| PUT | `/api/sync/settings` | Body `{ platforms?, trackFrom?, autoSync? }` → the updated settings; 400 for no platforms, an unknown platform, a bad date or a non-boolean auto-sync |
+| GET | `/api/sync/publishers/search?q=` | IGDB companies whose name contains the text (at least two letters), most published first; 409 without IGDB keys |
+| POST | `/api/sync/publishers` | Body `{ id, name }` tracks an IGDB company → the updated settings |
+| POST | `/api/sync/publishers/suggested` | Tracks the suggested publishers IGDB knows by exact name → the settings plus `notFound`; 409 without IGDB keys |
+| DELETE | `/api/sync/publishers/:id` | Stops tracking a company; 404 if it wasn't tracked |
 
 #### Settings
 | Method | Path | Purpose |
@@ -198,8 +204,8 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 The IGDB sync flow:
 1. `syncRun.startSync()` — singleton mutex, prevents concurrent syncs (owns the run lifecycle)
 2. `syncRun.execute()` — creates a `sync_runs` record, discovers candidates, fetches SteamGridDB artwork, persists
-3. `igdbCandidateSource.discoverIgdbCandidates()` — queries IGDB for games by publisher, filters by date/confidence rules. Publisher-name → IGDB company lookups are saved in `publisher_sync_state` and reused for 30 days (7 days when nothing matched), so only the first sync pays the ~55 lookups
-4. `releaseSyncPlanner.prepareSyncCandidate()` — applies the sync rules and normalizes each game once per run; both later steps use the result
+3. `igdbCandidateSource.discoverIgdbCandidates()` — queries IGDB for every game a tracked publisher (by IGDB company id, from Settings → Sync) is credited on, from the track-from year on. With no tracked publishers the run fails with a message telling the user to add some
+4. `releaseSyncPlanner.prepareSyncCandidate()` — applies the Release Policy built from the sync settings (`createReleasePolicy`: game type, excluded edition names, tracked platform families, tracked publisher or developer, track-from date) and normalizes each game once per run; both later steps use the result
 5. SteamGridDB enrichment (`syncArtworkEnrichment.ts`) — outside the write queue, looks up artwork only for accepted, unblocked games that still lack provider artwork, four lookups at a time
 6. In the write queue, per game: `releaseSyncPlanner.planReleaseSync()` decides add/repair/skip against freshly read merge state and the block list, then `releaseStore.save()` upserts the release
 

@@ -10,6 +10,7 @@ import { updateRelease } from "../../apps/backend/src/actions/releaseActions";
 import { runSync } from "../../apps/backend/src/sync/syncRun";
 import { resetWriteQueueForTests } from "../../apps/backend/src/database/writeQueue";
 import type { IgdbGameLike } from "../../shared/types";
+import { createSyncSettingsStore } from "../../apps/backend/src/sync/syncSettingsStore";
 
 let dirs: string[] = [];
 let dbs: TrackerDatabase[] = [];
@@ -20,6 +21,8 @@ function tempDb() {
   const db = openDatabase(join(dir, "tracker.db"));
   dbs.push(db);
   runMigrations(db);
+  // Sync fixtures are credited to IGDB company 1.
+  createSyncSettingsStore(db).addPublishers([{ id: 1, name: "Atlus" }]);
   return db;
 }
 

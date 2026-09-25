@@ -6,7 +6,12 @@ import { openDatabase, type TrackerDatabase } from "../../apps/backend/src/datab
 import { runMigrations } from "../../apps/backend/src/database/migrations";
 import { fetchSyncArtworkEnrichment } from "../../apps/backend/src/sync/syncArtworkEnrichment";
 import { prepareSyncCandidate } from "../../apps/backend/src/sync/releaseSyncPlanner";
+import { createReleasePolicy } from "../../apps/backend/src/sync/releasePolicy";
 import type { IgdbGameLike } from "../../shared/types";
+
+// The sync rules these tests run under: Atlus (IGDB company 1) on PC from 2026.
+const policy = createReleasePolicy({ publisherIds: [1], platforms: ["pc"], trackFrom: "2026-01-01" });
+const prepare = (game: IgdbGameLike) => prepareSyncCandidate(game, policy);
 
 let dirs: string[] = [];
 let dbs: TrackerDatabase[] = [];
@@ -38,7 +43,7 @@ describe("sync artwork enrichment", () => {
         ...game(103, "Already Has Cover"),
         cover: { image_id: "cover-103" }
       }
-    ].map(prepareSyncCandidate), {
+    ].map(prepare), {
       findArtwork: async title => {
         calls.push(title);
         return [{ imageId: `sgdb-${title}`, source: "steamgriddb" as const, url: `https://cdn2.steamgriddb.com/grid/${encodeURIComponent(title)}.jpg` }];
@@ -60,7 +65,7 @@ describe("sync artwork enrichment", () => {
     let peak = 0;
     const games = Array.from({ length: 10 }, (_, index) => game(400 + index, `Parallel ${index}`));
 
-    const enrichment = await fetchSyncArtworkEnrichment(db, games.map(prepareSyncCandidate), {
+    const enrichment = await fetchSyncArtworkEnrichment(db, games.map(prepare), {
       findArtwork: async title => {
         running++;
         peak = Math.max(peak, running);
@@ -79,7 +84,7 @@ describe("sync artwork enrichment", () => {
     db.prepare("insert into blocked_releases (id, igdb_id, normalized_title, title, reason) values ('b1', 301, 'blocked game', 'Blocked Game', 'Manual delete')").run();
     const calls: string[] = [];
 
-    await fetchSyncArtworkEnrichment(db, [game(301, "Blocked Game"), game(302, "Wanted Game")].map(prepareSyncCandidate), {
+    await fetchSyncArtworkEnrichment(db, [game(301, "Blocked Game"), game(302, "Wanted Game")].map(prepare), {
       findArtwork: async title => {
         calls.push(title);
         return [];
@@ -100,7 +105,7 @@ describe("sync artwork enrichment", () => {
     const enrichment = await fetchSyncArtworkEnrichment(db, [
       game(201, "Local Artwork Game"),
       game(202, "Provider Failure")
-    ].map(prepareSyncCandidate), {
+    ].map(prepare), {
       findArtwork: async title => {
         calls.push(title);
         throw new Error("SteamGridDB 500");

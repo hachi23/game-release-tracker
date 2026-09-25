@@ -4,6 +4,8 @@ import { createIgdbGateway, type IgdbGateway } from "../igdb/gateway";
 import { createSettingsStore } from "../settings/settingsStore";
 import type { IgdbGameLike, ReleaseArtwork, SyncStatus } from "../../../../shared/types";
 import { discoverIgdbCandidates } from "./igdbCandidateSource";
+import { createReleasePolicy } from "./releasePolicy";
+import { createSyncSettingsStore } from "./syncSettingsStore";
 import { planReleaseSync, prepareSyncCandidate, type SyncCandidate } from "./releaseSyncPlanner";
 import { getSyncStatus, trimSyncLog } from "./syncStatus";
 import { createReleaseStore } from "../database/releaseStore";
@@ -45,9 +47,12 @@ class SyncRun {
   async execute(): Promise<SyncStatus> {
     const syncRunId = await this.startRun();
     try {
-      const candidates = await this.discoverCandidates(syncRunId);
+      const settings = createSyncSettingsStore(this.db).read();
+      const rules = { publisherIds: settings.publishers.map(publisher => publisher.id), platforms: settings.platforms, trackFrom: settings.trackFrom };
+      const candidates = await this.discoverCandidates(syncRunId, rules);
       if (!candidates.ok) return candidates.status;
-      const prepared = candidates.items.map(prepareSyncCandidate);
+      const policy = createReleasePolicy(rules);
+      const prepared = candidates.items.map(game => prepareSyncCandidate(game, policy));
       const enrichment = await this.fetchSteamGridEnrichment(prepared);
       return await this.persistCandidates(syncRunId, prepared, enrichment);
     } catch (error) {
@@ -63,9 +68,9 @@ class SyncRun {
     });
   }
 
-  private async discoverCandidates(syncRunId: number): Promise<{ ok: true; items: IgdbGameLike[] } | { ok: false; status: SyncStatus }> {
+  private async discoverCandidates(syncRunId: number, rules: { publisherIds: number[]; trackFrom: string }): Promise<{ ok: true; items: IgdbGameLike[] } | { ok: false; status: SyncStatus }> {
     try {
-      return { ok: true, items: this.candidates ?? await this.fetchIgdbCandidates() };
+      return { ok: true, items: this.candidates ?? await this.fetchIgdbCandidates(rules) };
     } catch (error) {
       const status = await runWrite(this.db, () => {
         this.db.prepare(`
@@ -79,9 +84,9 @@ class SyncRun {
     }
   }
 
-  private fetchIgdbCandidates(): Promise<IgdbGameLike[]> {
+  private fetchIgdbCandidates(rules: { publisherIds: number[]; trackFrom: string }): Promise<IgdbGameLike[]> {
     const igdb = this.igdb ?? createIgdbGateway({ readConfig: () => createSettingsStore(this.db).igdbTokenConfig() });
-    return discoverIgdbCandidates(igdb, this.db);
+    return discoverIgdbCandidates(igdb, rules);
   }
 
   private fetchSteamGridEnrichment(candidates: SyncCandidate[]) {

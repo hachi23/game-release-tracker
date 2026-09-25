@@ -1,11 +1,16 @@
 import { describe, expect, test } from "vitest";
 import { planReleaseSync, prepareSyncCandidate } from "../../apps/backend/src/sync/releaseSyncPlanner";
+import { createReleasePolicy } from "../../apps/backend/src/sync/releasePolicy";
 import type { IgdbGameLike, ReleaseOverride } from "../../shared/types";
+
+// The sync rules these tests run under: Atlus (IGDB company 1) on PC from 2026.
+const policy = createReleasePolicy({ publisherIds: [1], platforms: ["pc"], trackFrom: "2026-01-01" });
+const prepare = (game: IgdbGameLike) => prepareSyncCandidate(game, policy);
 
 describe("release sync planner", () => {
   test("skips blocked candidates before evaluating sync rules", () => {
     const plan = planReleaseSync({
-      candidate: prepareSyncCandidate(game(101, "Blocked Game")),
+      candidate: prepare(game(101, "Blocked Game")),
       blocked: true,
       existedBefore: false,
       existing: null,
@@ -16,7 +21,7 @@ describe("release sync planner", () => {
   });
 
   test("a candidate is decided once: rejected games carry their reasons into the skip plan", () => {
-    const rejected = prepareSyncCandidate({ ...game(105, "Too Old"), first_release_date: 1735603200 });
+    const rejected = prepare({ ...game(105, "Too Old"), first_release_date: 1735603200 });
 
     expect(rejected.accepted).toBe(false);
     expect(planReleaseSync({ candidate: rejected, blocked: false, existedBefore: false, existing: null, enrichedArtworks: [] }))
@@ -25,7 +30,7 @@ describe("release sync planner", () => {
 
   test("plans added and repaired for a new release with SteamGridDB enrichment", () => {
     const plan = planReleaseSync({
-      candidate: prepareSyncCandidate(game(102, "Persona 4 Revival")),
+      candidate: prepare(game(102, "Persona 4 Revival")),
       blocked: false,
       existedBefore: false,
       existing: null,
@@ -40,7 +45,7 @@ describe("release sync planner", () => {
   });
 
   test("plans unchanged for an existing release with no merge changes", () => {
-    const candidate = prepareSyncCandidate(game(103, "Existing Game"));
+    const candidate = prepare(game(103, "Existing Game"));
     const plan = planReleaseSync({
       candidate,
       blocked: false,
@@ -61,7 +66,7 @@ describe("release sync planner", () => {
       { field: "releaseWindow", value: "Late 2027", sourceType: "user" }
     ];
     const plan = planReleaseSync({
-      candidate: prepareSyncCandidate(game(104, "Override Game")),
+      candidate: prepare(game(104, "Override Game")),
       blocked: false,
       existedBefore: true,
       existing: { releaseId: "igdb-104", artworks: [], overrides },
