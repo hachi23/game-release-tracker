@@ -64,7 +64,7 @@ export function SettingsView({
       </>}
       {tab === "API keys" && <section className="settings-section">
         <h3>API keys</h3>
-        <p className="journal-section-subtitle">Sync, search and the Randomizer use your own free IGDB keys (a Twitch developer app). The SteamGridDB key is optional and fills in missing artwork. Keys are stored encrypted on this computer and never shown again.</p>
+        <p className="journal-section-subtitle">Sync, search and the Randomizer use your own free IGDB keys (a Twitch developer app). The SteamGridDB key is optional and fills in missing artwork. Keys are stored encrypted on this computer and never shown again. <a href="https://api-docs.igdb.com/#account-creation" target="_blank" rel="noreferrer">How to get IGDB keys</a></p>
         <div className={`settings-status ${settingsStatus?.credentialStatus.status ?? "missing"}`}>
           Credential status: {settingsStatus?.credentialStatus.status ?? "missing"}
           {settingsStatus?.credentialStatus.message ? ` - ${settingsStatus.credentialStatus.message}` : ""}
