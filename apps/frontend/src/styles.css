@@ -246,8 +246,8 @@ textarea { height: auto; min-height: 80px; padding: 10px; resize: vertical; }
 .detail-fields label, .completed-detail-view label, .manual-view label, .settings-grid label, .field-edit-form label { display: flex; flex-direction: column; gap: 6px; color: var(--c-muted); font-size: var(--fs-small); }
 .detail-fields input, .manual-view input, .manual-view select, .field-edit-form input, .field-edit-form select, .settings-grid input { width: 100%; }
 .detail-fields button, .detail-media button, .completed-detail-view button, .manual-view button, .settings-view button:not(.palette-swatch) { min-height: 28px; padding: 4px 10px; background: transparent; border: 1px solid var(--c-border); color: var(--c-text); font-size: var(--fs-small); }
-.detail-fields button:not(.secondary):not(.danger), .detail-media button:not(.secondary), .manual-view button:not(.secondary), .settings-view button.action-sync, .settings-view button:not(.secondary):not(.palette-swatch):not(.inline):not(.wallpaper-upload) { background: var(--c-accent); border-color: var(--c-accent); color: var(--c-on-accent); }
-.detail-fields button.danger, .completed-detail-view button.danger { border-color: var(--c-danger); color: var(--c-danger); }
+.detail-fields button:not(.secondary):not(.danger), .detail-media button:not(.secondary), .manual-view button:not(.secondary), .settings-view button.action-sync, .settings-view button:not(.secondary):not(.danger):not(.palette-swatch):not(.inline):not(.wallpaper-upload) { background: var(--c-accent); border-color: var(--c-accent); color: var(--c-on-accent); }
+.detail-fields button.danger, .completed-detail-view button.danger, .settings-view button.danger { border-color: var(--c-danger); color: var(--c-danger); }
 .ruled dl, .extra-fields dl { display: grid; grid-template-columns: minmax(100px, 30%) 1fr; gap: 8px 14px; font-size: var(--fs-small); }
 .ruled dt, .extra-fields dt { color: var(--c-muted); }
 .ruled dd, .extra-fields dd { margin: 0; }
@@ -381,3 +381,4 @@ textarea { height: auto; min-height: 80px; padding: 10px; resize: vertical; }
 .sync-track-from { display: flex; flex-direction: column; gap: 6px; max-width: 220px; color: var(--c-muted); font-size: var(--fs-small); }
 .sync-auto { display: block; margin-top: 12px; font-size: var(--fs-small); }
 .settings-view form.settings-actions input { flex: 1 1 200px; }
+.settings-danger { margin-top: 12px; border-color: color-mix(in srgb, var(--c-danger) 45%, transparent); }

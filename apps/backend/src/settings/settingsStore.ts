@@ -2,8 +2,8 @@ import type { TrackerDatabase } from "../database/db";
 import type { SavedCredential } from "../../../../shared/types";
 import { readTokenConfig, type TokenConfig } from "../igdb/token";
 import { getProcessCipher, isSealed, type SecretCipher } from "./secretCipher";
+import { CREDENTIAL_KEYS } from "../../../../shared/constants";
 
-const CREDENTIAL_KEYS = ["IGDB_CLIENT_ID", "IGDB_CLIENT_SECRET", "IGDB_ACCESS_TOKEN", "STEAMGRIDDB_API_KEY"] as const;
 type CredentialKey = (typeof CREDENTIAL_KEYS)[number];
 
 const IGDB_KEYS: CredentialKey[] = ["IGDB_CLIENT_ID", "IGDB_CLIENT_SECRET", "IGDB_ACCESS_TOKEN"];

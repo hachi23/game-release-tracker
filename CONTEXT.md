@@ -254,6 +254,8 @@ Recent useful seams:
 ## Safety Rules
 
 - Do not store raw wallpaper bytes or absolute localhost URLs in localStorage.
+- The packaged app reads API keys only from Settings (stored encrypted); `IGDB_*` and `STEAMGRIDDB_*` environment variables are a development fallback and are removed from the packaged backend's environment.
+- No telemetry: diagnostics stay in the local log. The app contacts only IGDB (and Twitch for its token), IGDB's image CDN, SteamGridDB when a key is saved, and YouTube (`youtube-nocookie.com`) when a trailer or theme music plays.
 - Do not mount YouTube iframes on list/card views.
 - Do not add trailer URLs manually in v1; trailer source is IGDB only.
 - Do not change release-calendar behavior when working on completed-library features.

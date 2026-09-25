@@ -315,6 +315,7 @@ Exposes a safe IPC bridge to the renderer for the API base URL and per-launch AP
 
 ### IPC modules
 - `wallpaperIpc.ts` — native file dialog for wallpaper image selection
+- `appDataIpc.ts` — Settings → Diagnostics: **Open log folder**, and **Delete all app data**, which (after a native confirm) stops the backend, removes the app's own files from the data folder (database, covers, artworks, wallpaper, backups, logs, credential key), clears the renderer's stored data and restarts the app. Only the app's own frame may ask
 - `saveImageIpc.ts` — Save as image: takes the poster's PNG bytes from the page (checks the PNG signature and size), a save dialog (Pictures folder, `.png` only, safe file name), then writes the file. No image library
 
 The diagnostics log lives under the app data `logs` directory as `game-release-tracker.log`. It is JSONL, and secret-like fields are redacted by `diagnostics/logger.ts`.
@@ -495,6 +496,7 @@ apps/
     desktopLifecycle.ts          Startup/shutdown lifecycle
     wallpaperIpc.ts              Wallpaper file dialog IPC
     appProtocol.ts               app://renderer origin, passed through to the backend
+    appDataIpc.ts                Open log folder; delete all app data
     saveImageIpc.ts              Save as image (save-image IPC)
   frontend/src/
     main.tsx                     React entry point

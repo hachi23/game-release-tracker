@@ -6,6 +6,9 @@ interface ReleaseTrackerBridge {
   chooseWallpaper?(): Promise<string | null>;
   // Saves PNG bytes the page drew (the Year in Review poster) through a save dialog. Desktop only.
   saveImage?(png: Uint8Array, suggestedName: string): Promise<{ ok: boolean; canceled?: boolean; path?: string; error?: string }>;
+  openLogFolder?(): Promise<{ ok: boolean; error?: string }>;
+  // Asks the user to confirm, deletes everything the app stored on this computer and restarts. Desktop only.
+  deleteAppData?(): Promise<{ ok: boolean; canceled?: boolean; error?: string }>;
 }
 
 interface Window {

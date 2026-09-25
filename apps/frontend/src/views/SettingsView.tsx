@@ -41,6 +41,8 @@ export function SettingsView({
 }) {
   const { settings, settingsStatus, steamGridDbKey, actions } = workflow;
   // Opens on API keys while the IGDB keys need attention, since nothing else works without them.
+  // The desktop bridge; in a browser (development) there is no app data folder to open or delete.
+  const bridge = typeof window === "undefined" ? undefined : window.releaseTracker;
   const [tab, setTab] = useState<SettingsTab>(() => (keysNeedAttention(settingsStatus) ? "API keys" : "Appearance"));
   return (
     <FramedPanel className="settings-view">
@@ -98,8 +100,15 @@ export function SettingsView({
           <p>{diagnosticsLogPath || "The diagnostics log path is available in the desktop app."}</p>
           <div className="settings-actions">
             <button type="button" className="secondary" onClick={() => void onOpenDiagnosticsLog?.()} disabled={!onOpenDiagnosticsLog}>Open diagnostics log</button>
+            {bridge?.openLogFolder && <button type="button" className="secondary" onClick={() => void bridge.openLogFolder?.()}>Open log folder</button>}
           </div>
         </div>
+        {bridge?.deleteAppData && <div className="settings-panel settings-danger">
+          <p>Removes your library, covers, wallpaper, saved API keys, backups and logs from this computer, then restarts the app as a new install. You'll be asked to confirm.</p>
+          <div className="settings-actions">
+            <button type="button" className="danger" onClick={() => void bridge.deleteAppData?.()}>Delete all app data</button>
+          </div>
+        </div>}
       </section>}
       </div>
     </FramedPanel>

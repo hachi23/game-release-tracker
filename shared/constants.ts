@@ -28,6 +28,9 @@ export const EXCLUDED_TITLE_TERMS = [
   "Demo",
   "Beta"
 ] as const;
+// The API keys the app stores (encrypted) in Settings.
+export const CREDENTIAL_KEYS = ["IGDB_CLIENT_ID", "IGDB_CLIENT_SECRET", "IGDB_ACCESS_TOKEN", "STEAMGRIDDB_API_KEY"] as const;
+
 export const MAX_RELEASE_ROWS = 5000;
 export const IGDB_REQUESTS_PER_SECOND = 4;
 

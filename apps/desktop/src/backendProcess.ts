@@ -1,5 +1,6 @@
 import { appendFileSync } from "node:fs";
 import { resolveDesktopRuntimeLayout } from "../../runtime/src/layout";
+import { CREDENTIAL_KEYS } from "../../../shared/constants";
 
 interface ReadyMessage {
   type: "ready";
@@ -41,7 +42,21 @@ export function getBackendCwd(root: string) {
   return resolveDesktopRuntimeLayout({ root, userData: "" }).backendCwd;
 }
 
-export async function startBackendProcess(root: string, logPath?: string, dataDir?: string, apiToken?: string, credentialKey?: string): Promise<{ child: BackendChild; port: number }> {
+// The backend child's environment. In the packaged app, API keys come only from Settings (stored
+// encrypted), so keys a user happens to have in their shell environment are not picked up silently.
+export function backendChildEnv(parent: NodeJS.ProcessEnv, extras: Record<string, string>, { packaged }: { packaged: boolean }) {
+  const env = { ...parent, ...extras };
+  if (packaged) for (const key of CREDENTIAL_KEYS) delete env[key];
+  return env;
+}
+
+export async function startBackendProcess(root: string, { logPath, dataDir, apiToken, credentialKey, packaged }: {
+  logPath?: string;
+  dataDir?: string;
+  apiToken?: string;
+  credentialKey?: string;
+  packaged: boolean;
+}): Promise<{ child: BackendChild; port: number }> {
   const { utilityProcess } = await import("electron");
   const layout = resolveDesktopRuntimeLayout({ root, userData: dataDir || process.env.GRT_DATA_DIR || "" });
   const childPath = layout.backendChildPath;
@@ -53,12 +68,11 @@ export async function startBackendProcess(root: string, logPath?: string, dataDi
   const child = utilityProcess.fork(childPath, [], {
     stdio: "pipe",
     cwd,
-    env: {
-      ...process.env,
+    env: backendChildEnv(process.env, {
       ...layout.backendEnv,
       ...(apiToken ? { GRT_API_TOKEN: apiToken } : {}),
       ...(credentialKey ? { GRT_CREDENTIAL_KEY: credentialKey } : {})
-    }
+    }, { packaged })
   }) as BackendChild & {
     stdout?: NodeJS.ReadableStream;
     stderr?: NodeJS.ReadableStream;

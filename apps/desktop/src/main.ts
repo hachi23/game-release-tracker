@@ -1,10 +1,12 @@
 import { randomBytes } from "node:crypto";
+import { dirname } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, session, shell } from "electron";
 import { APP_ORIGIN, handleAppProtocol, identifyAppToYouTube, registerAppScheme } from "./appProtocol";
 import { type BackendChild, startBackendProcess, stopBackendProcess } from "./backendProcess";
 import { handleStartupFailure, logBackendStoppedBeforeQuit, logDesktopFatalStartup, logDesktopProcessFailure, prepareDesktopRuntime } from "./desktopLifecycle";
 import { registerWallpaperIpc } from "./wallpaperIpc";
 import { registerSaveImageIpc } from "./saveImageIpc";
+import { registerAppDataIpc } from "./appDataIpc";
 import { decideNavigation, installWindowGuards } from "./windowGuards";
 import { loadCredentialDataKey } from "./credentialKey";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
@@ -53,6 +55,37 @@ ipcMain.handle("open-diagnostics-log", async () => {
   const error = await shell.openPath(diagnosticsLogPath);
   return { ok: !error, path: diagnosticsLogPath, error: error || undefined };
 });
+registerAppDataIpc({
+  ipcMain,
+  isAppFrame,
+  getDataDir: () => dataDir,
+  openLogFolder: () => (diagnosticsLogPath ? shell.openPath(dirname(diagnosticsLogPath)) : Promise.resolve("The log folder is not available yet")),
+  steps: {
+    confirm: async () => {
+      const options = {
+        type: "warning" as const,
+        buttons: ["Delete everything", "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+        message: "Delete all app data?",
+        detail: "This removes your library, covers, wallpaper, saved API keys, backups and logs from this computer, then restarts the app. It can't be undone."
+      };
+      const { response } = mainWindow ? await dialog.showMessageBox(mainWindow, options) : await dialog.showMessageBox(options);
+      return response === 0;
+    },
+    stopBackend: async () => {
+      backendShutdownStarted = true;
+      const running = backend;
+      backend = null;
+      await stopBackendProcess(running, 3000);
+    },
+    clearBrowserStorage: () => session.defaultSession.clearStorageData(),
+    relaunch: () => {
+      app.relaunch();
+      app.exit(0);
+    }
+  }
+});
 registerWallpaperIpc({
   ipcMain,
   dialog,
@@ -83,7 +116,7 @@ async function createWindow() {
   // process spin-up overlaps backend startup instead of waiting behind it.
   const diagnostics = createFileDiagnosticLogger(layout.logDir);
   const credentialKey = loadCredentialDataKey({ dir: layout.backendDataDir, safeStorage, log: (event, details) => diagnostics.log(event, details) });
-  const backendStarting = startBackendProcess(root, logPath, layout.backendDataDir, apiToken, credentialKey);
+  const backendStarting = startBackendProcess(root, { logPath, dataDir: layout.backendDataDir, apiToken, credentialKey, packaged: app.isPackaged });
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,

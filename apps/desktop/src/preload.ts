@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld("releaseTracker", {
   getDiagnosticsLogPath: () => ipcRenderer.invoke("diagnostics-log-path"),
   openDiagnosticsLog: () => ipcRenderer.invoke("open-diagnostics-log"),
   chooseWallpaper: () => ipcRenderer.invoke("choose-wallpaper"),
-  saveImage: (png: Uint8Array, suggestedName: string) => ipcRenderer.invoke("save-image", png, suggestedName)
+  saveImage: (png: Uint8Array, suggestedName: string) => ipcRenderer.invoke("save-image", png, suggestedName),
+  openLogFolder: () => ipcRenderer.invoke("open-log-folder"),
+  deleteAppData: () => ipcRenderer.invoke("delete-app-data")
 });
