@@ -119,6 +119,8 @@ export function useCollectionWorkspace<Item extends { id: string }, Filters>({
   const returnToList = () => setView(returnPosition.current?.view ?? homeView);
 
   return {
+    // Everything loaded, before the genre filter.
+    loadedCount: items.length,
     filters,
     setFilter,
     debouncedSearch,

@@ -10,6 +10,15 @@ interface IgdbSettingsForm {
   IGDB_ACCESS_TOKEN: string;
 }
 
+export const SETTINGS_TABS = ["Appearance", "API keys", "Sync", "Diagnostics"] as const;
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+// Nothing else works without IGDB keys, so Settings opens on API keys while they need attention.
+function keysNeedAttention(status: SettingsStatus | undefined) {
+  if (!status) return false;
+  return status.credentialStatus.status !== "ready" || Object.values(status.credentials).some(credential => credential.unreadable);
+}
+
 const emptySettings: IgdbSettingsForm = {
   IGDB_CLIENT_ID: "",
   IGDB_CLIENT_SECRET: "",
@@ -31,9 +40,18 @@ export function useSettingsWorkflow({
   const [settings, setSettings] = useState<IgdbSettingsForm>(emptySettings);
   const [steamGridDbKey, setSteamGridDbKey] = useState("");
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | undefined>(initialStatus);
+  const [tab, setTabState] = useState<SettingsTab>(keysNeedAttention(initialStatus) ? "API keys" : "Appearance");
+  const [tabChosen, setTabChosen] = useState(false);
+  const setTab = (next: SettingsTab) => {
+    setTabChosen(true);
+    setTabState(next);
+  };
 
   useLoadOnFirstOpen(loadOnOpen, () => {
-    api.getSettings().then(setSettingsStatus, error => onError?.("load-settings", error));
+    api.getSettings().then(status => {
+      setSettingsStatus(status);
+      if (!tabChosen && keysNeedAttention(status)) setTabState("API keys");
+    }, error => onError?.("load-settings", error));
   });
 
   const resetDrafts = () => {
@@ -74,7 +92,9 @@ export function useSettingsWorkflow({
     settings,
     settingsStatus,
     steamGridDbKey,
+    tab,
     actions: {
+      setTab,
       setSettings,
       setSteamGridDbKey,
       saveSettings,

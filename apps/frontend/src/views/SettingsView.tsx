@@ -1,14 +1,11 @@
-import { useState } from "react";
 import { PALETTES, type Palette } from "../theme/palettes";
 import { FramedPanel } from "../ui/FramedPanel";
 import { WallpaperPanel } from "./WallpaperPanel";
-import type { SavedCredential, SettingsStatus } from "../../../../shared/types";
-import type { SettingsWorkflow } from "../useSettingsWorkflow";
+import type { SavedCredential } from "../../../../shared/types";
+import { SETTINGS_TABS, type SettingsWorkflow } from "../useSettingsWorkflow";
 import type { SyncSettingsWorkflow } from "../useSyncSettingsWorkflow";
 import { SyncSettingsPanel } from "./settings/SyncSettingsPanel";
 
-const TABS = ["Appearance", "API keys", "Sync", "Diagnostics"] as const;
-type SettingsTab = (typeof TABS)[number];
 
 export function SettingsView({
   palette,
@@ -39,18 +36,16 @@ export function SettingsView({
   diagnosticsLogPath?: string;
   onOpenDiagnosticsLog?: () => void | Promise<unknown>;
 }) {
-  const { settings, settingsStatus, steamGridDbKey, actions } = workflow;
-  // Opens on API keys while the IGDB keys need attention, since nothing else works without them.
+  const { settings, settingsStatus, steamGridDbKey, tab, actions } = workflow;
   // The desktop bridge; in a browser (development) there is no app data folder to open or delete.
   const bridge = typeof window === "undefined" ? undefined : window.releaseTracker;
-  const [tab, setTab] = useState<SettingsTab>(() => (keysNeedAttention(settingsStatus) ? "API keys" : "Appearance"));
   return (
     <FramedPanel className="settings-view">
       <div className="settings-view__scroll">
       <button type="button" className="secondary inline" onClick={onBack}>← Back</button>
       <h1>Settings</h1>
       <div className="settings-tabs" role="tablist" aria-label="Settings sections">
-        {TABS.map(name => <button type="button" role="tab" className="secondary inline" aria-selected={tab === name} key={name} onClick={() => setTab(name)}>{name}</button>)}
+        {SETTINGS_TABS.map(name => <button type="button" role="tab" className="secondary inline" aria-selected={tab === name} key={name} onClick={() => actions.setTab(name)}>{name}</button>)}
       </div>
       {tab === "Appearance" && <>
       <section className="settings-section">
@@ -113,11 +108,6 @@ export function SettingsView({
       </div>
     </FramedPanel>
   );
-}
-
-function keysNeedAttention(status: SettingsStatus | undefined) {
-  if (!status) return false;
-  return status.credentialStatus.status !== "ready" || Object.values(status.credentials).some(credential => credential.unreadable);
 }
 
 function credentialLabel(name: string, credential: SavedCredential | undefined) {

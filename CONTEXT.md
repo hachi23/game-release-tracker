@@ -186,6 +186,10 @@ An upcoming-release IGDB sync. It should be serialized, logged, and return a sta
 
 What the Sync Run looks for, set on Settings → Sync (`sync/syncSettingsStore.ts`): the **tracked publishers** (IGDB companies by id, in `tracked_publishers`; a game counts when a tracked company is credited as its publisher or developer), the **platform families** (PC, Xbox, PlayStation, Nintendo Switch; `PLATFORM_FAMILIES` maps each to IGDB platforms), the **track-from date** and **auto-sync**. A new library tracks no publishers, every platform family, releases from January 1 of the current year, and syncs only when asked; "Add suggested publishers" adds a starter set by exact IGDB name. The Release Policy (`sync/releasePolicy.ts`, `createReleasePolicy(rules)`) turns these into the sync's accept/reject rules. A stored release is eligible whenever it has a date; the track-from date is applied when Upcoming is listed, so changing it rewrites nothing.
 
+### Sample Library
+
+What a new user can load from the first-run welcome to try the app without IGDB keys (`demo/demoLibrary.ts`, `demo/demoLibrary.json`): 30 upcoming releases and 46 finished games, all real games with their public IGDB data (covers, artwork, trailers, genres, ratings), and made-up personal data (ratings, finish dates, platforms, notes). Finishes fall in the previous calendar year (a full Year in Review) and in this year up to today; upcoming dates move forward by whole years so none is in the past. It is written through the normal stores, and the ids it created are kept in the `DEMO_LIBRARY` settings row, so **Remove sample data** deletes exactly those rows and nothing the user added. Sample releases carry no IGDB id, so a later sync adds the user's own copies instead of taking them over.
+
 ### Scroll Restoration
 
 When a user opens a release detail and goes back, the release list should return to the opened game position rather than the top. This belongs to the release workspace flow.

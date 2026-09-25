@@ -6,6 +6,7 @@ import { useCompletedLibraryWorkflow } from "./useCompletedLibraryWorkflow";
 import { useRandomizerWorkflow } from "./useRandomizerWorkflow";
 import { useSettingsWorkflow } from "./useSettingsWorkflow";
 import { useSyncSettingsWorkflow } from "./useSyncSettingsWorkflow";
+import { useDemoWorkflow } from "./useDemoWorkflow";
 import { usePreferences } from "./theme/usePreferences";
 import { useWallpaperWorkflow } from "./wallpaperWorkflow";
 import { useYearInReviewWorkflow } from "./useYearInReviewWorkflow";
@@ -28,6 +29,12 @@ export function useAppWorkflow({ apiBaseUrl, initialState, api: injectedApi }: {
     loadOnOpen: !initialState && shell.view === "settings",
     onError: shell.reportOperationError
   });
+  const demo = useDemoWorkflow({
+    api,
+    enabled: !initialState,
+    onChanged: () => Promise.all([releaseWorkspace.actions.reload(), completedLibrary.games.reload()]),
+    onError: shell.reportOperationError
+  });
   const syncSettings = useSyncSettingsWorkflow({ api, loadOnOpen: !initialState && shell.view === "settings", onError: shell.reportOperationError });
 
   return {
@@ -42,10 +49,16 @@ export function useAppWorkflow({ apiBaseUrl, initialState, api: injectedApi }: {
     wallpaperUrl: wallpaper.wallpaperUrl,
     settings,
     syncSettings,
+    demo,
     actions: {
       ...releaseWorkspace.actions,
       chooseWallpaper: wallpaper.actions.chooseWallpaper,
-      clearWallpaper: wallpaper.actions.clearWallpaper
+      clearWallpaper: wallpaper.actions.clearWallpaper,
+      // The first-run choice to use your own data: IGDB keys come first.
+      setUpOwnLibrary() {
+        settings.actions.setTab("API keys");
+        releaseWorkspace.actions.setView("settings");
+      }
     }
   };
 }

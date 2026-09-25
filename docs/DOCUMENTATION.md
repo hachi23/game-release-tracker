@@ -177,6 +177,9 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 |---|---|---|
 | POST | `/api/sync/igdb` | Trigger IGDB sync run |
 | GET | `/api/sync/status` | Get last sync status |
+| GET | `/api/demo` | `{ loaded }`: whether the sample library is loaded |
+| POST | `/api/demo` | Loads the sample library → `{ loaded, releases, completedGames }`; 409 if already loaded |
+| DELETE | `/api/demo` | Removes exactly the sample rows → `{ loaded: false }` |
 | GET | `/api/sync/settings` | Sync settings: tracked publishers, platform families, track-from date, auto-sync |
 | PUT | `/api/sync/settings` | Body `{ platforms?, trackFrom?, autoSync? }` → the updated settings; 400 for no platforms, an unknown platform, a bad date or a non-boolean auto-sync |
 | GET | `/api/sync/publishers/search?q=` | IGDB companies whose name contains the text (at least two letters), most published first; 409 without IGDB keys |

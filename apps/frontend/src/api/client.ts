@@ -39,6 +39,9 @@ export interface ApiClient {
   patchSettings(payload: Record<string, string>): Promise<{ ok: boolean; settings: SettingsStatus }>;
   clearCredentials(): Promise<{ ok: boolean; settings: SettingsStatus }>;
   testCredentials(): Promise<{ credentialStatus: SettingsStatus["credentialStatus"] }>;
+  getDemo(): Promise<{ loaded: boolean }>;
+  loadDemo(): Promise<{ loaded: boolean; releases: number; completedGames: number }>;
+  removeDemo(): Promise<{ loaded: boolean }>;
   getSyncSettings(): Promise<SyncSettings>;
   updateSyncSettings(patch: SyncSettingsPatch): Promise<SyncSettings>;
   searchPublishers(text: string): Promise<{ items: TrackedPublisher[] }>;
@@ -142,6 +145,15 @@ export function createApiClient(baseUrl: string, apiToken?: string): ApiClient {
     },
     testCredentials() {
       return request("/api/settings/test-credentials", { method: "POST", body: "{}" });
+    },
+    getDemo() {
+      return request<{ loaded: boolean }>("/api/demo");
+    },
+    loadDemo() {
+      return request<{ loaded: boolean; releases: number; completedGames: number }>("/api/demo", { method: "POST", body: "{}" });
+    },
+    removeDemo() {
+      return request<{ loaded: boolean }>("/api/demo", { method: "DELETE" });
     },
     getSyncSettings() {
       return request<SyncSettings>("/api/sync/settings");

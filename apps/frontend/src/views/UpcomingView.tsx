@@ -10,14 +10,18 @@ import { bannerLabel, daysUntil, rowSubLine, rowWhenLabel, stripCurrentYear } fr
 import type { CollectionWorkspace } from "../collectionWorkspace";
 import type { ReleaseFilters } from "../releaseWorkspace";
 import { BulkActions, GenreField, SyncState } from "./CollectionControls";
+import type { DemoWorkflow } from "../useDemoWorkflow";
 
 interface ReleaseGroup { heading: string; items: ReleaseListItem[] }
-export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, status, syncStatus, error, onDeleteSelected, onOpenDetail, onAddGame }: {
+export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, status, syncStatus, error, onDeleteSelected, onOpenDetail, onAddGame, demo, onSetUpOwnLibrary }: {
   apiBaseUrl: string; wallpaperUrl?: string; releases: CollectionWorkspace<ReleaseListItem, ReleaseFilters>; groups: ReleaseGroup[];
   status: "starting" | "ready" | "error"; syncStatus: SyncStatus; error?: string;
   onDeleteSelected: (mode: ReleaseDeletionMode) => void; onOpenDetail: (item: ReleaseListItem) => void; onAddGame: () => void;
+  demo: DemoWorkflow; onSetUpOwnLibrary: () => void;
 }) {
   const { filters, setFilter: onFilter, debouncedSearch: onSearch, selectedIds: selectedReleaseIds, toggleSelection: onToggleReleaseSelection } = releases;
+  // An empty list under a filter means no match, not an empty library.
+  const filtering = Boolean(filters.search || filters.publisher || filters.category || filters.platform || filters.datePrecision || releases.genre);
   const { includeReleased, includeHidden } = filters;
   const [moreFilters, setMoreFilters] = useState(false);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
@@ -62,7 +66,9 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
       <SyncState status={syncStatus.status} message={syncStatus.message} />
       {status === "starting" && <div className="state">Backend starting...</div>}
       {status === "error" && <div className="state error">Backend unavailable: {error}</div>}
-      {status === "ready" && releases.visibleItems.length === 0 && <div className="state">No releases match this filter.</div>}
+      {demo.loaded && <div className="sample-banner">You're looking at the sample library. <Button small onClick={() => void demo.actions.remove()}>Remove sample data</Button></div>}
+      {status === "ready" && releases.loadedCount === 0 && !filtering && !demo.loaded && <Welcome onTrySample={() => void demo.actions.load()} onSetUp={onSetUpOwnLibrary} />}
+      {status === "ready" && (releases.loadedCount > 0 || filtering) && releases.visibleItems.length === 0 && <div className="state">No releases match this filter.</div>}
       <div className="upcoming-list__scroll" ref={listRef} onKeyDown={handleListKey} tabIndex={0}>
         {groups.map(group => <section key={group.heading}><h2 className="upcoming-month">{stripCurrentYear(group.heading, today)}</h2>{group.items.map(item => {
           const rowCover = item.artworks.find(a => a.source === "cover") ?? item.artworks[0];
@@ -80,4 +86,24 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
     </FramedPanel>
     {featured && <FramedPanel className="upcoming-feature"><div className="upcoming-feature__layout"><div className="upcoming-feature__cover">{cover && <img src={artworkSrc(cover, "grid", apiBaseUrl)} alt="" draggable={false} />}</div><div className="upcoming-feature__content"><h2>{featured.title}</h2><p>{[featured.publishers[0] ?? featured.developers[0], featured.category === "Main" ? "" : featured.category, featured.platforms.join(", ")].filter(Boolean).join(". ")}.</p><div className="upcoming-feature__actions"><Button variant="primary" onClick={() => onOpenDetail(featured)}>Open details</Button>{featured.watched && <Button aria-disabled="true" className="watching-status">Watching</Button>}</div></div></div></FramedPanel>}
   </>;
+}
+
+// A new, empty library: try the app with sample data, or set it up with your own IGDB keys and publishers.
+function Welcome({ onTrySample, onSetUp }: { onTrySample: () => void; onSetUp: () => void }) {
+  return (
+    <div className="welcome">
+      <h2>Welcome to Game Release Tracker</h2>
+      <p>Track upcoming releases from the publishers you follow, keep a journal of the games you finish, and get a yearly recap.</p>
+      <div className="welcome__choices">
+        <div>
+          <Button variant="primary" onClick={onTrySample}>Try it with sample data</Button>
+          <p>Loads 30 upcoming games and a finished-games library, no account needed. You can remove it any time.</p>
+        </div>
+        <div>
+          <Button variant="outline" onClick={onSetUp}>Set up my own</Button>
+          <p>Add your free IGDB keys, choose the publishers to follow, then press Sync now.</p>
+        </div>
+      </div>
+    </div>
+  );
 }

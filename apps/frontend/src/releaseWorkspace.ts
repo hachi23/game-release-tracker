@@ -140,6 +140,7 @@ export function useReleaseWorkspace({ api, initialState, shell }: { api: ApiClie
       setView,
       sync,
       openDetail,
+      reload,
       returnToReleaseList: releases.returnToList,
       deleteSelected
     }

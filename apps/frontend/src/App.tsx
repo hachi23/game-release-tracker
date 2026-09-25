@@ -41,6 +41,7 @@ export function AppShell({ apiBaseUrl, api, initialState, diagnosticsLogPath, on
     releases,
     settings,
     syncSettings,
+    demo,
     completedLibrary,
     randomizer,
     yearInReview,
@@ -79,6 +80,8 @@ export function AppShell({ apiBaseUrl, api, initialState, diagnosticsLogPath, on
           onDeleteSelected={actions.deleteSelected}
           onOpenDetail={actions.openDetail}
           onAddGame={() => actions.setView("add")}
+          demo={demo}
+          onSetUpOwnLibrary={actions.setUpOwnLibrary}
         />
           )}
 

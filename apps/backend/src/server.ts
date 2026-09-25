@@ -20,6 +20,7 @@ import { registerWallpaperRoutes } from "./routes/wallpaperRoutes";
 import { registerFrontendRoutes } from "./routes/frontendRoutes";
 import { installRequestGuard } from "./requestGuard";
 import type { CoverFetch } from "./artwork/coverCache";
+import { registerDemoRoutes } from "./routes/demoRoutes";
 
 interface BackendOptions {
   db: TrackerDatabase;
@@ -84,6 +85,7 @@ export function createBackendApp({ db, autoSync = true, apiToken, logger = creat
   registerCompletedRoutes(routeContext);
   registerRandomizerRoutes(routeContext);
   registerYearInReviewRoutes(routeContext, { today });
+  registerDemoRoutes(routeContext, { today });
   registerArtworkRoutes(routeContext, { fetchCover });
   registerSyncRoutes(routeContext);
   registerSettingsRoutes(routeContext);
