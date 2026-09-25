@@ -570,9 +570,10 @@ function backfillCompletedGameDates(db: TrackerDatabase) {
 }
 
 // v20 makes the sync policy the user's own: the tracked publishers are a table the Settings page edits
-// (by IGDB company id), which replaces the built-in publisher list and its name-lookup cache. Stored
-// eligibility no longer includes a fixed earliest date (the list applies the user's "track from" date),
-// so it is recomputed once.
+// (by IGDB company id), which replaces the built-in publisher list and its name-lookup cache. Companies
+// that cache had already found become tracked publishers, so an existing library keeps syncing the same
+// games. Stored eligibility no longer includes a fixed earliest date (the list applies the user's "track
+// from" date), so it is recomputed once.
 function migrateToV20(db: TrackerDatabase) {
   db.exec(`
     create table if not exists tracked_publishers (
@@ -580,7 +581,15 @@ function migrateToV20(db: TrackerDatabase) {
       name text not null,
       added_at text not null default current_timestamp
     );
-    drop table if exists publisher_sync_state;
   `);
+  const hasLookupCache = db.prepare("select 1 from sqlite_master where type = 'table' and name = 'publisher_sync_state'").get();
+  if (hasLookupCache) {
+    db.exec(`
+      insert or ignore into tracked_publishers (company_id, name)
+        select cast(ids.value as integer), coalesce(json_extract(lookup.company_names, '$[' || ids.key || ']'), lookup.approved_term)
+        from publisher_sync_state lookup, json_each(lookup.company_ids) ids;
+      drop table publisher_sync_state;
+    `);
+  }
   createReleaseStore(db).refreshAllEligibility();
 }

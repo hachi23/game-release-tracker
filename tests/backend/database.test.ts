@@ -105,6 +105,26 @@ describe("database migrations and FTS", () => {
     expect(listReleases(db, { includeHidden: true, includeReleased: true, releasedFrom: "2026-01-01" }).items.map(item => item.id)).toEqual(["new"]);
   });
 
+  test("v20 keeps the publishers an older version had looked up as the user's tracked publishers", () => {
+    const db = tempDb();
+    db.prepare("update schema_version set version = 19").run();
+    db.exec(`
+      drop table tracked_publishers;
+      create table publisher_sync_state (approved_term text primary key, company_ids text, company_names text, last_error text, updated_at text);
+      insert into publisher_sync_state values ('Atlus', '[1]', '["Atlus"]', null, current_timestamp);
+      insert into publisher_sync_state values ('Sega', '[2,3]', '["Sega","Sega Corporation"]', null, current_timestamp);
+      insert into publisher_sync_state values ('Nobody', '[]', '[]', 'No IGDB company match', current_timestamp);
+    `);
+
+    runMigrations(db);
+
+    expect(db.prepare("select company_id id, name from tracked_publishers order by company_id").all()).toEqual([
+      { id: 1, name: "Atlus" },
+      { id: 2, name: "Sega" },
+      { id: 3, name: "Sega Corporation" }
+    ]);
+  });
+
   test("v20 replaces the built-in publisher list with the user's tracked publishers", () => {
     const db = tempDb();
 

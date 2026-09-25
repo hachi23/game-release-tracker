@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, session, shell } from "electron";
 import { APP_ORIGIN, handleAppProtocol, identifyAppToYouTube, registerAppScheme } from "./appProtocol";
 import { type BackendChild, startBackendProcess, stopBackendProcess } from "./backendProcess";
@@ -24,6 +24,10 @@ let fatalDialogShown = false;
 // programs cannot use the local API. Only this app's renderer receives it, through the preload.
 const apiToken = randomBytes(32).toString("hex");
 
+// The data folder is named after the app (on Windows %APPDATA%\Game Release Tracker), not after the npm
+// package, so the app never shares a folder with another build of the same package. Set before anything
+// reads userData.
+app.setPath("userData", join(app.getPath("appData"), "Game Release Tracker"));
 registerAppScheme(protocol);
 
 const gotLock = app.requestSingleInstanceLock();
