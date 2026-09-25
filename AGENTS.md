@@ -44,7 +44,7 @@ If `electron-builder` fails under `dist\win-unpacked`, check whether a packaged 
 
 Do not commit `dist/`, `build/` outputs, packaged EXEs, logs, databases, or user data unless explicitly requested. The useful packaged artifact path after `npm run dist` is:
 
-`dist\Game Release Tracker-0.5.0-win.zip`
+`dist\Game Release Tracker-0.6.0-win.zip`
 
 ## Git Rules
 

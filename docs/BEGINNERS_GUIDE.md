@@ -23,8 +23,8 @@ Think of it as a personal diary + calendar for video games.
 ## How do I use it?
 
 ### Installing
-- Download `Game Release Tracker Setup 0.5.0.exe` and run it (installer), OR
-- Download `Game Release Tracker-0.5.0-win.zip`, extract it, and run `Game Release Tracker.exe` (no install needed)
+- Download `Game Release Tracker Setup 0.6.0.exe` and run it (installer), OR
+- Download `Game Release Tracker-0.6.0-win.zip`, extract it, and run `Game Release Tracker.exe` (no install needed)
 
 ### First time setup
 New packages carry no personal library, wallpaper, or API keys. To restore a backup, set `GRT_RESTORE_DIR` to the backup folder before starting the app; an existing database is never overwritten.
