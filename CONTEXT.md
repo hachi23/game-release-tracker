@@ -184,10 +184,10 @@ An upcoming-release IGDB sync. It should be serialized, logged, and return a sta
 
 ### Scroll Restoration
 
-When a user opens a release detail and goes back, the release list should return to the opened game position rather than the top. This belongs to the release workspace flow.
-
+When a user opens a release detail and goes back, the release list should return to the opened game position rather than the top. This belongs to the release workspace flow.
+
 ### Cross-platform restore
-
+
 The desktop runtime discovers a game-release-tracker backup beside the development root or an explicit `GRT_RESTORE_DIR`. New packages carry no personal data. It restores only missing app-owned files: game-release-tracker.db, wallpaper, artwork, and logs. The backup remains unchanged and an existing Windows database wins.
 
 ### Error handling
