@@ -102,14 +102,15 @@ const pressesControl = (event: KeyboardEvent) => {
 
 // Full screen over the whole app window. Escape (with nothing open) or Leave goes back through `onExit`.
 export function YearInReviewView({ workflow, apiBaseUrl, onOpenGame, onExit }: { workflow: YearInReviewWorkflow; apiBaseUrl?: string; onOpenGame?: (id: string) => void; onExit?: () => void }) {
-  const { years, year, summary, status, place, actions } = workflow;
+  const { years, year, summary, status, place, themeAutoplay, actions } = workflow;
   // The theme player belongs to the view, not the GOTY chapter, so it keeps playing across chapter changes.
-  // It starts by itself when a year with theme music opens and follows the year on screen (another year plays
-  // its own theme, or nothing). Stop keeps it off for that year and link until Play. Leaving Year in Review
+  // It follows the year on screen (another year plays its own theme, or nothing). With autoplay on it starts
+  // by itself; otherwise it waits for Play. Play or Stop holds for that year and link. Leaving Year in Review
   // unmounts it.
-  const [stopped, setStopped] = useState<{ year: number; videoId: string } | null>(null);
+  const [choice, setChoice] = useState<{ year: number; videoId: string; playing: boolean } | null>(null);
   const musicVideoId = summary?.goty?.musicVideoId ?? null;
-  const themeVideoId = summary && musicVideoId && !(stopped?.year === summary.year && stopped.videoId === musicVideoId) ? musicVideoId : null;
+  const chosen = choice && summary && choice.year === summary.year && choice.videoId === musicVideoId ? choice.playing : themeAutoplay;
+  const themeVideoId = summary && musicVideoId && chosen ? musicVideoId : null;
   const scenes = useRef<HTMLDivElement>(null);
   const [chapterIndex, setChapterIndex] = useState(0);
   // Save as image: a poster of every game finished this year, horizontal or vertical. Desktop only.
@@ -137,8 +138,8 @@ export function YearInReviewView({ workflow, apiBaseUrl, onOpenGame, onExit }: {
   const context: ChapterContext | null = summary ? {
     summary,
     saveSettings: actions.saveSettings,
-    playTheme: () => setStopped(null),
-    stopTheme: () => { if (musicVideoId) setStopped({ year: summary.year, videoId: musicVideoId }); },
+    playTheme: () => { if (musicVideoId) setChoice({ year: summary.year, videoId: musicVideoId, playing: true }); },
+    stopTheme: () => { if (musicVideoId) setChoice({ year: summary.year, videoId: musicVideoId, playing: false }); },
     themePlaying: Boolean(themeVideoId)
   } : null;
   const hasChapters = Boolean(context && context.summary.count > 0);

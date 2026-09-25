@@ -83,6 +83,13 @@ export function createSettingsStore(db: TrackerDatabase, env: NodeJS.ProcessEnv 
     },
     setPalette(id: string) {
       write("UI_PALETTE", id);
+    },
+    // Whether Year in Review's theme music starts by itself; off until the user turns it on.
+    themeAutoplay() {
+      return read("UI_THEME_AUTOPLAY") === "1";
+    },
+    setThemeAutoplay(on: boolean) {
+      write("UI_THEME_AUTOPLAY", on ? "1" : "0");
     }
   };
 }

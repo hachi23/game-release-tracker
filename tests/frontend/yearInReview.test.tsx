@@ -147,8 +147,9 @@ describe("Year in Review chapters", () => {
 });
 
 describe("Year in Review in the app", () => {
-  async function openYearInReview(summary = fullSummary(), bridge?: Record<string, unknown>, { motion = false } = {}) {
+  async function openYearInReview(summary = fullSummary(), bridge?: Record<string, unknown>, { motion = false, themeAutoplay = false } = {}) {
     const api = fakeApiClient({
+      getPreferences: async () => ({ palette: null, themeAutoplay }),
       getYearInReviewYears: async () => ({ years }),
       getYearInReview: async year => (year === 2026 ? summary : emptySummary(year)),
       saveYearInReviewSettings: async () => summary,
@@ -262,8 +263,8 @@ describe("Year in Review in the app", () => {
     expect(container.querySelector("[role='status']")?.textContent).toBe("Saved");
   });
 
-  test("the finale shows the GOTY with its note, and its theme plays by itself in the background", async () => {
-    const { container, dom } = await openYearInReview(withMusic());
+  test("the finale shows the GOTY with its note, and with autoplay on its theme plays by itself in the background", async () => {
+    const { container, dom } = await openYearInReview(withMusic(), undefined, { themeAutoplay: true });
     await pressKey(dom, "End");
     expect(activeTab(container)).toBe("Game of the Year");
     expect(container.querySelector(".yir-goty__title")?.textContent).toBe("Hades");
@@ -289,15 +290,24 @@ describe("Year in Review in the app", () => {
     expect(container.querySelector("iframe")).toBeNull();
   });
 
+  test("theme music waits for Play unless autoplay is on", async () => {
+    const { container, dom } = await openYearInReview(withMusic());
+    expect(container.querySelector("iframe")).toBeNull();
+
+    await pressKey(dom, "End");
+    await act(async () => button(container, "▶ Play theme").click());
+    expect(container.querySelector(".yir-player iframe")).not.toBeNull();
+  });
+
   test("leaving Year in Review stops the music", async () => {
-    const { container } = await openYearInReview(withMusic());
+    const { container } = await openYearInReview(withMusic(), undefined, { themeAutoplay: true });
     expect(container.querySelector("iframe")).not.toBeNull();
     await act(async () => button(container, "✕ Leave").click());
     expect(container.querySelector("iframe")).toBeNull();
   });
 
   test("the music follows the year on screen, and a Stop lasts for that year", async () => {
-    const { container, dom } = await openYearInReview(withMusic());
+    const { container, dom } = await openYearInReview(withMusic(), undefined, { themeAutoplay: true });
     expect(container.querySelector("iframe")).not.toBeNull();
     const select = container.querySelector("select[aria-label='Year']") as HTMLSelectElement;
     const pickYear = async (year: string) => act(async () => {

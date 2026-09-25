@@ -21,8 +21,11 @@ function cache(id: string) {
   try { localStorage.setItem(STORAGE_KEY, id); } catch { /* Storage can be unavailable. */ }
 }
 
-export function usePalette(api: Pick<ApiClient, "getPreferences" | "savePalette">): { palette: Palette; setPaletteId: (id: string) => void } {
+// The app-wide choices saved in app data: the palette (with its localStorage first-paint cache) and whether
+// Year in Review's theme music starts by itself. Both come back from one GET /api/preferences.
+export function usePreferences(api: Pick<ApiClient, "getPreferences" | "savePalette" | "saveThemeAutoplay">) {
   const [palette, setPalette] = useState<Palette>(() => getPalette(readCached()));
+  const [themeAutoplay, setThemeAutoplayState] = useState(false);
 
   const show = (next: Palette) => {
     setPalette(next);
@@ -34,8 +37,9 @@ export function usePalette(api: Pick<ApiClient, "getPreferences" | "savePalette"
     applyPalette(palette);
     let current = true;
     const cached = readCached();
-    void api.getPreferences().then(({ palette: saved }) => {
+    void api.getPreferences().then(({ palette: saved, themeAutoplay: autoplay }) => {
       if (!current) return;
+      setThemeAutoplayState(autoplay);
       if (saved) show(getPalette(saved));
       // Carry a choice only this origin remembered (versions before app-data palettes) into app data.
       else if (cached && getPalette(cached).id === cached) void api.savePalette(cached).catch(() => undefined);
@@ -49,5 +53,10 @@ export function usePalette(api: Pick<ApiClient, "getPreferences" | "savePalette"
     void api.savePalette(resolved.id).catch(() => undefined);
   }, [api]);
 
-  return { palette, setPaletteId };
+  const setThemeAutoplay = useCallback((on: boolean) => {
+    setThemeAutoplayState(on);
+    void api.saveThemeAutoplay(on).catch(() => undefined);
+  }, [api]);
+
+  return { palette, setPaletteId, themeAutoplay, setThemeAutoplay };
 }

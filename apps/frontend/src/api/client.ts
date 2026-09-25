@@ -66,8 +66,9 @@ export interface ApiClient {
   getYearInReview(year: number): Promise<YearInReviewSummary>;
   saveYearInReviewSettings(year: number, patch: YearInReviewSettingsPatch): Promise<YearInReviewSummary>;
   logEvent(event: string, details?: Record<string, unknown>): Promise<{ ok: boolean }>;
-  getPreferences(): Promise<{ palette: string | null }>;
+  getPreferences(): Promise<{ palette: string | null; themeAutoplay: boolean }>;
   savePalette(palette: string): Promise<{ palette: string }>;
+  saveThemeAutoplay(themeAutoplay: boolean): Promise<{ themeAutoplay: boolean }>;
 }
 
 // Appends the non-empty params as a query string; undefined and "" mean "not filtered".
@@ -222,6 +223,9 @@ export function createApiClient(baseUrl: string, apiToken?: string): ApiClient {
     },
     savePalette(palette) {
       return request("/api/preferences/palette", { method: "PUT", body: JSON.stringify({ palette }) });
+    },
+    saveThemeAutoplay(themeAutoplay) {
+      return request("/api/preferences/theme-autoplay", { method: "PUT", body: JSON.stringify({ themeAutoplay }) });
     },
     saveYearInReviewSettings(year, patch) {
       return request<YearInReviewSummary>(`/api/year-in-review/${encodeURIComponent(String(year))}/settings`, { method: "PUT", body: JSON.stringify(patch) });

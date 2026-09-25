@@ -3,12 +3,19 @@ import { runWrite } from "../database/writeQueue";
 import { createSettingsStore } from "../settings/settingsStore";
 import type { ActionResult } from "./actionResult";
 
-// App-wide look-and-feel choices. They live in app data, not the renderer's localStorage: the window's
-// origin is the backend's port, which changes every launch, so localStorage starts empty each time.
+// App-wide look-and-feel choices, kept in app data so they don't depend on the renderer's localStorage.
 const PALETTE_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 export function readPreferences(db: TrackerDatabase) {
-  return { palette: createSettingsStore(db).palette() };
+  const settings = createSettingsStore(db);
+  return { palette: settings.palette(), themeAutoplay: settings.themeAutoplay() };
+}
+
+export async function saveThemeAutoplay(db: TrackerDatabase, body: unknown): Promise<ActionResult<{ themeAutoplay: boolean }>> {
+  const themeAutoplay = (body as { themeAutoplay?: unknown } | null)?.themeAutoplay;
+  if (typeof themeAutoplay !== "boolean") return { ok: false, statusCode: 400, error: "Theme autoplay must be on or off" };
+  await runWrite(db, () => createSettingsStore(db).setThemeAutoplay(themeAutoplay));
+  return { ok: true, value: { themeAutoplay } };
 }
 
 export async function savePalette(db: TrackerDatabase, body: unknown): Promise<ActionResult<{ palette: string }>> {

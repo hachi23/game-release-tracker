@@ -168,7 +168,7 @@ The year's headline game in Year in Review: the highest-rated finish, ties going
 
 ### Theme music
 
-A YouTube video id saved per year for the Game of the Year. It is pasted as a link; only the 11-character id is kept (`shared/youtubeLink.ts`). It starts by itself when a year with a theme link opens and plays in the background: the `youtube-nocookie` player is loaded but invisible, and a small pill shows it is playing with a Stop button. It keeps playing across chapters, follows the year on screen, stays off for that year once stopped (until Play), and stops when leaving Year in Review. The desktop window allows autoplay without a click (`autoplayPolicy` in `main.ts`) for this; trailers still mount only when their play button is pressed.
+A YouTube video id saved per year for the Game of the Year. It is pasted as a link; only the 11-character id is kept (`shared/youtubeLink.ts`). It plays when the user presses **▶ Play theme**, or by itself when a year with a theme link opens if **theme autoplay** is on (Settings → Appearance, the `UI_THEME_AUTOPLAY` settings row, off by default). It plays in the background: the `youtube-nocookie` player is loaded but invisible, and a small pill shows it is playing with a Stop button. It keeps playing across chapters, follows the year on screen, and a Play or Stop holds for that year and link; it stops when leaving Year in Review. The desktop window allows autoplay without a click (`autoplayPolicy` in `main.ts`) for this; trailers still mount only when their play button is pressed.
 
 ### Player type
 
@@ -247,7 +247,7 @@ Recent useful seams:
 - Workflows hand views whole sub-workflow objects (`manual`, `detail`, `sync`); `App.tsx` selects the view and passes the object, without renaming fields
 - `detailSession` owns the detail page for both collections (open with fallback, adopt the item an edit returns, refresh the list, one error policy); `candidateSearch` owns the IGDB search-then-pick step of both add forms
 - `AppShell` accepts an `api` prop, so frontend tests can drive the whole app with the in-memory `tests/frontend/fakeApiClient.ts` instead of stubbing `fetch`
-- `theme/usePalette` owns the active palette and its saved preference (app data, cached in localStorage)
+- `theme/usePreferences` owns the app-wide preferences in app data: the active palette (cached in localStorage for first paint) and theme autoplay
 - `randomizer/draw` is pure: filters and IGDB I/O are injected, so the draw and cooldown rules are tested without IGDB; `useRandomizerWorkflow` owns filters, spinning and recent picks
 - `buildYearInReview` is pure (rows and `today` in, summary out) and reads completed games through `completedGameStore.yearInReviewRows`; `yearInReviewNavigation` is a pure reducer with time passed in, so chapter carry-on and momentum rules are tested without a DOM
 
@@ -263,4 +263,4 @@ Recent useful seams:
 - Every spin is limited to mainstream PlayStation, Xbox, Nintendo and PC platforms.
 - IGDB none-of filters are written `field != (...)`; `field = !(...)` is a syntax error.
 - A spin never returns the previous pick while two or more games match.
-- Year in Review never writes completed-game or release rows; it writes only `year_in_review_settings`. Theme music stores a sanitized YouTube id, never a URL. Its hidden player is the only iframe that mounts without a click; trailers still wait for Play.
+- Year in Review never writes completed-game or release rows; it writes only `year_in_review_settings`. Theme music stores a sanitized YouTube id, never a URL. Its hidden player is the only iframe that can mount without a click, and only with theme autoplay on; trailers always wait for Play.

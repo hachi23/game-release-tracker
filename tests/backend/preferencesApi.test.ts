@@ -29,7 +29,7 @@ function openApp(dir = mkdtempSync(join(tmpdir(), "grt-prefs-api-"))) {
 describe("Preferences API", () => {
   test("no palette is chosen until one is saved", async () => {
     const { app } = openApp();
-    expect((await app.inject({ method: "GET", url: "/api/preferences" })).json()).toEqual({ palette: null });
+    expect((await app.inject({ method: "GET", url: "/api/preferences" })).json()).toEqual({ palette: null, themeAutoplay: false });
   });
 
   test("the chosen palette is kept in app data, so it survives a restart", async () => {
@@ -39,7 +39,7 @@ describe("Preferences API", () => {
     await first.app.close();
 
     const second = openApp(first.dir);
-    expect((await second.app.inject({ method: "GET", url: "/api/preferences" })).json()).toEqual({ palette: "moonlit-teal" });
+    expect((await second.app.inject({ method: "GET", url: "/api/preferences" })).json()).toEqual({ palette: "moonlit-teal", themeAutoplay: false });
   });
 
   test("a palette id that isn't a short slug is refused", async () => {
@@ -48,6 +48,16 @@ describe("Preferences API", () => {
       const response = await app.inject({ method: "PUT", url: "/api/preferences/palette", payload: { palette } });
       expect(response.statusCode).toBe(400);
     }
-    expect((await app.inject({ method: "GET", url: "/api/preferences" })).json()).toEqual({ palette: null });
+    expect((await app.inject({ method: "GET", url: "/api/preferences" })).json()).toEqual({ palette: null, themeAutoplay: false });
+  });
+
+  test("Year in Review theme music waits for a click unless the user turns autoplay on", async () => {
+    const { app } = openApp();
+
+    const saved = await app.inject({ method: "PUT", url: "/api/preferences/theme-autoplay", payload: { themeAutoplay: true } });
+
+    expect(saved.json()).toEqual({ themeAutoplay: true });
+    expect((await app.inject({ method: "GET", url: "/api/preferences" })).json()).toEqual({ palette: null, themeAutoplay: true });
+    expect((await app.inject({ method: "PUT", url: "/api/preferences/theme-autoplay", payload: { themeAutoplay: "on" } })).statusCode).toBe(400);
   });
 });

@@ -105,7 +105,7 @@ Human and agent-facing reference. `CONTEXT.md` is the domain vocabulary and deci
 | Year in Review | `yearInReview/`, `actions/yearInReviewActions.ts`, `routes/yearInReviewRoutes.ts`, `completedGameStore.yearInReviewRows` | `useYearInReviewWorkflow.ts`, `views/YearInReviewView.tsx`, `views/yearInReview/*` (games open Completed Library detail; `GameShelf.tsx` shelves) | `year_in_review_settings` table |
 | Artwork | `artwork/`, artwork routes | `artwork.ts`, `UpcomingView.tsx`, detail views, `ui/CoverScene.tsx` + `theme/coverTint.ts` (cover backdrop and tint) | artwork files and cached covers in app data |
 | Wallpaper | wallpaper route and runtime storage | `wallpaperWorkflow.ts`, `WallpaperPanel.tsx`, `Backdrop.tsx` | wallpaper file in app data |
-| Appearance | — | `theme/palettes.ts`, `theme/usePalette.ts`, `ui/FramedPanel.tsx`, `styles.css` | palette ID in `settings` (`UI_PALETTE`) via `actions/preferencesActions.ts`, `routes/preferencesRoutes.ts`; localStorage as first-paint cache |
+| Appearance | — | `theme/palettes.ts`, `theme/usePreferences.ts`, `ui/FramedPanel.tsx`, `styles.css` | palette ID in `settings` (`UI_PALETTE`) via `actions/preferencesActions.ts`, `routes/preferencesRoutes.ts`; localStorage as first-paint cache |
 | Diagnostics | `diagnostics/`, diagnostic routes | settings/diagnostics UI | JSONL log in app data |
 
 ## Change rules

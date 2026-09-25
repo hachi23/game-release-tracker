@@ -34,7 +34,7 @@ async function openApp(overrides: Partial<ApiClient>, stored?: string) {
 
 describe("the chosen palette", () => {
   test("comes back from app data on launch, even when localStorage is empty", async () => {
-    const { dom, trigger } = await openApp({ getPreferences: async () => ({ palette: "rose-noir" }) });
+    const { dom, trigger } = await openApp({ getPreferences: async () => ({ palette: "rose-noir", themeAutoplay: false }) });
     expect(trigger().getAttribute("aria-label")).toBe("Theme: Rose Noir");
     expect(dom.window.document.documentElement.dataset.theme).toBe("rose-noir");
   });

@@ -48,8 +48,9 @@ export function fakeApiClient(overrides: Partial<ApiClient> = {}): ApiClient & R
     getYearInReviewYears: async () => ({ years: [{ year: 2026, count: 0, inProgress: true }] }),
     getYearInReview: async year => emptySummary(year),
     saveYearInReviewSettings: async year => emptySummary(year),
-    getPreferences: async () => ({ palette: null }),
+    getPreferences: async () => ({ palette: null, themeAutoplay: false }),
     savePalette: async palette => ({ palette }),
+    saveThemeAutoplay: async themeAutoplay => ({ themeAutoplay }),
     logEvent: async () => ({ ok: true })
   };
   const merged = { ...defaults, ...overrides } as ApiClient;

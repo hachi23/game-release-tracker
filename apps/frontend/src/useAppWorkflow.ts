@@ -6,7 +6,7 @@ import { useCompletedLibraryWorkflow } from "./useCompletedLibraryWorkflow";
 import { useRandomizerWorkflow } from "./useRandomizerWorkflow";
 import { useSettingsWorkflow } from "./useSettingsWorkflow";
 import { useSyncSettingsWorkflow } from "./useSyncSettingsWorkflow";
-import { usePalette } from "./theme/usePalette";
+import { usePreferences } from "./theme/usePreferences";
 import { useWallpaperWorkflow } from "./wallpaperWorkflow";
 import { useYearInReviewWorkflow } from "./useYearInReviewWorkflow";
 
@@ -19,8 +19,8 @@ export function useAppWorkflow({ apiBaseUrl, initialState, api: injectedApi }: {
   const releaseWorkspace = useReleaseWorkspace({ api, initialState, shell });
   const completedLibrary = useCompletedLibraryWorkflow({ api, shell, initialState });
   const randomizer = useRandomizerWorkflow({ api, shell, active: shell.view === "randomizer" });
-  const yearInReview = useYearInReviewWorkflow({ api, shell, active: shell.view === "year-in-review" });
-  const palette = usePalette(api);
+  const preferences = usePreferences(api);
+  const yearInReview = useYearInReviewWorkflow({ api, shell, active: shell.view === "year-in-review", themeAutoplay: preferences.themeAutoplay });
   const wallpaper = useWallpaperWorkflow({ api, apiBaseUrl, onError: shell.reportOperationError });
   const settings = useSettingsWorkflow({
     api,
@@ -37,7 +37,7 @@ export function useAppWorkflow({ apiBaseUrl, initialState, api: injectedApi }: {
     completedLibrary,
     randomizer,
     yearInReview,
-    palette,
+    preferences,
     hasNativeWallpaperPicker: wallpaper.hasNativeWallpaperPicker,
     wallpaperUrl: wallpaper.wallpaperUrl,
     settings,

@@ -19,7 +19,8 @@ export function defaultReviewYear(years: YearInReviewYear[]) {
 
 // Year in Review data: the year list, the selected year's summary, and saving its settings.
 // Everything reloads each time the view opens, so edits in the Completed Library show up.
-export function useYearInReviewWorkflow({ api, shell, active }: { api: ApiClient; shell: Pick<AppShell, "reportOperationError">; active: boolean }) {
+// `themeAutoplay`: whether a year's theme music starts by itself (a preference, off by default).
+export function useYearInReviewWorkflow({ api, shell, active, themeAutoplay = false }: { api: ApiClient; shell: Pick<AppShell, "reportOperationError">; active: boolean; themeAutoplay?: boolean }) {
   const [years, setYears] = useState<YearInReviewYear[]>([]);
   const [year, setYear] = useState<number | null>(null);
   const [summary, setSummary] = useState<YearInReviewSummary | null>(null);
@@ -79,6 +80,7 @@ export function useYearInReviewWorkflow({ api, shell, active }: { api: ApiClient
     summary: summary && summary.year === year ? summary : null,
     status,
     place,
+    themeAutoplay,
     actions: {
       selectYear: (next: number) => void loadSummary(next),
       saveSettings,

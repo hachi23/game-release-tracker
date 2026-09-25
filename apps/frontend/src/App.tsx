@@ -44,7 +44,7 @@ export function AppShell({ apiBaseUrl, api, initialState, diagnosticsLogPath, on
     completedLibrary,
     randomizer,
     yearInReview,
-    palette: { palette, setPaletteId },
+    preferences: { palette, setPaletteId, themeAutoplay, setThemeAutoplay },
     eligibleReleases,
     groups,
     actions
@@ -148,6 +148,8 @@ export function AppShell({ apiBaseUrl, api, initialState, diagnosticsLogPath, on
         <><Backdrop src={wallpaperUrl ?? undefined} blur={18} /><SettingsView
           palette={palette}
           setPaletteId={setPaletteId}
+          themeAutoplay={themeAutoplay}
+          setThemeAutoplay={setThemeAutoplay}
           hasNativeWallpaperPicker={hasNativeWallpaperPicker}
           hasWallpaper={Boolean(wallpaperUrl)}
           onChooseWallpaper={actions.chooseWallpaper}

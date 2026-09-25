@@ -13,6 +13,8 @@ type SettingsTab = (typeof TABS)[number];
 export function SettingsView({
   palette,
   setPaletteId,
+  themeAutoplay,
+  setThemeAutoplay,
   hasNativeWallpaperPicker,
   hasWallpaper,
   onChooseWallpaper,
@@ -25,6 +27,8 @@ export function SettingsView({
 }: {
   palette: Palette;
   setPaletteId: (id: string) => void;
+  themeAutoplay: boolean;
+  setThemeAutoplay: (on: boolean) => void;
   hasNativeWallpaperPicker: boolean;
   hasWallpaper: boolean;
   onChooseWallpaper: (file?: File | null) => void | Promise<unknown>;
@@ -57,6 +61,9 @@ export function SettingsView({
         </div>)}
       </section>
       <section className="settings-section"><h3>Wallpaper</h3><WallpaperPanel hasNativePicker={hasNativeWallpaperPicker} hasWallpaper={hasWallpaper} onChooseWallpaper={onChooseWallpaper} onClearWallpaper={onClearWallpaper} /><p>Used as the background on Completed Library, Settings and list screens, and on Upcoming when a game has no artwork.</p></section>
+      <section className="settings-section"><h3>Year in Review</h3>
+        <label className="sync-auto"><input type="checkbox" className="check" checked={themeAutoplay} onChange={event => setThemeAutoplay(event.target.checked)} /> Play a year's theme music automatically when Year in Review opens (it loads YouTube)</label>
+      </section>
       </>}
       {tab === "API keys" && <section className="settings-section">
         <h3>API keys</h3>

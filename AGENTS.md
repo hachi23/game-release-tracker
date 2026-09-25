@@ -80,7 +80,7 @@ Important modules:
 - `apps/frontend/src/useYearInReviewWorkflow.ts` / `views/YearInReviewView.tsx` / `views/yearInReview/*`: Year in Review data, chapters, GOTY picker, theme player, Save as image
 - `apps/frontend/src/yearInReviewNavigation.ts`: pure chapter navigation reducer (carry on scrolling, momentum cooldown, keys); time is passed in
 - `apps/frontend/src/wallpaperWorkflow.ts`: wallpaper picker and URL resolution
-- `apps/frontend/src/theme/usePalette.ts`: active HD-2D palette; the choice is saved in app data through `/api/preferences`; localStorage is its first-paint cache
+- `apps/frontend/src/theme/usePreferences.ts`: app-wide preferences saved in app data through `/api/preferences`: the HD-2D palette (localStorage is its first-paint cache) and Year in Review theme autoplay
 
 Keep list/card payloads light. Fetch heavy fields like summary, screenshots, and trailers only on detail pages.
 

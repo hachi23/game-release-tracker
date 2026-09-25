@@ -191,8 +191,9 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 | PATCH | `/api/settings` | Save IGDB credentials |
 | DELETE | `/api/settings/credentials` | Clear credentials |
 | POST | `/api/settings/test-credentials` | Test IGDB credentials |
-| GET | `/api/preferences` | `{ palette }`: the saved palette id, or null |
+| GET | `/api/preferences` | `{ palette, themeAutoplay }`: the saved palette id (or null) and whether Year in Review theme music starts by itself (false until turned on) |
 | PUT | `/api/preferences/palette` | Save the palette id `{ palette }` (a short lower-case slug, else 400) |
+| PUT | `/api/preferences/theme-autoplay` | Save `{ themeAutoplay }` (a boolean, else 400) |
 
 #### Diagnostics
 | Method | Path | Purpose |
@@ -289,7 +290,7 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 `createApiClient(baseUrl)` returns an `ApiClient` with typed methods for every backend endpoint. Uses `fetch` with JSON content-type.
 
 ### Styling (`apps/frontend/src/styles.css`)
-- **Theme**: HD-2D Diorama. Eight CSS color roles come from `theme/palettes.ts`; `theme/usePalette.ts` applies the selected palette and saves it in app data (`PUT /api/preferences/palette`, the `UI_PALETTE` settings row), reading it back on launch with `GET /api/preferences`. localStorage (`grt.palette`) is a first-paint cache; it survives restarts because the packaged window has the fixed `app://renderer` origin. Abyss Gold is the default.
+- **Theme**: HD-2D Diorama. Eight CSS color roles come from `theme/palettes.ts`; `theme/usePreferences.ts` applies the selected palette and saves it in app data (`PUT /api/preferences/palette`, the `UI_PALETTE` settings row), reading it back on launch with `GET /api/preferences`. localStorage (`grt.palette`) is a first-paint cache; it survives restarts because the packaged window has the fixed `app://renderer` origin. Abyss Gold is the default.
 - **Fonts**: bundled Marcellus display and Alegreya Sans body fonts.
 - **Layout**: fixed top bar and stage; every content block over an image uses the double-border `FramedPanel` with four ornaments.
 - **Wallpaper**: app-owned image used as a backdrop. Palette colors stay stable when wallpaper changes.
