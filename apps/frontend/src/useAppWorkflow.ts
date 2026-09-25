@@ -5,6 +5,7 @@ import { useReleaseWorkspace } from "./releaseWorkspace";
 import { useCompletedLibraryWorkflow } from "./useCompletedLibraryWorkflow";
 import { useRandomizerWorkflow } from "./useRandomizerWorkflow";
 import { useSettingsWorkflow } from "./useSettingsWorkflow";
+import { useSyncSettingsWorkflow } from "./useSyncSettingsWorkflow";
 import { usePalette } from "./theme/usePalette";
 import { useWallpaperWorkflow } from "./wallpaperWorkflow";
 import { useYearInReviewWorkflow } from "./useYearInReviewWorkflow";
@@ -27,6 +28,7 @@ export function useAppWorkflow({ apiBaseUrl, initialState, api: injectedApi }: {
     loadOnOpen: !initialState && shell.view === "settings",
     onError: shell.reportOperationError
   });
+  const syncSettings = useSyncSettingsWorkflow({ api, loadOnOpen: !initialState && shell.view === "settings", onError: shell.reportOperationError });
 
   return {
     ...releaseWorkspace,
@@ -39,6 +41,7 @@ export function useAppWorkflow({ apiBaseUrl, initialState, api: injectedApi }: {
     hasNativeWallpaperPicker: wallpaper.hasNativeWallpaperPicker,
     wallpaperUrl: wallpaper.wallpaperUrl,
     settings,
+    syncSettings,
     actions: {
       ...releaseWorkspace.actions,
       chooseWallpaper: wallpaper.actions.chooseWallpaper,

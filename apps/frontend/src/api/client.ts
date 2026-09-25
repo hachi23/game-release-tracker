@@ -14,7 +14,10 @@ import type {
   ReleaseDetail,
   ReleaseListResponse,
   SettingsStatus,
+  SyncSettings,
+  SyncSettingsPatch,
   SyncStatus,
+  TrackedPublisher,
   YearInReviewSettingsPatch,
   YearInReviewSummary,
   YearInReviewYear
@@ -36,6 +39,12 @@ export interface ApiClient {
   patchSettings(payload: Record<string, string>): Promise<{ ok: boolean; settings: SettingsStatus }>;
   clearCredentials(): Promise<{ ok: boolean; settings: SettingsStatus }>;
   testCredentials(): Promise<{ credentialStatus: SettingsStatus["credentialStatus"] }>;
+  getSyncSettings(): Promise<SyncSettings>;
+  updateSyncSettings(patch: SyncSettingsPatch): Promise<SyncSettings>;
+  searchPublishers(text: string): Promise<{ items: TrackedPublisher[] }>;
+  trackPublisher(publisher: TrackedPublisher): Promise<SyncSettings>;
+  untrackPublisher(id: number): Promise<SyncSettings>;
+  trackSuggestedPublishers(): Promise<SyncSettings & { notFound: string[] }>;
   getWallpaper(): Promise<{ hasWallpaper: boolean; url: string | null }>;
   clearWallpaper(): Promise<{ ok: boolean }>;
   listCompletedGames(params?: CompletedGameFilters): Promise<CompletedGameListResponse>;
@@ -132,6 +141,24 @@ export function createApiClient(baseUrl: string, apiToken?: string): ApiClient {
     },
     testCredentials() {
       return request("/api/settings/test-credentials", { method: "POST", body: "{}" });
+    },
+    getSyncSettings() {
+      return request<SyncSettings>("/api/sync/settings");
+    },
+    updateSyncSettings(patch) {
+      return request<SyncSettings>("/api/sync/settings", { method: "PUT", body: JSON.stringify(patch) });
+    },
+    searchPublishers(text) {
+      return request<{ items: TrackedPublisher[] }>(`/api/sync/publishers/search?q=${encodeURIComponent(text)}`);
+    },
+    trackPublisher(publisher) {
+      return request<SyncSettings>("/api/sync/publishers", { method: "POST", body: JSON.stringify(publisher) });
+    },
+    untrackPublisher(id) {
+      return request<SyncSettings>(`/api/sync/publishers/${encodeURIComponent(String(id))}`, { method: "DELETE" });
+    },
+    trackSuggestedPublishers() {
+      return request<SyncSettings & { notFound: string[] }>("/api/sync/publishers/suggested", { method: "POST", body: "{}" });
     },
     getWallpaper() {
       return request("/api/wallpaper");

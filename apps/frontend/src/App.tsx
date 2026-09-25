@@ -40,6 +40,7 @@ export function AppShell({ apiBaseUrl, api, initialState, diagnosticsLogPath, on
     manual,
     releases,
     settings,
+    syncSettings,
     completedLibrary,
     randomizer,
     yearInReview,
@@ -152,6 +153,7 @@ export function AppShell({ apiBaseUrl, api, initialState, diagnosticsLogPath, on
           onChooseWallpaper={actions.chooseWallpaper}
           onClearWallpaper={actions.clearWallpaper}
           workflow={settings}
+          syncWorkflow={syncSettings}
           onBack={() => actions.setView("gallery")}
           diagnosticsLogPath={diagnosticsLogPath}
           onOpenDiagnosticsLog={onOpenDiagnosticsLog}
