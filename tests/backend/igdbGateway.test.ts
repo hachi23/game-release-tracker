@@ -45,9 +45,10 @@ describe("IGDB gateway", () => {
 
     await Promise.all([gateway.searchReleaseCandidates("A"), gateway.searchReleaseCandidates("B"), gateway.completed.searchGames("C")]);
 
+    // 250 ms apart at 4 requests per second; Windows timers can fire up to one ~15 ms clock tick early.
     const times = igdb.calls.map(call => call.at);
-    expect(times[1] - times[0]).toBeGreaterThanOrEqual(240);
-    expect(times[2] - times[1]).toBeGreaterThanOrEqual(240);
+    expect(times[1] - times[0]).toBeGreaterThanOrEqual(230);
+    expect(times[2] - times[1]).toBeGreaterThanOrEqual(230);
   });
 
   test("escapes quotes in search titles", async () => {
