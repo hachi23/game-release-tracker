@@ -23,26 +23,26 @@ Work on the current branch unless the user asks for a copy or branch. Keep chang
 
 For normal code changes:
 
-```powershell
-npm.cmd rebuild better-sqlite3
-npm.cmd test
-npm.cmd run typecheck
-npm.cmd run build
+```bash
+npm rebuild better-sqlite3
+npm test
+npm run typecheck
+npm run build
 ```
 
 For packaged desktop changes:
 
-```powershell
-npm.cmd run dist
+```bash
+npm run dist
 ```
 
-`npm.cmd run dist` rebuilds `better-sqlite3` for Electron. If you need to run Vitest after packaging, run `npm.cmd rebuild better-sqlite3` first so tests use the local Node ABI again.
+`npm run dist` rebuilds `better-sqlite3` for Electron. If you need to run Vitest after packaging, run `npm rebuild better-sqlite3` first so tests use the local Node ABI again.
 
 If `electron-builder` fails under `dist\win-unpacked`, check whether a packaged `Game Release Tracker.exe` is still running and locking files before changing code.
 
 ## Build Outputs
 
-Do not commit `dist/`, `build/` outputs, packaged EXEs, logs, databases, or user data unless explicitly requested. The useful packaged artifact path after `npm.cmd run dist` is:
+Do not commit `dist/`, `build/` outputs, packaged EXEs, logs, databases, or user data unless explicitly requested. The useful packaged artifact path after `npm run dist` is:
 
 `dist\Game Release Tracker-0.5.0-win.zip`
 
@@ -139,7 +139,7 @@ Wallpaper belongs to app data.
 
 ## Native Module Gotcha
 
-Electron stays on a version `better-sqlite3` publishes prebuilt binaries for (currently Electron 42, ABI 146; 12.11.1 has none for 43/44 yet), so `npm.cmd run dist` downloads the Windows binary instead of compiling SQLite, which would need Visual Studio build tools. Move to a newer supported Electron once a `better-sqlite3` release ships its prebuild (check `https://github.com/WiseLibs/better-sqlite3/releases/download/v<version>/better-sqlite3-v<version>-electron-v<abi>-win32-x64.tar.gz`).
+Electron stays on a version `better-sqlite3` publishes prebuilt binaries for (currently Electron 42, ABI 146; 12.11.1 has none for 43/44 yet), so `npm run dist` downloads the Windows binary instead of compiling SQLite, which would need Visual Studio build tools. Move to a newer supported Electron once a `better-sqlite3` release ships its prebuild (check `https://github.com/WiseLibs/better-sqlite3/releases/download/v<version>/better-sqlite3-v<version>-electron-v<abi>-win32-x64.tar.gz`).
 
 
 `better-sqlite3` is native. There are two common rebuild states:
@@ -149,16 +149,16 @@ Electron stays on a version `better-sqlite3` publishes prebuilt binaries for (cu
 
 Use:
 
-```powershell
-npm.cmd rebuild better-sqlite3
+```bash
+npm rebuild better-sqlite3
 ```
 
-before tests when the previous command was `npm.cmd run dist`.
+before tests when the previous command was `npm run dist`.
 
 Use:
 
-```powershell
-npm.cmd run dist
+```bash
+npm run dist
 ```
 
 after tests when the final deliverable is the EXE.

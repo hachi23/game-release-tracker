@@ -362,7 +362,7 @@ The desktop runtime discovers a backup beside the development root or through an
 - **Frontend tests** (`tests/frontend/`): Vitest coverage for rendering/navigation, workflows, API behavior, wallpaper behavior, and the renderer error boundary
 - **Backend tests** (`tests/backend/`): Vitest coverage for API routes, database/migrations, sync planner, IGDB client, SteamGridDB client, settings, artwork, completed library, diagnostics, and error handling
 - **Desktop tests** (`tests/desktop/`): IPC, lifecycle, wallpaper storage
-- If database tests report a `better-sqlite3` ABI mismatch, run `npm.cmd rebuild better-sqlite3` before running Vitest again. Run `npm.cmd run dist` afterward when the final deliverable is the packaged Electron app.
+- If database tests report a `better-sqlite3` ABI mismatch, run `npm rebuild better-sqlite3` before running Vitest again. Run `npm run dist` afterward when the final deliverable is the packaged Electron app.
 
 ## 10. Build & Distribution
 
