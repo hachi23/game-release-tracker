@@ -2,10 +2,17 @@ name: Release
 
 # Pushing a tag like v0.6.0 builds the Windows installer and zip, checks the packaged app with the smoke
 # test, and publishes them as a GitHub Release with that version's changelog section as its notes.
+# Running it by hand with a tag (for example v0.6.2) does the same from the chosen branch and creates the
+# tag; without one it only builds and uploads the files as a workflow artifact.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create, for example v0.6.2 (must match package.json). Leave empty to only build."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -13,6 +20,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,18 +41,21 @@ jobs:
           path: |
             dist/*.exe
             dist/*.zip
-      - if: startsWith(github.ref, 'refs/tags/')
+      - if: env.RELEASE_TAG != ''
         name: Release notes from the changelog
         shell: bash
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_TAG#v}"
+          test "$version" = "$(node -p "require('./package.json').version")"
           awk -v heading="## ${version}" '$0 == heading { found = 1; next } found && /^## / { exit } found' CHANGELOG.md > release-notes.md
           test -s release-notes.md
-      - if: startsWith(github.ref, 'refs/tags/')
+      - if: env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
           draft: false
-          name: Game Release Tracker ${{ github.ref_name }}
+          name: Game Release Tracker ${{ env.RELEASE_TAG }}
           body_path: release-notes.md
           files: |
             dist/*.exe
