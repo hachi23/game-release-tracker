@@ -18,7 +18,7 @@ Windows may show *"Windows protected your PC"*. That appears for apps that aren'
 ### First look: the sample library
 A new install has nothing in it, so the app offers two choices:
 
-- **Try it with sample data** loads a ready-made library, so you can see every screen straight away: 30 upcoming games, 46 finished games (with a full Year in Review for last year) and 267 games for the Randomizer. The games are real; the ratings, dates, platforms and notes are made up.
+- **Try it with sample data** loads a ready-made library, so you can see every screen straight away: 30 upcoming games, 46 finished games (with a full Year in Review for last year) and 267 games for the Randomizer. The games are real; the ratings, dates, platforms and notes are made up. Upcoming dates are moved so the list starts last month: a game or two just out, and the rest still to come.
 - **Set up my own** takes you to the settings you need for your own games (below).
 
 While the sample is loaded, Upcoming shows a note with a **Remove sample data** button. Removing it takes out exactly the sample games and leaves anything you added yourself.
@@ -38,7 +38,7 @@ The app gets its game information from **IGDB**, the Internet Game Database. IGD
 
 Games coming out from the publishers you follow, grouped by month.
 
-- **Click** a game to feature it: its artwork fills the screen with a countdown ("Arrives in 5 days").
+- **Click** a game to feature it: its artwork fills the screen with a countdown ("Arrives in 5 days"). A game with only a month, quarter or year announced shows just that ("Dec 2026", "Q4 2026", "2027") instead of a countdown, and stays off the calendar until it has a day.
 - **Double-click** it, press **Enter**, or click **Open details** for its full page: artwork, screenshots, trailer, dates, platforms and publisher. Every detail page takes on the colours of the game's cover.
 - **Search** by title, publisher or keyword, and filter by **Genre**. **More filters** narrows by publisher, platform, category or date precision, and can show games you've hidden or marked as released.
 - **Add game** adds one by hand. You can search IGDB for it or type the details yourself.
@@ -155,7 +155,7 @@ Settings has four tabs. It opens on **API keys** while your keys need attention.
 ## Common questions
 
 **Do I need an internet connection?**
-Only to sync, search IGDB, spin the Randomizer and load artwork the first time. Covers shown on game pages are saved, so your library works offline.
+Only to sync, search IGDB, spin the Randomizer and load artwork the first time. Covers shown on game pages are saved, so your library works offline. A cover that was never loaded shows as an empty frame until you are back online.
 
 **Will I lose my data if I update the app?**
 No. Your data lives separately from the program, and a backup is made before any upgrade.

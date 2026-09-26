@@ -37,6 +37,10 @@ Key modules:
 - `apps/frontend/src/views/UpcomingView.tsx`
 - `apps/frontend/src/views/DetailView.tsx`
 
+### Release Date Precision
+
+How exactly a release's date is known: **Exact** (a day), **Month**, **Window** (a quarter, season or "early/late" phrase), **Year**, or **TBA**. Only an Exact date gets a countdown and a place on the calendar; every other precision shows its words ("Dec 2026", "Q4 2026", "2027"). IGDB gives a vague date a timestamp at the end of its period, so its displayed text, not the timestamp, decides the precision.
+
 ### Release List Item
 
 The lightweight card/list payload for release browsing. It should stay small: no trailer iframes, no heavy detail-only fields, no unnecessary screenshot payloads beyond what the UI really needs.
@@ -188,7 +192,7 @@ What the Sync Run looks for, set on Settings → Sync (`sync/syncSettingsStore.t
 
 ### Sample Library
 
-What a new user can load from the first-run welcome to try the app without IGDB keys (`demo/demoLibrary.ts`, `demo/demoLibrary.json`): 30 upcoming releases and 46 finished games, all real games with their public IGDB data (covers, artwork, trailers, genres, ratings), and made-up personal data (ratings, finish dates, platforms, notes). Finishes fall in the previous calendar year (a full Year in Review) and in this year up to today; upcoming dates move forward by whole years so none is in the past. It is written through the normal stores, and the ids it created are kept in the `DEMO_LIBRARY` settings row, so **Remove sample data** deletes exactly those rows and nothing the user added. Sample releases carry no IGDB id, so a later sync adds the user's own copies instead of taking them over. While the sample is loaded and no IGDB keys are saved, the Randomizer spins among 267 released games bundled with it (`demo/randomizerSample.json`, real IGDB data with genre, theme, mode and platform ids) through the same draw, with genre, theme, mode, platform, rating and year filters applied in memory (`randomizer/sampleCatalog.ts`); tags, quick picks, series, similar games, Made in Japan and camera view need IGDB keys.
+What a new user can load from the first-run welcome to try the app without IGDB keys (`demo/demoLibrary.ts`, `demo/demoLibrary.json`): 30 upcoming releases and 46 finished games, all real games with their public IGDB data (covers, artwork, trailers, genres, ratings), and made-up personal data (ratings, finish dates, platforms, notes). Finishes fall in the previous calendar year (a full Year in Review) and in this year up to today; upcoming dates move by whole months so the list starts last month (a game or two just out, the rest to come); a vague date ("Q4 2026", "2027") moves by whole years, rounded up, so it stays after the exact dates around it. It is written through the normal stores, and the ids it created are kept in the `DEMO_LIBRARY` settings row, so **Remove sample data** deletes exactly those rows and nothing the user added. Sample releases carry no IGDB id, so a later sync adds the user's own copies instead of taking them over. While the sample is loaded and no IGDB keys are saved, the Randomizer spins among 267 released games bundled with it (`demo/randomizerSample.json`, real IGDB data with genre, theme, mode and platform ids) through the same draw, with genre, theme, mode, platform, rating and year filters applied in memory (`randomizer/sampleCatalog.ts`); tags, quick picks, series, similar games, Made in Japan and camera view need IGDB keys.
 
 ### Scroll Restoration
 

@@ -22,6 +22,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
   const { filters, setFilter: onFilter, debouncedSearch: onSearch, selectedIds: selectedReleaseIds, toggleSelection: onToggleReleaseSelection } = releases;
   // An empty list under a filter means no match, not an empty library.
   const filtering = Boolean(filters.search || filters.publisher || filters.category || filters.platform || filters.datePrecision || releases.genre);
+  const showWelcome = status === "ready" && releases.loadedCount === 0 && !filtering && !demo.loaded;
   const { includeReleased, includeHidden } = filters;
   const [moreFilters, setMoreFilters] = useState(false);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
       {status === "starting" && <div className="state">Backend starting...</div>}
       {status === "error" && <div className="state error">Backend unavailable: {error}</div>}
       {demo.loaded && <div className="sample-banner">You're looking at the sample library. <Button small onClick={() => void demo.actions.remove()}>Remove sample data</Button></div>}
-      {status === "ready" && releases.loadedCount === 0 && !filtering && !demo.loaded && <Welcome onTrySample={() => void demo.actions.load()} onSetUp={onSetUpOwnLibrary} />}
+      {showWelcome && <Welcome onTrySample={() => void demo.actions.load()} onSetUp={onSetUpOwnLibrary} />}
       {status === "ready" && (releases.loadedCount > 0 || filtering) && releases.visibleItems.length === 0 && <div className="state">No releases match this filter.</div>}
       <div className="upcoming-list__scroll" ref={listRef} onKeyDown={handleListKey} tabIndex={0}>
         {groups.map(group => <section key={group.heading}><h2 className="upcoming-month">{stripCurrentYear(group.heading, today)}</h2>{group.items.map(item => {
@@ -84,8 +85,27 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
         })}</section>)}
       </div>
     </FramedPanel>
+    {showWelcome && <WelcomeTour />}
     {featured && <FramedPanel className="upcoming-feature"><div className="upcoming-feature__layout"><div className="upcoming-feature__cover">{cover && <img src={artworkSrc(cover, "grid", apiBaseUrl)} alt="" draggable={false} />}</div><div className="upcoming-feature__content"><h2>{featured.title}</h2><p>{[featured.publishers[0] ?? featured.developers[0], featured.category === "Main" ? "" : featured.category, featured.platforms.join(", ")].filter(Boolean).join(". ")}.</p><div className="upcoming-feature__actions"><Button variant="primary" onClick={() => onOpenDetail(featured)}>Open details</Button>{featured.watched && <Button aria-disabled="true" className="watching-status">Watching</Button>}</div></div></div></FramedPanel>}
   </>;
+}
+
+// Beside the welcome: what each screen does, so a first-time user sees the app before choosing.
+const TOUR = [
+  ["Upcoming", "The games coming from the publishers you follow, with a countdown, artwork and trailers."],
+  ["Completed Library", "A journal of the games you finish: when, on what, your rating and notes."],
+  ["Year in Review", "Your year of games told in five illustrated chapters, ready to save as an image."],
+  ["Randomizer", "Can't decide what to play? Spin for a released game that fits your filters."]
+] as const;
+
+function WelcomeTour() {
+  return (
+    <FramedPanel className="welcome-tour" aria-label="What you can do">
+      <h2>What you can do</h2>
+      <ul className="welcome-tour__list">{TOUR.map(([title, text]) => <li key={title}><strong>{title}</strong><span>{text}</span></li>)}</ul>
+      <p className="welcome-tour__privacy">Everything stays on this computer. No account, no analytics.</p>
+    </FramedPanel>
+  );
 }
 
 // A new, empty library: try the app with sample data, or set it up with your own IGDB keys and publishers.

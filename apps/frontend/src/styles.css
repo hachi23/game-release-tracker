@@ -40,6 +40,7 @@ body { font-size: var(--fs-body); line-height: 1.35; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 img { display: block; }
+img[data-image-failed] { visibility: hidden; }
 h1, h2, h3, h4, p { margin-top: 0; }
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; }
 h1 { font-size: var(--fs-h1); line-height: 1.15; }
@@ -159,7 +160,7 @@ textarea { height: auto; min-height: 80px; padding: 10px; resize: vertical; }
 .watching-status[aria-disabled="true"] { opacity: 1; cursor: default; }
 .completed-filters { position: absolute; z-index: 2; top: 20px; bottom: 20px; left: 20px; width: 280px; }
 .completed-filters h2 { margin-bottom: 14px; }
-.completed-filters__fields { display: flex; flex-direction: column; gap: 14px; }
+.completed-filters__fields { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; margin: 0 -10px 14px; padding: 0 10px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; scrollbar-color: var(--c-border) transparent; }
 .completed-filters__bottom { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
 .completed-filters__bottom > .btn { width: 100%; }
 .completed-view-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -390,3 +391,11 @@ textarea { height: auto; min-height: 80px; padding: 10px; resize: vertical; }
 .welcome__choices { display: grid; gap: 18px; margin-top: 16px; }
 .welcome__choices p { margin: 6px 0 0; }
 .sample-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; padding: 6px 10px; border: 1px dashed var(--c-border); color: var(--c-muted); font-size: var(--fs-small); }
+.welcome-tour { position: absolute; z-index: 2; top: 50%; right: max(24px, calc((100% - 400px - 520px) / 2)); transform: translateY(-50%); width: min(520px, calc(100% - 440px)); }
+.welcome-tour h2 { color: var(--c-accent); margin-bottom: 14px; }
+.welcome-tour__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.welcome-tour__list li { display: grid; gap: 3px; padding-left: 14px; border-left: 1px solid var(--c-border); }
+.welcome-tour__list strong { font: 400 var(--fs-body) var(--font-display); color: var(--c-text); }
+.welcome-tour__list span { font-size: var(--fs-small); color: var(--c-muted); }
+.welcome-tour__privacy { margin: 18px 0 0; font-size: var(--fs-small); color: var(--c-muted); }
+@media (max-width: 1100px) { .welcome-tour { right: 24px; width: calc(100% - 400px); } }

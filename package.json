@@ -15,7 +15,8 @@
     "test:frontend": "vitest run tests/frontend",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "dist": "npm run build && npm run rebuild && electron-builder"
+    "dist": "npm run build && npm run rebuild && electron-builder",
+    "smoke": "node scripts/smoke-packaged.mjs"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1"
@@ -72,6 +73,12 @@
       "!**/node_modules/*/{docs,benchmarks,test,tests}/**"
     ],
     "afterPack": "scripts/afterPack.cjs",
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "grantFileProtocolExtraPrivileges": false
+    },
     "extraMetadata": {
       "main": "dist/apps/desktop/src/main.js"
     },

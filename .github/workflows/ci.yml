@@ -18,3 +18,18 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # Builds the app as Linux users get it and runs it as a new user: sample library, every screen, a
+  # clean exit and no logged errors. Windows builds run the same smoke test in the release workflow.
+  packaged-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --linux dir --publish never
+      - run: xvfb-run -a npm run smoke

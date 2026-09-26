@@ -2,6 +2,21 @@
 
 What changed in each version, in plain language.
 
+## Unreleased
+
+**Fixes**
+- A game announced only for a year, quarter or month ("2027", "Q4 2026", "Dec 2026") shows those words instead of a made-up countdown like "Arrives in 461 days", and no longer appears on the calendar on December 31. The next sync corrects games already in your list.
+- In Completed Library, the filters scroll inside their panel at small window sizes, so **Add completed game** is always on screen.
+- A cover or artwork that can't load (for example offline) leaves an empty frame instead of a broken-image icon.
+
+**Nicer first run**
+- The welcome screen shows what each part of the app does, beside the two ways to start.
+- The sample library's upcoming list now starts last month, with a game or two just out and the rest still to come, instead of a year of already-released games.
+
+**Safer builds**
+- The packaged app turns off Electron features it never uses (running as plain Node, Node options from the environment, debugger flags), so it can't be repurposed through them.
+- Every change on GitHub now builds the app, starts it as a new user and opens every screen; releases do the same on Windows before the installer is published.
+
 ## 0.6.1
 
 **Try the Randomizer without an account.** With the sample library loaded and no IGDB keys saved, the Randomizer now spins among 267 real games that come with the app. Genre, theme, game mode, platform, rating and year filters all work; the filters that search all of IGDB (tags, quick picks, series, similar games, camera view) say they need your own keys.

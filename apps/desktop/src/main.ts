@@ -132,7 +132,8 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      // Year in Review's theme music starts by itself when a year with a theme link opens.
+      // Year in Review's theme music may start without a click once the user turns autoplay on in Settings;
+      // until then it waits for one.
       autoplayPolicy: "no-user-gesture-required",
       devTools: !app.isPackaged
     }

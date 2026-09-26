@@ -1397,8 +1397,8 @@
    "title": "Cronos: Lazarus",
    "dateText": "Q4 2026",
    "releaseDate": "2026-12-31",
-   "datePrecision": "Exact",
-   "releaseWindow": null,
+   "datePrecision": "Window",
+   "releaseWindow": "Q4 2026",
    "category": "DLC",
    "publishers": [
     "Bloober Team"
@@ -1588,8 +1588,8 @@
    "title": "Clockwork Revolution",
    "dateText": "2027",
    "releaseDate": "2027-12-31",
-   "datePrecision": "Exact",
-   "releaseWindow": null,
+   "datePrecision": "Year",
+   "releaseWindow": "2027",
    "category": "Main",
    "publishers": [
     "Xbox Game Studios"
@@ -1643,8 +1643,8 @@
    "title": "Monster Hunter Wilds: Ascendance",
    "dateText": "2027",
    "releaseDate": "2027-12-31",
-   "datePrecision": "Exact",
-   "releaseWindow": null,
+   "datePrecision": "Year",
+   "releaseWindow": "2027",
    "category": "Expansion",
    "publishers": [
     "Capcom"

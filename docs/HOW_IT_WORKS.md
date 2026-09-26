@@ -70,7 +70,7 @@ Your library is a single database file on your computer. Nothing is uploaded any
 
 ## Decisions behind the design
 
-**Local-first, no account.** A personal game journal doesn't need a server. Keeping everything on your computer means no sign-up, no monthly cost, nothing to breach, and it keeps working offline.
+**Local-first, no account.** A personal game journal doesn't need a server. Keeping everything on your computer means no sign-up, no monthly cost, nothing to breach, and your library, ratings and notes keep working offline. Artwork loads from IGDB the first time; offline, a cover that was never saved shows as an empty frame rather than an error.
 
 **You choose what to track.** Early versions had one person's taste built in: a fixed list of publishers, PC and Xbox only, and no sports games. The public version turns those into settings, so a new user starts with nothing tracked and picks their own publishers and platforms.
 
@@ -78,16 +78,18 @@ Your library is a single database file on your computer. Nothing is uploaded any
 
 **Privacy by default.** Automatic syncing is off until you turn it on. YouTube only loads when you press play. There's no analytics or crash reporting, and one button deletes everything the app stored.
 
+**Honest dates.** IGDB stores a game announced for "2027" as December 31, 2027. The app keeps the words ("2027", "Q4 2026") and only counts down to a real day, so it never promises a date nobody has announced.
+
 **A look of its own.** The style borrows from "HD-2D" games like *Octopath Traveler*: framed panels with corner ornaments over game artwork. Year in Review gives each chapter its own illustrated world: a sea chart, a spellbook, a forge, an astrolabe and a throne room.
 
 ---
 
 ## How quality is checked
 
-- **530 automated tests** check the app's behaviour: that edits survive a sync, that a crashed sync is cleaned up, that the Randomizer never repeats a recent pick, that the sample library can be removed without touching your own games, and much more.
-- **Every change is checked automatically** on GitHub: the tests run and the whole app is built.
+- **537 automated tests** check the app's behaviour: that edits survive a sync, that a crashed sync is cleaned up, that the Randomizer never repeats a recent pick, that the sample library can be removed without touching your own games, and much more.
+- **Every change is checked automatically** on GitHub: the tests run, the whole app is built, and a packaged copy is started and clicked through (below).
 - **Every release is built automatically.** Tagging a version on GitHub builds the Windows installer and zip on a clean machine.
-- **Packaged builds are tested for real**: started as a new user, driven through each screen, and closed cleanly, with any errors in the log counted.
+- **Packaged builds are tested for real**: `npm run smoke` starts the packaged app with an empty profile, loads the sample library, opens every screen, closes it, and fails on any error on the page or in the app's log. GitHub runs it on a Linux build for every change and on the Windows build before every release.
 
 ---
 

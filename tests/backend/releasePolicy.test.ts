@@ -110,6 +110,21 @@ describe("IGDB candidate rules", () => {
     expect(date.datePrecision).toBe("Exact");
   });
 
+  // IGDB gives a vague date a timestamp at the end of its period (Dec 31 for "2027" or "Q4 2026"), so the
+  // human text, not the timestamp, says how precise it is.
+  test.each([
+    ["2027", 1830211200, "Year", "2027"],
+    ["Q4 2026", 1798675200, "Window", "Q4 2026"],
+    ["Dec 2026", 1798675200, "Month", null],
+    ["Feb 18, 2027", 1802908800, "Exact", null]
+  ] as const)("a dated IGDB release shown as %s (timestamp %i) has %s precision", (human, date, precision, releaseWindow) => {
+    const choice = chooseBestReleaseDate({ ...baseGame, release_dates: [{ human, date }] });
+
+    expect(choice.dateText).toBe(human);
+    expect(choice.datePrecision).toBe(precision);
+    expect(choice.releaseWindow).toBe(releaseWindow);
+  });
+
   test("the track-from date applies to the tracked platform's date", () => {
     const result = policy({ platforms: ["pc"] }).evaluate({
       ...baseGame,

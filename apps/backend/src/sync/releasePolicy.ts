@@ -1,5 +1,5 @@
 import { ACCEPTED_GAME_TYPES, ALL_PLATFORM_FAMILIES, EXCLUDED_TITLE_TERMS, GAME_TYPE_LABELS, PLATFORM_FAMILIES } from "../../../../shared/constants";
-import type { IgdbGameLike, IgdbPlatformRef, NormalizedRelease, PlatformFamily, ReleaseDateChoice, ReleaseEligibility } from "../../../../shared/types";
+import type { DatePrecision, IgdbGameLike, IgdbPlatformRef, NormalizedRelease, PlatformFamily, ReleaseDateChoice, ReleaseEligibility } from "../../../../shared/types";
 import { getCompanyNames, getPlatformNames, pickTrailer, unixToIso, unixToText } from "../igdb/igdbGame";
 import { normalizeText } from "../text/normalizeText";
 
@@ -62,11 +62,12 @@ export function chooseBestReleaseDate(game: IgdbGameLike, platforms: readonly Pl
 
   const candidate = acceptedDates[0] ?? (game.release_dates ?? [])[0];
   if (candidate?.date) {
+    const datePrecision = precisionOfDatedHuman(candidate.human);
     return {
       dateText: candidate.human || unixToText(candidate.date),
       releaseDate: unixToIso(candidate.date),
-      datePrecision: "Exact",
-      releaseWindow: null,
+      datePrecision,
+      releaseWindow: datePrecision === "Year" || datePrecision === "Window" ? candidate.human! : null,
       sourceConfidence: 90
     };
   }
@@ -93,6 +94,16 @@ export function chooseBestReleaseDate(game: IgdbGameLike, platforms: readonly Pl
   }
 
   return { dateText: "TBA", releaseDate: null, datePrecision: "TBA", releaseWindow: null, sourceConfidence: 10 };
+}
+
+// IGDB dates a vague release at the end of its period ("2027" is Dec 31, 2027), so its human text, not its
+// timestamp, says how precise it is. Only a full day counts as Exact and gets a countdown.
+function precisionOfDatedHuman(human: string | undefined): DatePrecision {
+  const text = human?.trim() ?? "";
+  if (/^\d{4}$/.test(text)) return "Year";
+  if (/^[A-Za-z]{3,9}\.? \d{4}$/.test(text) && !/^(spring|summer|fall|autumn|winter|early|late|mid)\b/i.test(text)) return "Month";
+  if (/\b(q[1-4]|h[12]|tbd|spring|summer|fall|autumn|winter|early|late|mid)\b/i.test(text)) return "Window";
+  return "Exact";
 }
 
 // A stored Release is eligible for Upcoming once it has a date to sort by. The user's "track from" date

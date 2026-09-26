@@ -53,13 +53,19 @@ describe("sample library", () => {
     expect(thisYear.every((game: { completionDate: string }) => game.completionDate <= "2026-03-10")).toBe(true);
   });
 
-  test("upcoming dates move forward so the sample never shows only past releases", async () => {
-    const app = setup(new Date("2031-01-15T12:00:00Z"));
+  test.each([
+    ["2026-09-25", "2026-08-07", "Aug 07, 2026"],
+    ["2031-01-15", "2030-12-07", "Dec 07, 2030"]
+  ])("on %s the sample's upcoming list starts last month, with most games still to come", async (today, firstDate, firstText) => {
+    const app = setup(new Date(`${today}T12:00:00Z`));
     await app.inject({ method: "POST", url: "/api/demo" });
 
-    const releases = (await app.inject({ method: "GET", url: "/api/releases" })).json().items as Array<{ effectiveSortDate: string; dateText: string }>;
+    const releases = (await app.inject({ method: "GET", url: "/api/releases" })).json().items as Array<{ releaseDate: string | null; dateText: string; datePrecision: string }>;
     expect(releases).toHaveLength(30);
-    expect(releases.every(release => release.effectiveSortDate >= "2031-01-01")).toBe(true);
+    expect(releases[0]).toMatchObject({ releaseDate: firstDate, dateText: firstText });
+    const exact = releases.filter(release => release.datePrecision === "Exact");
+    expect(exact.every(release => /^\d{4}-\d{2}-\d{2}$/.test(release.releaseDate!) && !Number.isNaN(Date.parse(release.releaseDate!)))).toBe(true);
+    expect(exact.filter(release => release.releaseDate! >= today).length).toBeGreaterThan(20);
   });
 
   test("is loaded once, and removing it leaves the user's own games alone", async () => {

@@ -34,7 +34,10 @@ For packaged desktop changes:
 
 ```bash
 npm run dist
+npm run smoke
 ```
+
+`npm run smoke` starts the packaged build as a new user and opens every screen (on Linux without a display, `xvfb-run -a npm run smoke` after `npx electron-builder --linux dir`).
 
 `npm run dist` rebuilds `better-sqlite3` for Electron. If you need to run Vitest after packaging, run `npm rebuild better-sqlite3` first so tests use the local Node ABI again.
 
@@ -80,6 +83,7 @@ Important modules:
 - `apps/frontend/src/useYearInReviewWorkflow.ts` / `views/YearInReviewView.tsx` / `views/yearInReview/*`: Year in Review data, chapters, GOTY picker, theme player, Save as image
 - `apps/frontend/src/yearInReviewNavigation.ts`: pure chapter navigation reducer (carry on scrolling, momentum cooldown, keys); time is passed in
 - `apps/frontend/src/wallpaperWorkflow.ts`: wallpaper picker and URL resolution
+- `apps/frontend/src/ui/imageFallback.ts`: every `<img>` that fails to load is hidden so its frame shows empty; no per-image error handling needed
 - `apps/frontend/src/theme/usePreferences.ts`: app-wide preferences saved in app data through `/api/preferences`: the HD-2D palette (localStorage is its first-paint cache) and Year in Review theme autoplay
 
 Keep list/card payloads light. Fetch heavy fields like summary, screenshots, and trailers only on detail pages.

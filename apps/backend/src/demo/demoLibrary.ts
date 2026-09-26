@@ -83,17 +83,39 @@ export function createDemoLibrary(db: TrackerDatabase, today: () => Date) {
   };
 }
 
-// The sample's upcoming dates, moved forward by whole years when needed so none is before this year.
+// The sample's upcoming dates, moved by whole months so its first release lands last month: a new user sees
+// a game or two just out and the rest still to come. A vague date ("Q4 2026", "2027") moves by whole years,
+// rounded up, so it stays after the exact dates around it.
 function shiftedReleases(now: Date): NormalizedRelease[] {
-  const firstYear = Math.min(...releases.map(release => Number((release.releaseDate ?? release.dateText).match(/\d{4}/)?.[0] ?? now.getUTCFullYear())));
-  const shift = Math.max(0, now.getUTCFullYear() - firstYear);
-  const move = (text: string | null) => (text ? text.replace(/\b(20\d{2})\b/g, year => String(Number(year) + shift)) : text);
+  const first = releases.map(release => release.releaseDate).filter((date): date is string => Boolean(date)).sort()[0];
+  const months = (now.getUTCFullYear() * 12 + now.getUTCMonth() - 1) - (Number(first.slice(0, 4)) * 12 + Number(first.slice(5, 7)) - 1);
+  const years = Math.ceil(months / 12);
+  const moveYears = (text: string | null) => (text ? text.replace(/\b(20\d{2})\b/g, year => String(Number(year) + years)) : text);
   return releases.map(release => {
-    const date = { dateText: move(release.dateText)!, releaseDate: move(release.releaseDate), datePrecision: release.datePrecision, releaseWindow: move(release.releaseWindow) };
+    const date = release.datePrecision === "Exact" && release.releaseDate
+      ? exactDate(addMonths(release.releaseDate, months))
+      : { dateText: moveYears(release.dateText)!, releaseDate: moveYears(release.releaseDate), datePrecision: release.datePrecision, releaseWindow: moveYears(release.releaseWindow) };
     // No IGDB id: a later sync of the same game adds the user's own row instead of taking over the sample's.
     const { igdbId: _igdbId, ...rest } = release;
     return { ...rest, ...date, id: `demo-${release.igdbId}`, normalizedTitle: normalizeText(release.title), developers: [], sourceConfidence: date.releaseDate ? 90 : 60, ...computeSortDateAndEligibility(date) };
   });
+}
+
+// "2026-01-31" plus one month is "2026-02-28": the day is kept where the month has it.
+function addMonths(iso: string, months: number) {
+  const index = Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 1 + months;
+  const year = Math.floor(index / 12);
+  const month = index % 12;
+  const day = Math.min(Number(iso.slice(8, 10)), new Date(Date.UTC(year, month + 1, 0)).getUTCDate());
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// The sample's own date text style, "Jan 07, 2026".
+function exactDate(iso: string) {
+  const dateText = `${MONTH_NAMES[Number(iso.slice(5, 7)) - 1]} ${iso.slice(8, 10)}, ${iso.slice(0, 4)}`;
+  return { dateText, releaseDate: iso, datePrecision: "Exact" as const, releaseWindow: null };
 }
 
 // Last year's finishes all count; this year's only up to today, so "so far" stays true.

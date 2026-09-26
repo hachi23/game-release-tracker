@@ -7,7 +7,7 @@ Everything runs on your own computer. There is no account, no cloud and no track
 ![Upcoming releases, with the next game's artwork filling the screen](docs/screenshots/upcoming.jpg)
 
 [![CI](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml)
-&nbsp;Windows · MIT license · 530 automated tests
+&nbsp;Windows · MIT license · 537 automated tests
 
 ---
 
@@ -87,7 +87,7 @@ The [User Guide](docs/USER_GUIDE.md) walks through every screen.
 
 The idea, the features and every product decision are mine: what the app should do, how each screen should feel, the Year in Review chapters, and the rules for what counts as an upcoming release. I wrote the specifications and plans, reviewed each change and tested the results.
 
-Most of the code was written by AI coding assistants (Anthropic's Claude Code and OpenAI's Codex) working from those specifications. The commit history shows how the project grew, and [How it works](docs/HOW_IT_WORKS.md) explains the design and the decisions behind it in plain language.
+Most of the code was written by AI coding assistants (Anthropic's Claude Code and OpenAI's Codex) working from those specifications. This public repository starts at the first public version (0.6.0), so its commit history is short; the [Changelog](CHANGELOG.md) shows how the app grew, the [decision records](docs/adr/) explain the choices that shaped it, and [How it works](docs/HOW_IT_WORKS.md) explains the design in plain language.
 
 ---
 
@@ -98,6 +98,7 @@ Most of the code was written by AI coding assistants (Anthropic's Claude Code an
 | Anyone using the app | [User Guide](docs/USER_GUIDE.md) |
 | Anyone curious how it works, no coding needed | [How it works](docs/HOW_IT_WORKS.md) |
 | What changed in each version | [Changelog](CHANGELOG.md) |
+| Why it is built the way it is | [Decision records](docs/adr/) |
 | Developers: a guided tour of the code | [Review Guide](docs/REVIEW_GUIDE.md) |
 | Developers: where everything lives | [Codebase Map](docs/CODEBASE_MAP.md) |
 | Developers: full technical reference | [Technical Documentation](docs/DOCUMENTATION.md) |
@@ -109,9 +110,10 @@ You need [Node.js](https://nodejs.org) 22.
 
 ```bash
 npm install
-npm test          # 530 automated tests
+npm test          # 537 automated tests
 npm run build     # compile everything
 npm run dist      # build the Windows installer and zip into dist/
+npm run smoke     # start the packaged app as a new user and open every screen
 ```
 
 No API keys are needed to install, test or build. Built with Electron, React, TypeScript, Fastify and SQLite.

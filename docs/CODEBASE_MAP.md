@@ -17,6 +17,8 @@ This is the navigation guide for the Game Release Tracker codebase. It explains 
 │   ├── desktop/       Electron lifecycle and IPC tests
 │   └── frontend/      Renderer, workflow, and view tests
 ├── docs/              Product, architecture, beginner, and planning docs
+│   └── adr/           Decision records: why the app is shaped the way it is
+├── scripts/           Build helpers (bundle, afterPack) and the packaged smoke test
 ├── build/             Packaging assets such as application icons
 ├── dist/              Generated TypeScript/Vite/package output; never source
 ├── node_modules/      Installed dependencies; never source
@@ -107,6 +109,7 @@ Human and agent-facing reference. `CONTEXT.md` is the domain vocabulary and deci
 | Wallpaper | wallpaper route and runtime storage | `wallpaperWorkflow.ts`, `WallpaperPanel.tsx`, `Backdrop.tsx` | wallpaper file in app data |
 | Appearance | — | `theme/palettes.ts`, `theme/usePreferences.ts`, `ui/FramedPanel.tsx`, `styles.css` | palette ID in `settings` (`UI_PALETTE`) via `actions/preferencesActions.ts`, `routes/preferencesRoutes.ts`; localStorage as first-paint cache |
 | Diagnostics | `diagnostics/`, diagnostic routes | settings/diagnostics UI | JSONL log in app data |
+| Missing images | — | `ui/imageFallback.ts` (one capturing listener on `document`) and `img[data-image-failed]` in `styles.css` | — |
 
 ## Change rules
 

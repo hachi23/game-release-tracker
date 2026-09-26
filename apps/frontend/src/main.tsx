@@ -3,8 +3,10 @@ import { createRoot } from "react-dom/client";
 import { createApiClient } from "./api/client";
 import { AppShell } from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { installImageFallback } from "./ui/imageFallback";
 
 async function main() {
+  installImageFallback(document);
   const [baseUrl, apiToken, diagnosticsLogPath] = await Promise.all([
     window.releaseTracker?.getApiBaseUrl?.(),
     window.releaseTracker?.getApiToken?.(),

@@ -209,9 +209,10 @@ The IGDB sync flow:
 1. `syncRun.startSync()` — singleton mutex, prevents concurrent syncs (owns the run lifecycle)
 2. `syncRun.execute()` — creates a `sync_runs` record, discovers candidates, fetches SteamGridDB artwork, persists
 3. `igdbCandidateSource.discoverIgdbCandidates()` — queries IGDB for every game a tracked publisher (by IGDB company id, from Settings → Sync) is credited on, from the track-from year on. With no tracked publishers the run fails with a message telling the user to add some
-4. `releaseSyncPlanner.prepareSyncCandidate()` — applies the Release Policy built from the sync settings (`createReleasePolicy`: game type, excluded edition names, tracked platform families, tracked publisher or developer, track-from date) and normalizes each game once per run; both later steps use the result
-5. SteamGridDB enrichment (`syncArtworkEnrichment.ts`) — outside the write queue, looks up artwork only for accepted, unblocked games that still lack provider artwork, four lookups at a time
-6. In the write queue, per game: `releaseSyncPlanner.planReleaseSync()` decides add/repair/skip against freshly read merge state and the block list, then `releaseStore.save()` upserts the release
+4. `releasePolicy.chooseBestReleaseDate()` picks the earliest date on a tracked platform. IGDB dates vague releases at the end of their period (Dec 31 for "2027"), so the date's `human` text sets the precision: a bare year is Year, "Mmm YYYY" is Month, a quarter, half, season or early/mid/late phrase is Window, anything else is Exact. Only Exact dates get countdowns and calendar cells
+5. `releaseSyncPlanner.prepareSyncCandidate()` — applies the Release Policy built from the sync settings (`createReleasePolicy`: game type, excluded edition names, tracked platform families, tracked publisher or developer, track-from date) and normalizes each game once per run; both later steps use the result
+6. SteamGridDB enrichment (`syncArtworkEnrichment.ts`) — outside the write queue, looks up artwork only for accepted, unblocked games that still lack provider artwork, four lookups at a time
+7. In the write queue, per game: `releaseSyncPlanner.planReleaseSync()` decides add/repair/skip against freshly read merge state and the block list, then `releaseStore.save()` upserts the release
 
 ### Data stores
 
@@ -298,6 +299,8 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 - **Layout**: fixed top bar and stage; every content block over an image uses the double-border `FramedPanel` with four ornaments.
 - **Wallpaper**: app-owned image used as a backdrop. Palette colors stay stable when wallpaper changes.
 - **Cover scene**: Upcoming and Completed Library detail pages are wrapped in `ui/CoverScene.tsx`. The game's cover (from the cover cache) fills the background at a heavy blur, and `theme/coverTint.ts` reads its main colour from a 32×32 canvas sample (greys, blacks and whites skipped, brightness normalised). `.cover-scene--tinted` in `styles.css` mixes that colour into `--c-bg`, `--c-panel`, `--c-input`, `--c-border` and `--c-accent` (their untinted values are kept as `--base-*` at `:root`) and recomputes the derived shades, with panels 70% opaque so the blurred cover shows through; the colour variables are registered with `@property` so the change fades over 600 ms. A cover that can't be read (cross-origin, colourless) leaves the palette as it is.
+- **Missing images**: `ui/imageFallback.ts` (installed on `document` in `main.tsx`) marks any `<img>` that fails to load with `data-image-failed`, and `styles.css` hides it, so an offline or removed cover leaves its frame empty instead of showing the browser's broken-image icon. A later successful load clears the mark.
+- **Welcome**: an empty library shows the welcome choices in the Upcoming rail and a "What you can do" panel (`WelcomeTour` in `UpcomingView.tsx`) beside it.
 - **Views**: Upcoming selects a featured release from compact rows; Completed Library has a filter rail and 132×176 cover grid. Calendar, list, detail, add, and Settings screens use the same frames and tokens.
 
 ## 6. Desktop (Electron)
@@ -311,6 +314,7 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 - `appProtocol.ts`: the packaged renderer's fixed `app://renderer` origin. Every request under it (page, hashed assets, `/api`) is passed to the backend's random-port URL, so the renderer keeps one origin across launches (localStorage, V8 code cache) and needs no CORS. YouTube embeds get an `https://io.github.hachi23.game-release-tracker/` Referer, which YouTube requires from apps without a web origin (player error 153 otherwise)
 - `windowGuards.ts`: the window only ever shows the app; http(s) links (including `target="_blank"`) open in the default browser via `shell.openExternal`, and other schemes are refused. The `api-token` and `save-image` IPCs answer only a frame showing the app
 - Permission requests are refused except fullscreen (trailers)
+- Electron fuses (package.json `build.electronFuses`, applied by electron-builder): `RunAsNode`, `EnableNodeOptionsEnvironmentVariable`, `EnableNodeCliInspectArguments` and `GrantFileProtocolExtraPrivileges` are off, so the shipped executable cannot be reused as a plain Node runtime or opened to a debugger through Node flags. The backend child runs through `utilityProcess`, which needs none of them. Check a build with `npx @electron/fuses read --app <exe>`
 - `credentialKey.ts`: a random 256-bit data key, stored only as `credential-key.bin` encrypted with Electron `safeStorage` (DPAPI on Windows), is passed to the backend (`GRT_CREDENTIAL_KEY`); the backend encrypts API keys with it before they reach SQLite (`enc:v1:` values) and seals plain-text values from older versions at startup. A key file the OS can no longer decrypt is kept as `credential-key.bin.unreadable` (later ones get `.2`, `.3`, …; none is overwritten) and a new key is made; Settings shows the affected API keys as "can no longer be read - enter it again". If the key cannot be stored at all (for example a read-only data folder or a keychain error), the app still starts and values stay unencrypted. Without OS encryption (or in development) values stay as they are
 
 ### Preload (`apps/desktop/src/preload.ts`)
@@ -362,6 +366,7 @@ The desktop runtime discovers a backup beside the development root or through an
 - **Frontend tests** (`tests/frontend/`): Vitest coverage for rendering/navigation, workflows, API behavior, wallpaper behavior, and the renderer error boundary
 - **Backend tests** (`tests/backend/`): Vitest coverage for API routes, database/migrations, sync planner, IGDB client, SteamGridDB client, settings, artwork, completed library, diagnostics, and error handling
 - **Desktop tests** (`tests/desktop/`): IPC, lifecycle, wallpaper storage
+- **Packaged smoke test** (`scripts/smoke-packaged.mjs`, `npm run smoke [path to app]`): starts a packaged build with a throwaway profile and `--remote-debugging-port`, loads the sample library, opens every top-bar screen, quits, and fails on a page exception, a console error, an error banner, a slow exit, or a `fail`/`error`/`crash` event in the app's log. It talks to the DevTools protocol directly, so it needs no test packages and works with the fuses above. CI runs it under `xvfb-run` on a `--linux dir` build; the release workflow runs it on the Windows build
 - If database tests report a `better-sqlite3` ABI mismatch, run `npm rebuild better-sqlite3` before running Vitest again. Run `npm run dist` afterward when the final deliverable is the packaged Electron app.
 
 ## 10. Build & Distribution
@@ -376,6 +381,7 @@ npm run test:frontend # Frontend tests only
 npm run test:backend  # Backend tests only
 npm run rebuild       # electron-rebuild (recompiles better-sqlite3 for Electron)
 npm run dist          # Full pipeline: build + rebuild + electron-builder
+npm run smoke         # Packaged smoke test (after dist)
 ```
 
 ### Output
