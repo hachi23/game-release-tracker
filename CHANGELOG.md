@@ -2,7 +2,7 @@
 
 What changed in each version, in plain language.
 
-## Unreleased
+## 0.6.2
 
 **Fixes**
 - A game announced only for a year, quarter or month ("2027", "Q4 2026", "Dec 2026") shows those words instead of a made-up countdown like "Arrives in 461 days", and no longer appears on the calendar on December 31. The next sync corrects games already in your list.
