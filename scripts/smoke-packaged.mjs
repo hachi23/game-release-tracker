@@ -20,6 +20,10 @@ const DEFAULT_APPS = {
 };
 const SCREENS = ["Upcoming", "Calendar", "Completed Library", "Randomizer", "Settings", "Year in Review"];
 const PORT = Number(process.env.SMOKE_DEBUG_PORT || 9333);
+// A request the page never answers (its window died, or a native error dialog is blocking the app) must
+// fail the test, not hang it.
+const REQUEST_TIMEOUT_MS = 10_000;
+const OVERALL_TIMEOUT_MS = 180_000;
 
 const appPath = process.argv[2] ?? DEFAULT_APPS[process.platform];
 if (!appPath || !existsSync(appPath)) {
@@ -34,11 +38,17 @@ const args = [`--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`];
 if (process.platform === "linux") args.push("--no-sandbox");
 const app = spawn(appPath, args, { stdio: "ignore" });
 const exited = new Promise(resolve => app.once("exit", code => resolve(code)));
+const watchdog = setTimeout(() => {
+  console.error(`\nSmoke test failed: still running after ${OVERALL_TIMEOUT_MS / 1000} seconds`);
+  app.kill("SIGKILL");
+  rmSync(profile, { recursive: true, force: true });
+  process.exit(1);
+}, OVERALL_TIMEOUT_MS);
 
 async function waitFor(check, what, timeoutMs = 20_000) {
   const until = Date.now() + timeoutMs;
   for (;;) {
-    const value = await check().catch(() => undefined);
+    const value = await Promise.race([check(), sleep(REQUEST_TIMEOUT_MS)]).catch(() => undefined);
     if (value) return value;
     if (Date.now() > until) throw new Error(`Timed out waiting for ${what}`);
     await sleep(250);
@@ -55,6 +65,10 @@ async function connect() {
   await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
   let nextId = 1;
   const pending = new Map();
+  socket.onclose = () => {
+    for (const settle of pending.values()) settle({ error: { message: "The app window closed" } });
+    pending.clear();
+  };
   socket.onmessage = message => {
     const data = JSON.parse(message.data);
     if (data.id && pending.has(data.id)) {
@@ -66,10 +80,19 @@ async function connect() {
       failures.push(`Console error: ${data.params.args.map(arg => arg.value ?? arg.description).join(" ")}`);
     }
   };
-  const send = (method, params = {}) => new Promise(resolve => {
+  const send = (method, params = {}) => new Promise((resolve, reject) => {
     const id = nextId++;
-    pending.set(id, resolve);
-    socket.send(JSON.stringify({ id, method, params }));
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error(`The app did not answer ${method} within ${REQUEST_TIMEOUT_MS / 1000} seconds`));
+    }, REQUEST_TIMEOUT_MS);
+    pending.set(id, data => {
+      clearTimeout(timer);
+      if (data.error) reject(new Error(data.error.message));
+      else resolve(data);
+    });
+    if (socket.readyState !== WebSocket.OPEN) pending.get(id)({ error: { message: "The app window closed" } });
+    else socket.send(JSON.stringify({ id, method, params }));
   });
   await send("Runtime.enable");
   const evaluate = async expression => {
@@ -127,6 +150,8 @@ for (const name of logFiles) {
   }
 }
 rmSync(profile, { recursive: true, force: true });
+clearTimeout(watchdog);
+if (exitCode === "still running") app.kill("SIGKILL");
 
 if (failures.length) {
   console.error(`\nSmoke test failed:\n${failures.map(item => `- ${item}`).join("\n")}`);

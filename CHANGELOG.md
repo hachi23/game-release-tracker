@@ -13,6 +13,9 @@ What changed in each version, in plain language.
 - The welcome screen shows what each part of the app does, beside the two ways to start.
 - The sample library's upcoming list now starts last month, with a game or two just out and the rest still to come, instead of a year of already-released games.
 
+**Linux**
+- Linux Mint and Ubuntu users can install the app from a `.deb` (it appears under **Games** in the menu), or run the AppImage without installing. Both are started as a new user and clicked through before each release.
+
 **Safer builds**
 - The packaged app turns off Electron features it never uses (running as plain Node, Node options from the environment, debugger flags), so it can't be repurposed through them.
 - Every change on GitHub now builds the app, starts it as a new user and opens every screen; releases do the same on Windows before the installer is published.

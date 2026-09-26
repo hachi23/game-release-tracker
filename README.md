@@ -7,14 +7,16 @@ Everything runs on your own computer. There is no account, no cloud and no track
 ![Upcoming releases, with the next game's artwork filling the screen](docs/screenshots/upcoming.jpg)
 
 [![CI](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml)
-&nbsp;Windows · MIT license · 537 automated tests
+&nbsp;Windows and Linux (Mint, Ubuntu) · MIT license · 537 automated tests
 
 ---
 
 ## Try it in two minutes
 
-1. Download **`Game Release Tracker Setup.exe`** (installer) or the **`.zip`** (no install) from the [latest release](https://github.com/hachi23/game-release-tracker/releases/latest).
-2. Open it. Windows may say *"Windows protected your PC"*, because the app isn't signed with a paid certificate. Click **More info**, then **Run anyway**.
+1. From the [latest release](https://github.com/hachi23/game-release-tracker/releases/latest), download:
+   - **Windows**: `Game Release Tracker Setup.exe` (installer) or the `.zip` (no install). Windows may say *"Windows protected your PC"*, because the app isn't signed with a paid certificate. Click **More info**, then **Run anyway**.
+   - **Linux Mint or Ubuntu**: the `.deb`, then double-click it to install. It appears in the menu under **Games**. There's also an `.AppImage` that runs without installing.
+2. Open it.
 3. On the welcome screen, click **Try it with sample data**.
 
 That loads a sample library: 30 upcoming games, 46 finished games with a full Year in Review, and 267 games for the Randomizer. You can look around everything without signing up for anything. **Remove sample data** takes it out again.
@@ -73,7 +75,7 @@ The [User Guide](docs/USER_GUIDE.md) walks through every screen.
 ## Privacy
 
 - **Everything stays on your computer.** Your library, notes and settings live in a local database in your user folder.
-- **Your keys are encrypted** with Windows' own protection and are never shown again after you save them.
+- **Your keys are encrypted** with the system's own protection (Windows' data protection, or the login keyring on Linux) and are never shown again after you save them.
 - **No accounts, analytics or crash reporting.** The app only contacts:
   - IGDB and Twitch, to look up games (only after you add keys);
   - IGDB's image server, for covers and artwork;
@@ -112,7 +114,7 @@ You need [Node.js](https://nodejs.org) 22.
 npm install
 npm test          # 537 automated tests
 npm run build     # compile everything
-npm run dist      # build the Windows installer and zip into dist/
+npm run dist      # build the installer and packages for this platform into dist/
 npm run smoke     # start the packaged app as a new user and open every screen
 ```
 

@@ -15,6 +15,8 @@ From the [latest release](https://github.com/hachi23/game-release-tracker/releas
 
 Windows may show *"Windows protected your PC"*. That appears for apps that aren't signed with a paid certificate. Click **More info**, then **Run anyway**.
 
+On **Linux Mint or Ubuntu**, download the `.deb` and double-click it (or run `sudo apt install ./game-release-tracker_*.deb`). Game Release Tracker then appears in the menu under **Games**. The `.AppImage` runs without installing: make it executable (right-click → Properties → Permissions, or `chmod +x`) and open it. If the AppImage won't start, use the `.deb`.
+
 ### First look: the sample library
 A new install has nothing in it, so the app offers two choices:
 
@@ -135,8 +137,8 @@ Settings has four tabs. It opens on **API keys** while your keys need attention.
 
 ## Your data
 
-- Everything is stored on your computer, in `%APPDATA%\Game Release Tracker` on Windows.
-- Your API keys are encrypted using Windows' own protection.
+- Everything is stored on your computer, in `%APPDATA%\Game Release Tracker` on Windows or `~/.config/Game Release Tracker` on Linux.
+- Your API keys are encrypted using the system's own protection: Windows' data protection, or the login keyring on Linux (on a Linux desktop without a keyring they are stored unencrypted).
 - Before the app upgrades your library to a new version, it saves a backup copy in a `backups` folder next to it (the last three are kept).
 - Updating the app never touches your data.
 - There are no accounts, analytics or crash reports. The app only contacts IGDB (and Twitch for its login), IGDB's image server, SteamGridDB if you added its key, and YouTube's privacy-enhanced player when you play a trailer or theme music.
@@ -161,7 +163,7 @@ Only to sync, search IGDB, spin the Randomizer and load artwork the first time. 
 No. Your data lives separately from the program, and a backup is made before any upgrade.
 
 **Can I use it on a Mac or Linux?**
-Releases are built for Windows. The code also runs on Linux and macOS from source, but those builds aren't tested.
+Releases are built for Windows and for Linux (a `.deb` for Linux Mint, Ubuntu and Debian, and an AppImage for other distributions), and each is tested before release. There's no Mac build; the code runs on macOS from source, but it isn't tested there.
 
 **Why does a game say "IGDB match needs review"?**
 The app wasn't sure it matched the right IGDB game. Check its cover and details, and use **Fix match** if they're wrong.

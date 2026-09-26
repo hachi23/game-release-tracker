@@ -3,6 +3,8 @@
   "version": "0.6.2",
   "description": "A desktop app that tracks upcoming game releases and keeps a journal of the games you finish.",
   "author": "hachi23 (https://github.com/hachi23)",
+  "homepage": "https://github.com/hachi23/game-release-tracker",
+  "desktopName": "game-release-tracker.desktop",
   "license": "MIT",
   "private": true,
   "main": "dist/apps/desktop/src/main.js",
@@ -92,10 +94,17 @@
     },
     "linux": {
       "icon": "build/icon.png",
+      "category": "Game",
+      "synopsis": "Track upcoming game releases and keep a journal of the games you finish",
+      "maintainer": "hachi23 <88461786+hachi23@users.noreply.github.com>",
+      "syncDesktopName": true,
       "target": [
         "AppImage",
         "deb"
       ]
+    },
+    "deb": {
+      "packageName": "game-release-tracker"
     }
   },
   "allowScripts": {

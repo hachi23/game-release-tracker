@@ -5,7 +5,7 @@
 A private desktop application for tracking upcoming video game releases, maintaining a personal library of completed games, and picking a random game to play from IGDB (the Randomizer). Built as an Electron app with a separate Fastify backend process, SQLite database, IGDB API integration, and a React frontend styled with a "journal" aesthetic.
 
 - **Version**: 0.6.2
-- **Platform**: Windows (NSIS installer + zip)
+- **Platform**: Windows (NSIS installer + zip) and Linux (`.deb` for Mint/Ubuntu/Debian + AppImage)
 - **License**: Private
 - **Repo**: `hachi23/game-release-tracker`
 
@@ -366,7 +366,7 @@ The desktop runtime discovers a backup beside the development root or through an
 - **Frontend tests** (`tests/frontend/`): Vitest coverage for rendering/navigation, workflows, API behavior, wallpaper behavior, and the renderer error boundary
 - **Backend tests** (`tests/backend/`): Vitest coverage for API routes, database/migrations, sync planner, IGDB client, SteamGridDB client, settings, artwork, completed library, diagnostics, and error handling
 - **Desktop tests** (`tests/desktop/`): IPC, lifecycle, wallpaper storage
-- **Packaged smoke test** (`scripts/smoke-packaged.mjs`, `npm run smoke [path to app]`): starts a packaged build with a throwaway profile and `--remote-debugging-port`, loads the sample library, opens every top-bar screen, quits, and fails on a page exception, a console error, an error banner, a slow exit, or a `fail`/`error`/`crash` event in the app's log. It talks to the DevTools protocol directly, so it needs no test packages and works with the fuses above. CI runs it under `xvfb-run` on a `--linux dir` build; the release workflow runs it on the Windows build
+- **Packaged smoke test** (`scripts/smoke-packaged.mjs`, `npm run smoke [path to app]`): starts a packaged build with a throwaway profile and `--remote-debugging-port`, loads the sample library, opens every top-bar screen, quits, and fails on a page exception, a console error, an error banner, a slow exit, or a `fail`/`error`/`crash` event in the app's log. It talks to the DevTools protocol directly, so it needs no test packages and works with the fuses above. Every DevTools request has a 10-second limit and the whole run a 3-minute one, so an app that fails to start (for example a native error dialog) fails the test quickly instead of hanging it. CI runs it under `xvfb-run` on a `--linux dir` build; the release workflow runs it on the Windows build, the installed `.deb` and the AppImage (with `APPIMAGE_EXTRACT_AND_RUN=1`, since runners have no FUSE)
 - If database tests report a `better-sqlite3` ABI mismatch, run `npm rebuild better-sqlite3` before running Vitest again. Run `npm run dist` afterward when the final deliverable is the packaged Electron app.
 
 ## 10. Build & Distribution
@@ -388,13 +388,17 @@ npm run smoke         # Packaged smoke test (after dist)
 - `dist/frontend/` — compiled React app (index.html + assets)
 - `dist/apps/` — compiled backend + desktop TypeScript; `scripts/bundle.mjs` then writes the three packaged entry points (`desktop/src/main.js`, `desktop/src/preload.js`, `backend/src/child.js`) as esbuild bundles over the tsc output
 - `dist/Game Release Tracker-0.6.2-win.zip` — zipped app, extract and run (no install)
-- `dist/Game Release Tracker Setup 0.6.2.exe` — NSIS installer (~97 MB)
+- `dist/Game Release Tracker Setup 0.6.2.exe` — NSIS installer (~89 MB)
+- `dist/game-release-tracker_0.6.2_amd64.deb` — Linux package (~91 MB); installs to `/opt/Game Release Tracker`, adds a Games menu entry
+- `dist/Game Release Tracker-0.6.2.AppImage` — Linux, runs without installing (~117 MB)
 
 ### Electron builder config (package.json `build` field)
 - `appId`: `io.github.hachi23.game-release-tracker`
 - `asar`: true (with `better-sqlite3` unpacked). `files` ships only the three bundles, `dist/frontend` and `better-sqlite3` with its two runtime modules (`bindings`, `file-uri-to-path`)
 - `afterPack`: `scripts/afterPack.cjs` removes `dxcompiler.dll` and `dxil.dll` (WebGPU's shader compiler; the app draws with canvas 2D)
-- Targets: `nsis` (installer) + `zip`
+- Windows targets: `nsis` (installer) + `zip`
+- Linux targets: `deb` + `AppImage`, category `Game`, `desktopName` `game-release-tracker.desktop` (so the running window matches its menu entry), maintainer set to the GitHub no-reply address
+- Release workflow (`.github/workflows/release.yml`): Windows and Linux jobs each build, run the tests and the packaged smoke test (Linux installs the `.deb` with apt and also smoke-tests the AppImage), then a publish job attaches all four files to the release with the changelog section as notes
 - Icon: `build/icon.ico`
 
 ## 11. Data flow summary
