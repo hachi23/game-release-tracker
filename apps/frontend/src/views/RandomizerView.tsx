@@ -120,7 +120,9 @@ export function RandomizerView({ workflow, wallpaperUrl, onOpenSettings }: {
           ) : result ? (
             <div className="randomizer-empty"><p>{result.reason ?? "Nothing matches these filters."}</p></div>
           ) : (
-            <div className="randomizer-empty"><p>Set filters if you like, then press Spin for a random game from IGDB.</p></div>
+            <div className="randomizer-empty"><p>{options?.sample
+              ? "Sample mode: spins pick from 267 games of the sample library. Add your IGDB keys in Settings to spin from all of IGDB and use tags, series and similar games."
+              : "Set filters if you like, then press Spin for a random game from IGDB."}</p></div>
           )}
         </div>
 

@@ -35,6 +35,10 @@ interface LoadedSample {
   completedIds: string[];
 }
 
+export function isDemoLibraryLoaded(db: TrackerDatabase) {
+  return Boolean(db.prepare("select 1 from settings where key = ?").get(SAMPLE_KEY));
+}
+
 export function createDemoLibrary(db: TrackerDatabase, today: () => Date) {
   const readLoaded = () => {
     const row = db.prepare("select value from settings where key = ?").get(SAMPLE_KEY) as { value: string } | undefined;

@@ -301,6 +301,8 @@ export interface RandomizerOptions {
   platforms: RandomizerPlatformOption[];
   // Popular IGDB keywords; any other keyword can be found with the tag search.
   tags: RandomizerOption[];
+  // Spins draw from the sample library's games, not IGDB (no IGDB keys saved yet).
+  sample?: boolean;
 }
 
 // Quick toggles that stand for a group of IGDB keywords.

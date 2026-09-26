@@ -83,7 +83,8 @@ export function useRandomizerWorkflow({ api, shell, active, reelMs = REEL_MS }: 
 
   useEffect(() => {
     if (!active) return;
-    if (optionsStatus === "idle" || (optionsStatus === "error" && missingCredentials)) void loadOptions();
+    // Sample options are asked again each visit: keys saved since, or the sample removed, change the answer.
+    if (optionsStatus === "idle" || (optionsStatus === "error" && missingCredentials) || options?.sample) void loadOptions();
     void loadHistory();
   }, [active]);
 

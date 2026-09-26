@@ -7,6 +7,8 @@ import type { IgdbGateway } from "../igdb/gateway";
 import { COOLDOWN, drawRandomGame, toRandomizerPick, toReelItem, type DrawIo } from "../randomizer/draw";
 import { createPickHistoryStore } from "../randomizer/pickHistoryStore";
 import { MAINSTREAM_PLATFORMS, POPULAR_TAGS } from "../randomizer/catalog";
+import { SAMPLE_OPTIONS, sampleDrawIo, sampleUnsupportedReason } from "../randomizer/sampleCatalog";
+import { isDemoLibraryLoaded } from "../demo/demoLibrary";
 import {
   buildCountQuery,
   buildGameSearchQuery,
@@ -32,6 +34,8 @@ const MAX_HISTORY_LIMIT = 100;
 // writes its own pick history. IGDB failures throw and surface as the safe server error.
 export function createRandomizerActions(db: TrackerDatabase, igdb: IgdbGateway, { rng = Math.random, now = () => new Date() }: { rng?: () => number; now?: () => Date } = {}) {
   const history = createPickHistoryStore(db);
+  // With the sample library loaded and no IGDB keys, spins draw from the sample's games instead of IGDB.
+  const sampleMode = () => !igdb.hasCredentials() && isDemoLibraryLoaded(db);
   // Filter option lists hardly change, so they are fetched once per backend process.
   let options: RandomizerOptions | null = null;
   let loadingOptions: Promise<RandomizerOptions> | null = null;
@@ -83,6 +87,7 @@ export function createRandomizerActions(db: TrackerDatabase, igdb: IgdbGateway, 
 
   return {
     async loadOptions(): Promise<ActionResult<RandomizerOptions>> {
+      if (sampleMode()) return { ok: true, value: SAMPLE_OPTIONS };
       if (options) return { ok: true, value: options };
       if (!igdb.hasCredentials()) return missingCredentials;
       loadingOptions ??= fetchOptions().finally(() => { loadingOptions = null; });
@@ -94,8 +99,11 @@ export function createRandomizerActions(db: TrackerDatabase, igdb: IgdbGateway, 
     async spin(body: unknown): Promise<ActionResult<RandomizerSpinResponse>> {
       const parsed = parseRandomizerFilters(body);
       if (!parsed.ok) return { ok: false, statusCode: 400, error: parsed.error };
-      if (!igdb.hasCredentials()) return missingCredentials;
       const filters = parsed.filters;
+      if (sampleMode()) {
+        const unsupported = sampleUnsupportedReason(filters);
+        if (unsupported) return { ok: true, value: { pick: null, reels: [], poolSize: 0, repeatAllowed: false, reason: unsupported } };
+      } else if (!igdb.hasCredentials()) return missingCredentials;
       // Newest first, so they survive the exclusion-list cap. Duplicates are dropped by the query builder.
       const fixedExcludedIds = [
         ...(filters.hideCompleted === false ? [] : createCompletedGameStore(db).ownedIgdbIds()),
@@ -146,7 +154,7 @@ export function createRandomizerActions(db: TrackerDatabase, igdb: IgdbGateway, 
         recentIds,
         fixedExcludedIds,
         rng,
-        io: ioFor(candidateIds)
+        io: sampleMode() ? sampleDrawIo(filters) : ioFor(candidateIds)
       });
 
       if (!result.game) {

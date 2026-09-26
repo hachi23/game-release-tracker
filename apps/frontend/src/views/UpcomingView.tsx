@@ -97,7 +97,7 @@ function Welcome({ onTrySample, onSetUp }: { onTrySample: () => void; onSetUp: (
       <div className="welcome__choices">
         <div>
           <Button variant="primary" onClick={onTrySample}>Try it with sample data</Button>
-          <p>Loads 30 upcoming games and a finished-games library, no account needed. You can remove it any time.</p>
+          <p>Loads 30 upcoming games, a finished-games library with its Year in Review, and 267 games for the Randomizer, no account needed. You can remove it any time.</p>
         </div>
         <div>
           <Button variant="outline" onClick={onSetUp}>Set up my own</Button>
