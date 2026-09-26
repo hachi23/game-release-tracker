@@ -451,7 +451,7 @@ is its own commit.
 4. **Game of the Year**: the finale, note quote, GOTY picker, the music link
    and the theme player.
 5. **Save as image**, docs (`CONTEXT.md`, `DOCUMENTATION.md`,
-   `BEGINNERS_GUIDE.md`, `CODEBASE_MAP.md`, README) and the EXE (WSL
+   `USER_GUIDE.md`, `CODEBASE_MAP.md`, README) and the EXE (WSL
    procedure in `DOCUMENTATION.md`, "Build & Distribution").
 
 ---

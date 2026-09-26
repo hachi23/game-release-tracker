@@ -92,7 +92,7 @@ Tests mirror the runtime seams. Backend tests cover stores, read models, routes,
 
 ### `docs/`
 
-Human and agent-facing reference. `CONTEXT.md` is the domain vocabulary and decision record; `DOCUMENTATION.md` is the detailed technical reference; `BEGINNERS_GUIDE.md` explains operation; `YEAR_IN_REVIEW_SPEC.md` is the implemented Year in Review's design record and planning notes describe future or scoped product work; this file is the source-folder map.
+Human and agent-facing reference. `CONTEXT.md` is the domain vocabulary and decision record; `DOCUMENTATION.md` is the detailed technical reference; `USER_GUIDE.md` explains operation; `YEAR_IN_REVIEW_SPEC.md` is the implemented Year in Review's design record and planning notes describe future or scoped product work; this file is the source-folder map.
 
 ## Feature ownership map
 

@@ -172,11 +172,13 @@ Keep these files aligned:
 - `README.md`: short project intro and commands
 - `docs/CODEBASE_MAP.md`: source-folder ownership, dependency direction, and safe seams
 - `docs/DOCUMENTATION.md`: longer technical reference
-- `docs/BEGINNERS_GUIDE.md`: plain-English guide
+- `docs/USER_GUIDE.md`: plain-English guide to every screen
+- `docs/HOW_IT_WORKS.md`: the design and its decisions, for non-engineers
+- `CHANGELOG.md`: what changed in each version, in plain language
 
 If a feature changes domain meaning, update `CONTEXT.md` in the same checkpoint.
 
-Refresh `CONTEXT.md`, `docs/DOCUMENTATION.md`, and `docs/BEGINNERS_GUIDE.md` together when behavior or architecture changes. Keep the README command list and short project description aligned with the current package scripts.
+Refresh `CONTEXT.md`, `docs/DOCUMENTATION.md`, and `docs/USER_GUIDE.md` together when behavior or architecture changes. Keep the README command list and short project description aligned with the current package scripts.
 
 ## Agent skills
 
