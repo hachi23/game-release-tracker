@@ -2,6 +2,11 @@
 
 What changed in each version, in plain language.
 
+## 0.6.3
+
+**Fixes**
+- In January, the sample library shows all 30 upcoming games. Before, its first games were dated last December and the default "from January 1" filter hid them.
+
 ## 0.6.2
 
 **Fixes**

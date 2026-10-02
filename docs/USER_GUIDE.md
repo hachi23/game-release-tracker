@@ -20,7 +20,7 @@ On **Linux Mint or Ubuntu**, download the `.deb` and double-click it (or run `su
 ### First look: the sample library
 A new install has nothing in it, so the app offers two choices:
 
-- **Try it with sample data** loads a ready-made library, so you can see every screen straight away: 30 upcoming games, 46 finished games (with a full Year in Review for last year) and 267 games for the Randomizer. The games are real; the ratings, dates, platforms and notes are made up. Upcoming dates are moved so the list starts last month: a game or two just out, and the rest still to come.
+- **Try it with sample data** loads a ready-made library, so you can see every screen straight away: 30 upcoming games, 46 finished games (with a full Year in Review for last year) and 267 games for the Randomizer. The games are real; the ratings, dates, platforms and notes are made up. Upcoming dates are moved so the list starts last month (this month in January): a game or two just out, and the rest still to come.
 - **Set up my own** takes you to the settings you need for your own games (below).
 
 While the sample is loaded, Upcoming shows a note with a **Remove sample data** button. Removing it takes out exactly the sample games and leaves anything you added yourself.
