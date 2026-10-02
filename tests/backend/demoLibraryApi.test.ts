@@ -55,8 +55,10 @@ describe("sample library", () => {
 
   test.each([
     ["2026-09-25", "2026-08-07", "Aug 07, 2026"],
-    ["2031-01-15", "2030-12-07", "Dec 07, 2030"]
-  ])("on %s the sample's upcoming list starts last month, with most games still to come", async (today, firstDate, firstText) => {
+    ["2031-05-15", "2031-04-07", "Apr 07, 2031"],
+    // In January, last month is last year, which the default "from January 1" filter would hide.
+    ["2031-01-15", "2031-01-07", "Jan 07, 2031"]
+  ])("on %s the sample's upcoming list starts last month or January, with most games still to come", async (today, firstDate, firstText) => {
     const app = setup(new Date(`${today}T12:00:00Z`));
     await app.inject({ method: "POST", url: "/api/demo" });
 
