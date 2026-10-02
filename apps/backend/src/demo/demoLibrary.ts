@@ -84,11 +84,13 @@ export function createDemoLibrary(db: TrackerDatabase, today: () => Date) {
 }
 
 // The sample's upcoming dates, moved by whole months so its first release lands last month: a new user sees
-// a game or two just out and the rest still to come. A vague date ("Q4 2026", "2027") moves by whole years,
-// rounded up, so it stays after the exact dates around it.
+// a game or two just out and the rest still to come. In January it lands this month instead, because the
+// default "from January 1" filter would hide last year's games. A vague date ("Q4 2026", "2027") moves by
+// whole years, rounded up, so it stays after the exact dates around it.
 function shiftedReleases(now: Date): NormalizedRelease[] {
   const first = releases.map(release => release.releaseDate).filter((date): date is string => Boolean(date)).sort()[0];
-  const months = (now.getUTCFullYear() * 12 + now.getUTCMonth() - 1) - (Number(first.slice(0, 4)) * 12 + Number(first.slice(5, 7)) - 1);
+  const target = Math.max(now.getUTCFullYear() * 12 + now.getUTCMonth() - 1, now.getUTCFullYear() * 12);
+  const months = target - (Number(first.slice(0, 4)) * 12 + Number(first.slice(5, 7)) - 1);
   const years = Math.ceil(months / 12);
   const moveYears = (text: string | null) => (text ? text.replace(/\b(20\d{2})\b/g, year => String(Number(year) + years)) : text);
   return releases.map(release => {
