@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
@@ -8,7 +8,13 @@ import { AppShell } from "../../apps/frontend/src/App";
 import { fakeApiClient } from "./fakeApiClient";
 
 describe("frontend shell", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   test("renders artwork gallery grouped by date heading and opens detail content", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-15T12:00:00"));
     const html = renderToString(
       <AppShell
         apiBaseUrl="http://127.0.0.1:1234"
@@ -478,6 +484,8 @@ describe("frontend shell", () => {
   });
 
   test("side navigation opens distinct tabs instead of redirecting everything to upcoming", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-15T12:00:00"));
     const { container, cleanup } = await renderInteractive(
       <AppShell
         apiBaseUrl="http://127.0.0.1:1234"
@@ -492,7 +500,7 @@ describe("frontend shell", () => {
     await act(async () => {
       getButton(container, "Calendar").click();
     });
-    expect(container.querySelector(".tab-panel")?.textContent).toContain("September");
+    expect(container.querySelector(".tab-panel")?.textContent).toContain("September 2026");
     expect(container.querySelector(".side-nav button.active")?.textContent).toBe("Calendar");
 
     const navLabels = [...container.querySelectorAll(".side-nav button")].map(button => button.textContent);
