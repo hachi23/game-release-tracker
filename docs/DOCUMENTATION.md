@@ -4,7 +4,7 @@
 
 A private desktop application for tracking upcoming video game releases, maintaining a personal library of completed games, and picking a random game to play from IGDB (the Randomizer). Built as an Electron app with a separate Fastify backend process, SQLite database, IGDB API integration, and a React frontend styled with a "journal" aesthetic.
 
-- **Version**: 0.6.2
+- **Version**: 0.6.3
 - **Platform**: Windows (NSIS installer + zip) and Linux (`.deb` for Mint/Ubuntu/Debian + AppImage)
 - **License**: Private
 - **Repo**: `hachi23/game-release-tracker`
@@ -387,10 +387,10 @@ npm run smoke         # Packaged smoke test (after dist)
 ### Output
 - `dist/frontend/` — compiled React app (index.html + assets)
 - `dist/apps/` — compiled backend + desktop TypeScript; `scripts/bundle.mjs` then writes the three packaged entry points (`desktop/src/main.js`, `desktop/src/preload.js`, `backend/src/child.js`) as esbuild bundles over the tsc output
-- `dist/Game Release Tracker-0.6.2-win.zip` — zipped app, extract and run (no install)
-- `dist/Game Release Tracker Setup 0.6.2.exe` — NSIS installer (~89 MB)
-- `dist/game-release-tracker_0.6.2_amd64.deb` — Linux package (~91 MB); installs to `/opt/Game Release Tracker`, adds a Games menu entry
-- `dist/Game Release Tracker-0.6.2.AppImage` — Linux, runs without installing (~117 MB)
+- `dist/Game Release Tracker-0.6.3-win.zip` — zipped app, extract and run (no install)
+- `dist/Game Release Tracker Setup 0.6.3.exe` — NSIS installer (~89 MB)
+- `dist/game-release-tracker_0.6.3_amd64.deb` — Linux package (~91 MB); installs to `/opt/Game Release Tracker`, adds a Games menu entry
+- `dist/Game Release Tracker-0.6.3.AppImage` — Linux, runs without installing (~117 MB)
 
 ### Electron builder config (package.json `build` field)
 - `appId`: `io.github.hachi23.game-release-tracker`

@@ -7,7 +7,7 @@ Everything runs on your own computer. There is no account, no cloud and no track
 ![Upcoming releases, with the next game's artwork filling the screen](docs/screenshots/upcoming.jpg)
 
 [![CI](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml)
-&nbsp;Windows and Linux (Mint, Ubuntu) · MIT license · 537 automated tests
+&nbsp;Windows and Linux (Mint, Ubuntu) · MIT license · 538 automated tests
 
 ---
 
@@ -112,7 +112,7 @@ You need [Node.js](https://nodejs.org) 22.
 
 ```bash
 npm install
-npm test          # 537 automated tests
+npm test          # 538 automated tests
 npm run build     # compile everything
 npm run dist      # build the installer and packages for this platform into dist/
 npm run smoke     # start the packaged app as a new user and open every screen

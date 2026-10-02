@@ -86,7 +86,7 @@ Your library is a single database file on your computer. Nothing is uploaded any
 
 ## How quality is checked
 
-- **537 automated tests** check the app's behaviour: that edits survive a sync, that a crashed sync is cleaned up, that the Randomizer never repeats a recent pick, that the sample library can be removed without touching your own games, and much more.
+- **538 automated tests** check the app's behaviour: that edits survive a sync, that a crashed sync is cleaned up, that the Randomizer never repeats a recent pick, that the sample library can be removed without touching your own games, and much more.
 - **Every change is checked automatically** on GitHub: the tests run, the whole app is built, and a packaged copy is started and clicked through (below).
 - **Every release is built automatically.** Tagging a version on GitHub builds the Windows installer and zip on a clean machine.
 - **Packaged builds are tested for real**: `npm run smoke` starts the packaged app with an empty profile, loads the sample library, opens every screen, closes it, and fails on any error on the page or in the app's log. GitHub runs it on a Linux build for every change and on the Windows build before every release.
