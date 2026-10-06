@@ -62,7 +62,7 @@ Your library is a single database file on your computer. Nothing is uploaded any
 
 - **Backups before upgrades.** When a new version of the app changes how the library is stored, it first copies your library to a `backups` folder.
 - **Never opened by a newer or older app by mistake.** A library records which version of the storage format it uses, and an older app refuses a newer library instead of damaging it.
-- **Your keys are encrypted** with Windows' built-in protection before they're stored, and never shown again.
+- **Your keys are encrypted** with the system's own protection (Windows' data protection, or the login keyring on Linux) before they're stored, and never shown again.
 - **Only this app can use its engine.** The engine only answers requests from the app's own window, which carries a secret that changes every launch; other programs and websites are turned away.
 - **Links open in your browser,** never inside the app, so the app window only ever shows the app.
 

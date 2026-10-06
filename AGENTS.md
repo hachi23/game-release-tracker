@@ -1,6 +1,6 @@
 # Agent Guide
 
-This repo is a private Electron desktop app. Treat the packaged app and user-data flows as the real deliverable, not just source changes. For module ownership and safe change seams, read [`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md) before restructuring code.
+This repo is a public Electron desktop app for Windows and Linux. Treat the packaged app and user-data flows as the real deliverable, not just source changes. For module ownership and safe change seams, read [`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md) before restructuring code.
 
 ## Working Directory
 

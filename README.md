@@ -4,10 +4,40 @@
 
 Everything runs on your own computer. There is no account, no cloud and no tracking.
 
+[![CI](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/hachi23/game-release-tracker)](https://github.com/hachi23/game-release-tracker/releases/latest)
+![Tests](https://img.shields.io/badge/tests-538%20passing-brightgreen)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+
 ![Upcoming releases, with the next game's artwork filling the screen](docs/screenshots/upcoming.jpg)
 
-[![CI](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml)
-&nbsp;Windows and Linux (Mint, Ubuntu) · MIT license · 538 automated tests
+## At a glance
+
+| | |
+|---|---|
+| **What** | A local-first desktop app: syncs release data from a public API (IGDB) into a local database, keeps a personal journal, and turns it into a yearly analytics recap |
+| **My role** | Product owner and director: idea, every feature specification, data rules, design decisions, review and testing. Code written by AI coding agents from my specifications ([details below](#my-role-and-how-it-was-built)) |
+| **Built with** | Electron, React, TypeScript, Fastify, SQLite, Vitest, GitHub Actions |
+| **Quality** | 538 automated tests in 74 files; every change on GitHub runs the tests, builds the app, and starts the packaged app as a new user to open every screen |
+| **Shipped** | Public releases with a Windows installer, a Linux `.deb` and an AppImage |
+| **Design record** | [6 architecture decision records](docs/adr/) explaining the choices and what each one cost |
+
+---
+
+## My role and how it was built
+
+The idea, the features and every product decision are mine: what the app should do, how each screen should feel, the Year in Review chapters, and the rules for what counts as an upcoming release.
+
+Most of the code was written by AI coding assistants (Anthropic's Claude Code and OpenAI's Codex), working from specifications and plans I wrote. My part of each change:
+
+1. **Specify.** Write what the feature must do, the rules it keeps, and how it should be tested (the domain language and rules are in [CONTEXT.md](CONTEXT.md)).
+2. **Direct.** Hand the work to an AI agent with that specification and the repo's [agent guide](AGENTS.md).
+3. **Review.** Read the change, run the app, and send it back when it misses the specification.
+4. **Verify.** Accept it only when the tests pass and the packaged app works as a new user would see it.
+5. **Record.** Write down decisions that shaped the design, with their trade-offs, as [decision records](docs/adr/).
+
+This public repository starts at the first public version (0.6.0), so its commit history is short. The [Changelog](CHANGELOG.md) shows how the app grew.
 
 ---
 
@@ -72,6 +102,35 @@ The [User Guide](docs/USER_GUIDE.md) walks through every screen.
 
 ---
 
+## Architecture
+
+Three processes, the same shape as many desktop apps:
+
+```mermaid
+flowchart LR
+    W["Window<br/>React + TypeScript"] -- "HTTP on 127.0.0.1<br/>+ per-launch token" --> E["Engine<br/>Fastify backend"]
+    E --> D[("Library<br/>SQLite file")]
+    E -- "only when syncing" --> I["IGDB / SteamGridDB<br/>public APIs"]
+    S["Desktop shell<br/>Electron"] -. "starts" .-> E
+    S -. "opens" .-> W
+```
+
+- **The window** only shows screens and asks the engine for data. It never reads or writes files, and saved API keys are never sent back to it.
+- **The engine** syncs from IGDB, applies the user's rules, and is the only part that reads or writes the library.
+- **The desktop shell** starts both, and handles what only a desktop app can do: file dialogs and encrypting API keys.
+
+[How it works](docs/HOW_IT_WORKS.md) explains this without code; the [Review Guide](docs/REVIEW_GUIDE.md) is a five-minute tour of the source.
+
+## Decisions worth a look
+
+- **Data stays honest.** IGDB stores a game announced for "2027" as December 31, 2027. The app keeps the words ("2027", "Q4 2026") and counts down only to a real announced day ([ADR 5](docs/adr/0005-vague-release-dates-keep-their-words.md)).
+- **Syncing never overwrites the user.** Each game is saved on its own, so one bad record leaves the sync "partial" instead of failing it; manual edits win over the data source, and deleted games stay deleted.
+- **Only the app can talk to its engine.** The local API refuses requests without a token created at each launch, and turns away requests from web pages ([ADR 2](docs/adr/0002-local-api-answers-only-the-app.md)).
+- **Upgrades can't lose data.** Before a new version changes the database layout, it backs up the library; an older version refuses a newer library instead of damaging it.
+- **The user decides what to track.** Early versions had one person's taste built in; the public version made publishers, platforms and dates settings ([ADR 6](docs/adr/0006-the-sync-policy-belongs-to-the-user.md)).
+
+---
+
 ## Privacy
 
 - **Everything stays on your computer.** Your library, notes and settings live in a local database in your user folder.
@@ -82,14 +141,6 @@ The [User Guide](docs/USER_GUIDE.md) walks through every screen.
   - SteamGridDB, for extra artwork (only if you add its optional key);
   - YouTube's privacy-enhanced player, only when you press play on a trailer or on theme music.
 - **Settings → Diagnostics → Delete all app data** removes everything the app stored.
-
----
-
-## How it was built
-
-The idea, the features and every product decision are mine: what the app should do, how each screen should feel, the Year in Review chapters, and the rules for what counts as an upcoming release. I wrote the specifications and plans, reviewed each change and tested the results.
-
-Most of the code was written by AI coding assistants (Anthropic's Claude Code and OpenAI's Codex) working from those specifications. This public repository starts at the first public version (0.6.0), so its commit history is short; the [Changelog](CHANGELOG.md) shows how the app grew, the [decision records](docs/adr/) explain the choices that shaped it, and [How it works](docs/HOW_IT_WORKS.md) explains the design in plain language.
 
 ---
 
