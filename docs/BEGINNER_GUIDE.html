@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Game Release Tracker, from zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a study guide. Sticky chapter rail on the left, one calm reading column, figures that may scroll sideways. */
+:root {
+  --bg: #F3F4EF;
+  --surface: #FBFBF8;
+  --ink: #1C222A;
+  --muted: #5B6570;
+  --rule: #D9DCD3;
+  --accent: #1F6675;
+  --accent-soft: #DCEAEA;
+  --code-bg: #E9ECE5;
+  --figure-ink: #2A3440;
+  --tok-key: #8A3B6E;
+  --tok-str: #2F6E3A;
+  --tok-num: #9A5A12;
+  --tok-com: #7A8580;
+  --tok-fn: #1F5C9E;
+
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Literata", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --measure: 68ch;
+  --step--1: 0.875rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.3rem;
+  --step-2: 1.75rem;
+  --step-3: clamp(2.2rem, 5vw, 3.4rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14181D; --surface: #1A1F26; --ink: #E3E6E9; --muted: #9AA4AE; --rule: #2A313A;
+    --accent: #7CC4CF; --accent-soft: #1C3036; --code-bg: #1E242C; --figure-ink: #CBD3DA;
+    --tok-key: #E39AC9; --tok-str: #9AD3A4; --tok-num: #E8B36D; --tok-com: #77838C; --tok-fn: #8FBDF2;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14181D; --surface: #1A1F26; --ink: #E3E6E9; --muted: #9AA4AE; --rule: #2A313A;
+  --accent: #7CC4CF; --accent-soft: #1C3036; --code-bg: #1E242C; --figure-ink: #CBD3DA;
+  --tok-key: #E39AC9; --tok-str: #9AD3A4; --tok-num: #E8B36D; --tok-com: #77838C; --tok-fn: #8FBDF2;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.7;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 20; background: transparent; }
+.progress span { display: block; height: 100%; width: 0; background: var(--accent); }
+
+.page {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  max-width: 76rem;
+  margin: 0 auto;
+  padding-inline: 24px;
+  padding-block: 0 6rem;
+}
+
+/* Chapter rail */
+.rail { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: 100vh; overflow-y: auto; padding-block: 2.5rem 2rem; scrollbar-width: thin; }
+.rail__label { font-family: var(--font-display); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.75rem; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.rail a {
+  display: grid; grid-template-columns: 1.9rem 1fr; gap: 0.25rem; align-items: baseline;
+  padding: 0.3rem 0.6rem; border-radius: 6px; color: var(--muted); text-decoration: none;
+  font-family: var(--font-display); font-size: 0.9rem; line-height: 1.35;
+}
+.rail a:hover { color: var(--ink); background: var(--code-bg); }
+.rail a.is-current { color: var(--accent); background: var(--accent-soft); }
+.tnum { font-variant-numeric: tabular-nums; font-size: 0.78rem; opacity: 0.8; }
+.rail code { font-size: 0.85em; }
+
+.toc-mobile { display: none; }
+
+/* Hero */
+.hero { padding-block: clamp(3rem, 8vw, 5.5rem) 2.5rem; border-bottom: 1px solid var(--rule); margin-bottom: 1rem; max-width: var(--measure); }
+.eyebrow { font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 1rem; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-3); line-height: 1.05; letter-spacing: -0.02em; margin: 0 0 1.5rem; text-wrap: balance; }
+.hero p { color: var(--muted); font-size: 1.1rem; }
+.meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; padding: 0; list-style: none; }
+.meta li { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); border: 1px solid var(--rule); border-radius: 999px; padding: 0.2rem 0.75rem; background: var(--surface); }
+
+/* Reading column */
+main { min-width: 0; }
+.chapter { max-width: var(--measure); padding-top: 3.5rem; }
+.chapter + .chapter { border-top: 1px solid var(--rule); margin-top: 3rem; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-2); line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 1.5rem; display: flex; gap: 0.9rem; align-items: baseline; text-wrap: balance; }
+h2 .num { flex: none; font-size: 0.95rem; font-variant-numeric: tabular-nums; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 0.1rem 0.5rem; transform: translateY(-0.2rem); }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: var(--step-1); line-height: 1.3; margin: 2.5rem 0 0.75rem; text-wrap: balance; }
+p { margin: 0 0 1.1rem; }
+strong { font-weight: 600; }
+ul, ol { padding-left: 1.4rem; margin: 0 0 1.3rem; }
+li { margin-bottom: 0.45rem; padding-left: 0.2rem; }
+li::marker { color: var(--accent); }
+ol > li::marker { font-family: var(--font-display); font-weight: 600; }
+
+code { font-family: var(--font-mono); font-size: 0.86em; background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+a code { color: inherit; }
+
+.figure { position: relative; margin: 1.5rem 0 1.75rem; }
+.figure pre { margin: 0; overflow-x: auto; background: var(--code-bg); border-radius: 10px; padding: 1.1rem 1.25rem; line-height: 1.55; }
+.figure pre code { background: none; padding: 0; font-size: 0.84rem; overflow-wrap: normal; white-space: pre; }
+.figure .lang { position: absolute; top: 0.5rem; right: 0.75rem; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+pre.diagram { background: var(--surface); border: 1px solid var(--rule); color: var(--figure-ink); }
+pre.diagram code { font-size: 0.8rem; line-height: 1.35; }
+
+.hljs-keyword, .hljs-built_in, .hljs-literal { color: var(--tok-key); }
+.hljs-string, .hljs-regexp { color: var(--tok-str); }
+.hljs-number { color: var(--tok-num); }
+.hljs-comment { color: var(--tok-com); font-style: italic; }
+.hljs-title, .hljs-title.function_ { color: var(--tok-fn); }
+.hljs-attr, .hljs-property { color: var(--tok-fn); }
+
+.table-wrap { overflow-x: auto; margin: 1.5rem 0 1.75rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; line-height: 1.5; }
+th { font-family: var(--font-display); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0.7rem 1rem; border-bottom: 1px solid var(--rule); }
+td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+table.facts td:first-child { color: var(--muted); width: 9rem; }
+
+blockquote.script { margin: 1.5rem 0 1.75rem; padding: 1.25rem 1.5rem; background: var(--accent-soft); border-radius: 10px; }
+blockquote.script p { font-style: italic; }
+blockquote.script p:last-child { margin-bottom: 0; }
+
+.to-top { display: inline-block; margin-top: 4rem; font-family: var(--font-display); font-size: 0.9rem; }
+
+@media (max-width: 960px) {
+  .page { grid-template-columns: minmax(0, 1fr); padding-inline: 16px; gap: 0; }
+  .rail { display: none; }
+  .toc-mobile { display: block; margin: 0 0 1rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+  .toc-mobile summary { cursor: pointer; padding: 0.8rem 1rem; font-family: var(--font-display); font-weight: 600; }
+  .toc-mobile ol { list-style: none; margin: 0; padding: 0 0.5rem 0.75rem; display: grid; gap: 1px; }
+  .toc-mobile a { display: grid; grid-template-columns: 1.9rem 1fr; padding: 0.35rem 0.5rem; color: var(--ink); text-decoration: none; font-family: var(--font-display); font-size: 0.95rem; border-radius: 6px; }
+  .toc-mobile a:hover { background: var(--code-bg); }
+  body { font-size: 1rem; }
+}
+</style>
+
+<div class="progress" aria-hidden="true"><span id="progress"></span></div>
+<div class="page">
+  <nav class="rail" aria-label="Chapters">
+    <p class="rail__label">Chapters</p>
+    <ol id="rail"><li><a href="#1-what-the-app-does" data-target="1-what-the-app-does"><span class="tnum">1</span><span>What the app does</span></a></li><li><a href="#2-computing-ideas-you-need-first" data-target="2-computing-ideas-you-need-first"><span class="tnum">2</span><span>Computing ideas you need first</span></a></li><li><a href="#3-the-big-picture-one-piece-at-a-time" data-target="3-the-big-picture-one-piece-at-a-time"><span class="tnum">3</span><span>The big picture, one piece at a time</span></a></li><li><a href="#4-what-happens-when-you-double-click-the-app" data-target="4-what-happens-when-you-double-click-the-app"><span class="tnum">4</span><span>What happens when you double-click the app</span></a></li><li><a href="#5-how-the-window-talks-to-the-engine" data-target="5-how-the-window-talks-to-the-engine"><span class="tnum">5</span><span>How the window talks to the engine</span></a></li><li><a href="#6-inside-the-engine-route-action-store-database" data-target="6-inside-the-engine-route-action-store-database"><span class="tnum">6</span><span>Inside the engine: route, action, store, database</span></a></li><li><a href="#7-the-database" data-target="7-the-database"><span class="tnum">7</span><span>The database</span></a></li><li><a href="#8-feature-upcoming-releases-and-sync" data-target="8-feature-upcoming-releases-and-sync"><span class="tnum">8</span><span>Feature: Upcoming releases and sync</span></a></li><li><a href="#9-feature-the-completed-library" data-target="9-feature-the-completed-library"><span class="tnum">9</span><span>Feature: the Completed Library</span></a></li><li><a href="#10-feature-the-randomizer" data-target="10-feature-the-randomizer"><span class="tnum">10</span><span>Feature: the Randomizer</span></a></li><li><a href="#11-feature-year-in-review" data-target="11-feature-year-in-review"><span class="tnum">11</span><span>Feature: Year in Review</span></a></li><li><a href="#12-feature-the-sample-library" data-target="12-feature-the-sample-library"><span class="tnum">12</span><span>Feature: the sample library</span></a></li><li><a href="#13-the-window-in-depth-react-and-the-frontend" data-target="13-the-window-in-depth-react-and-the-frontend"><span class="tnum">13</span><span>The window in depth: React and the frontend</span></a></li><li><a href="#14-security-and-privacy" data-target="14-security-and-privacy"><span class="tnum">14</span><span>Security and privacy</span></a></li><li><a href="#15-when-things-go-wrong-errors-and-logs" data-target="15-when-things-go-wrong-errors-and-logs"><span class="tnum">15</span><span>When things go wrong: errors and logs</span></a></li><li><a href="#16-how-the-code-is-tested" data-target="16-how-the-code-is-tested"><span class="tnum">16</span><span>How the code is tested</span></a></li><li><a href="#17-from-source-code-to-an-installer" data-target="17-from-source-code-to-an-installer"><span class="tnum">17</span><span>From source code to an installer</span></a></li><li><a href="#18-every-folder-explained" data-target="18-every-folder-explained"><span class="tnum">18</span><span>Every folder, explained</span></a></li><li><a href="#19-why-it-is-built-this-way" data-target="19-why-it-is-built-this-way"><span class="tnum">19</span><span>Why it is built this way</span></a></li><li><a href="#20-interview-preparation" data-target="20-interview-preparation"><span class="tnum">20</span><span>Interview preparation</span></a></li><li><a href="#21-glossary" data-target="21-glossary"><span class="tnum">21</span><span>Glossary</span></a></li></ol>
+  </nav>
+  <main id="top">
+    <header class="hero">
+      <p class="eyebrow">A beginner's study guide</p>
+      <h1>Game Release Tracker, from zero</h1>
+      <p>This guide explains the whole project for someone who has never built software. It starts with what the app does, then teaches the few computing ideas you need, then follows the code from the moment you double-click the app to the moment a game appears on screen. The last part prepares you to talk about the project in an interview.</p><p>Read it in order the first time. Each part builds on the one before it. File paths like <code>apps/backend/src/server.ts</code> point at the real code, so you can open the file and see the thing being described.</p><p>Facts in this guide are true for version 0.6.3: about 14,300 lines of TypeScript in <code>apps/</code> and <code>shared/</code>, about 9,800 lines of tests, and 538 automated tests.</p>
+      <ul class="meta">
+        <li>Version 0.6.3</li>
+        <li>21 chapters</li>
+        <li>About 63 min read</li>
+      </ul>
+    </header>
+    <details class="toc-mobile">
+      <summary>Chapters</summary>
+      <ol><li><a href="#1-what-the-app-does" data-target="1-what-the-app-does"><span class="tnum">1</span><span>What the app does</span></a></li><li><a href="#2-computing-ideas-you-need-first" data-target="2-computing-ideas-you-need-first"><span class="tnum">2</span><span>Computing ideas you need first</span></a></li><li><a href="#3-the-big-picture-one-piece-at-a-time" data-target="3-the-big-picture-one-piece-at-a-time"><span class="tnum">3</span><span>The big picture, one piece at a time</span></a></li><li><a href="#4-what-happens-when-you-double-click-the-app" data-target="4-what-happens-when-you-double-click-the-app"><span class="tnum">4</span><span>What happens when you double-click the app</span></a></li><li><a href="#5-how-the-window-talks-to-the-engine" data-target="5-how-the-window-talks-to-the-engine"><span class="tnum">5</span><span>How the window talks to the engine</span></a></li><li><a href="#6-inside-the-engine-route-action-store-database" data-target="6-inside-the-engine-route-action-store-database"><span class="tnum">6</span><span>Inside the engine: route, action, store, database</span></a></li><li><a href="#7-the-database" data-target="7-the-database"><span class="tnum">7</span><span>The database</span></a></li><li><a href="#8-feature-upcoming-releases-and-sync" data-target="8-feature-upcoming-releases-and-sync"><span class="tnum">8</span><span>Feature: Upcoming releases and sync</span></a></li><li><a href="#9-feature-the-completed-library" data-target="9-feature-the-completed-library"><span class="tnum">9</span><span>Feature: the Completed Library</span></a></li><li><a href="#10-feature-the-randomizer" data-target="10-feature-the-randomizer"><span class="tnum">10</span><span>Feature: the Randomizer</span></a></li><li><a href="#11-feature-year-in-review" data-target="11-feature-year-in-review"><span class="tnum">11</span><span>Feature: Year in Review</span></a></li><li><a href="#12-feature-the-sample-library" data-target="12-feature-the-sample-library"><span class="tnum">12</span><span>Feature: the sample library</span></a></li><li><a href="#13-the-window-in-depth-react-and-the-frontend" data-target="13-the-window-in-depth-react-and-the-frontend"><span class="tnum">13</span><span>The window in depth: React and the frontend</span></a></li><li><a href="#14-security-and-privacy" data-target="14-security-and-privacy"><span class="tnum">14</span><span>Security and privacy</span></a></li><li><a href="#15-when-things-go-wrong-errors-and-logs" data-target="15-when-things-go-wrong-errors-and-logs"><span class="tnum">15</span><span>When things go wrong: errors and logs</span></a></li><li><a href="#16-how-the-code-is-tested" data-target="16-how-the-code-is-tested"><span class="tnum">16</span><span>How the code is tested</span></a></li><li><a href="#17-from-source-code-to-an-installer" data-target="17-from-source-code-to-an-installer"><span class="tnum">17</span><span>From source code to an installer</span></a></li><li><a href="#18-every-folder-explained" data-target="18-every-folder-explained"><span class="tnum">18</span><span>Every folder, explained</span></a></li><li><a href="#19-why-it-is-built-this-way" data-target="19-why-it-is-built-this-way"><span class="tnum">19</span><span>Why it is built this way</span></a></li><li><a href="#20-interview-preparation" data-target="20-interview-preparation"><span class="tnum">20</span><span>Interview preparation</span></a></li><li><a href="#21-glossary" data-target="21-glossary"><span class="tnum">21</span><span>Glossary</span></a></li></ol>
+    </details>
+<section class="chapter" id="1-what-the-app-does" aria-labelledby="1-what-the-app-does-h">
+<h2 id="1-what-the-app-does-h"><span class="num">1</span><span class="h2text">What the app does</span></h2>
+<p>Game Release Tracker is a desktop app for Windows and Linux. It has four screens that matter:</p>
+<ul><li><strong>Upcoming.</strong> A list of games that are coming out soon from the publishers you follow, with a countdown to each one. There is also a <strong>Calendar</strong> view of the same list.</li><li><strong>Completed Library.</strong> A journal of the games you have finished: when you finished, on what system, your rating and your notes.</li><li><strong>Randomizer.</strong> You can't decide what to play, so it picks a random released game that fits your filters.</li><li><strong>Year in Review.</strong> A recap of the games you finished in one year, told in five illustrated chapters, which you can save as an image.</li></ul>
+<p>There is no account and no server. Everything you type is stored in one file on your own computer. The app goes to the internet only to look up game information on IGDB, the Internet Game Database.</p>
+<p>A new user can press <strong>Try it with sample data</strong> on the welcome screen and see every screen filled in, without signing up for anything.</p>
+</section>
+<section class="chapter" id="2-computing-ideas-you-need-first" aria-labelledby="2-computing-ideas-you-need-first-h">
+<h2 id="2-computing-ideas-you-need-first-h"><span class="num">2</span><span class="h2text">Computing ideas you need first</span></h2>
+<p>You need about fifteen ideas to follow the rest of this guide. Each one gets a plain definition, then the part of this project where it shows up.</p>
+<h3 id="program-and-process">Program and process</h3>
+<p>A <strong>program</strong> is a file of instructions. A <strong>process</strong> is a program that is running. Your computer runs many processes at once: your browser, your music player, this app. Each process has its own memory, and one process can't read another's memory. If one process crashes, the others keep running.</p>
+<p>This app runs as several processes that work together. That is the most important fact about how it is built.</p>
+<h3 id="frontend-and-backend">Frontend and backend</h3>
+<p>The <strong>frontend</strong> is the part you see and click: buttons, lists, pictures. The <strong>backend</strong> is the part that does the work behind the screen: it stores data, talks to the internet and applies rules.</p>
+<p>In this app, the frontend lives in <code>apps/frontend/</code> and the backend lives in <code>apps/backend/</code>.</p>
+<h3 id="javascript-typescript-and-nodejs">JavaScript, TypeScript and Node.js</h3>
+<p><strong>JavaScript</strong> is the programming language web pages are written in. <strong>TypeScript</strong> is JavaScript plus <strong>types</strong>. A type says what kind of value something is: a number, a piece of text, a list of games. TypeScript checks the types before the program runs, so a mistake like passing text where a number was expected is caught early. Every <code>.ts</code> and <code>.tsx</code> file in this project is TypeScript.</p>
+<p>JavaScript first ran only inside web browsers. <strong>Node.js</strong> lets it run outside a browser, where it can read files and open network connections. The backend runs on Node.js.</p>
+<h3 id="electron">Electron</h3>
+<p><strong>Electron</strong> is a toolkit for building desktop apps out of web technology. It bundles a copy of Chromium (the engine inside Google Chrome) and Node.js into one program. Slack, Discord and Visual Studio Code are built with Electron.</p>
+<p>An Electron app always has a <strong>main process</strong>, which controls windows and talks to the operating system, and one or more <strong>renderer processes</strong>, which each draw one window's web page. This app's main process is <code>apps/desktop/src/main.ts</code>.</p>
+<h3 id="react">React</h3>
+<p><strong>React</strong> is a library for building screens out of small pieces called <strong>components</strong>. A component is a function that takes some data and returns what should be on screen. When the data changes, React redraws only the parts that changed. Files ending in <code>.tsx</code> hold React components. <code>apps/frontend/src/views/UpcomingView.tsx</code> is the Upcoming screen.</p>
+<h3 id="http-a-server-and-an-api">HTTP, a server and an API</h3>
+<p><strong>HTTP</strong> is the language web browsers and websites use to talk. One side sends a <strong>request</strong> ("give me the list of releases"). The other side sends back a <strong>response</strong> (the list, or an error). Every request has a <strong>method</strong> that says what kind of request it is:</p>
+<ul><li><code>GET</code> reads something.</li><li><code>POST</code> creates something or starts an action.</li><li><code>PATCH</code> changes part of something.</li><li><code>PUT</code> replaces something.</li><li><code>DELETE</code> removes something.</li></ul>
+<p>Every response has a <strong>status code</strong>. <code>200</code> means it worked. <code>400</code> means the request was wrong. <code>401</code> means "you are not allowed in". <code>404</code> means "not found". <code>409</code> means "this conflicts with something that already exists". <code>500</code> means the server failed.</p>
+<p>A <strong>server</strong> is a program that waits for requests and answers them. An <strong>API</strong> (application programming interface) is the list of requests a server understands, such as <code>GET /api/releases</code>. This app's backend is an HTTP server built with <strong>Fastify</strong>, a Node.js library for writing servers.</p>
+<h3 id="localhost-and-ports">localhost and ports</h3>
+<p>Every computer can talk to itself at the address <code>127.0.0.1</code>, also called <strong>localhost</strong>. A <strong>port</strong> is a numbered door on that address. Many programs can run servers on one computer, each behind a different port. This app's backend asks the operating system for any free port each time it starts.</p>
+<h3 id="json">JSON</h3>
+<p><strong>JSON</strong> is a text format for data. It looks like this:</p>
+<div class="figure"><span class="lang">json</span><pre><code class="language-json">{ "title": "Persona 4 Revival", "platforms": ["PC", "PS5"], "watched": true }</code></pre></div>
+<p>The frontend and the backend send each other JSON.</p>
+<h3 id="database-sql-and-sqlite">Database, SQL and SQLite</h3>
+<p>A <strong>database</strong> stores data in <strong>tables</strong>. A table is like a spreadsheet: each <strong>row</strong> is one thing (one game) and each <strong>column</strong> is one fact about it (title, release date). <strong>SQL</strong> is the language for asking a database questions and changing its data:</p>
+<div class="figure"><span class="lang">sql</span><pre><code class="language-sql">select title from releases where release_date &gt;= '2026-10-01' order by release_date;</code></pre></div>
+<p><strong>SQLite</strong> is a database that lives in a single file and runs inside your program, with no separate database server. This app's whole library is one SQLite file called <code>game-release-tracker.db</code>. The backend uses the <code>better-sqlite3</code> library to read and write it.</p>
+<h3 id="transaction">Transaction</h3>
+<p>A <strong>transaction</strong> is a group of database changes that either all happen or none happen. If you move money between two bank accounts, you want both the withdrawal and the deposit, or neither. This app wraps every change in a transaction, so a crash halfway through can't leave half a change behind.</p>
+<h3 id="asynchronous-code-and-promises">Asynchronous code and promises</h3>
+<p>Some work takes time: waiting for IGDB to answer, waiting for a file to load. <strong>Asynchronous</strong> code starts that work and carries on with other things while it waits. A <strong>promise</strong> stands for a result that will arrive later. The keyword <code>await</code> means "pause this function here until the promise has its result". You will see <code>async</code> and <code>await</code> everywhere in this codebase.</p>
+<h3 id="igdb-and-api-keys">IGDB and API keys</h3>
+<p><strong>IGDB</strong> (igdb.com) is a public database of video games run by Twitch. It knows each game's release dates, publishers, platforms, cover art, screenshots and trailers. Programs can query it through its API.</p>
+<p>To use IGDB's API you need <strong>API keys</strong>: a client ID and a client secret that you get free from Twitch. An API key works like a password for a program. The app sends your keys to Twitch, gets back a short-lived <strong>access token</strong>, and sends that token with every IGDB request.</p>
+<p><strong>SteamGridDB</strong> is a second, optional source of game artwork. It also needs its own key.</p>
+<h3 id="tests">Tests</h3>
+<p>A <strong>test</strong> is a small program that runs part of the real program and checks the result. For example: "save a game, edit its title, run a sync, and check the title is still the edited one". If someone breaks that behaviour later, the test fails and tells them. This project uses <strong>Vitest</strong> to run its tests.</p>
+</section>
+<section class="chapter" id="3-the-big-picture-one-piece-at-a-time" aria-labelledby="3-the-big-picture-one-piece-at-a-time-h">
+<h2 id="3-the-big-picture-one-piece-at-a-time-h"><span class="num">3</span><span class="h2text">The big picture, one piece at a time</span></h2>
+<p>The app is three programs plus one file. This section adds them one at a time.</p>
+<h3 id="step-1-the-window">Step 1: the window</h3>
+<p>The first thing you meet is a window. It is a web page, drawn by Chromium, made of React components.</p>
+<div class="figure"><pre class="diagram"><code>  ┌──────────────────────────┐
+  │  The window (renderer)   │   draws screens, reacts to clicks
+  └──────────────────────────┘</code></pre></div>
+<p>The window can't read files and can't reach IGDB. It is deliberately powerless. That keeps it safe even though it shows content from the internet, like game covers and YouTube trailers.</p>
+<h3 id="step-2-add-the-engine">Step 2: add the engine</h3>
+<p>The window gets all its data by asking a second program, the <strong>backend</strong>. This guide calls it the engine. It is a small HTTP server running on your own computer.</p>
+<div class="figure"><pre class="diagram"><code>  ┌──────────────────────────┐
+  │  The window (renderer)   │
+  └────────────┬─────────────┘
+               │  HTTP requests: "list the releases", "save this rating"
+  ┌────────────▼─────────────┐
+  │  The engine (backend)    │   applies rules, stores data
+  └──────────────────────────┘</code></pre></div>
+<h3 id="step-3-add-the-library-file">Step 3: add the library file</h3>
+<p>The engine keeps everything in one SQLite database file in your user folder. On Windows that is <code>%APPDATA%\Game Release Tracker\game-release-tracker.db</code>.</p>
+<div class="figure"><pre class="diagram"><code>  ┌──────────────────────────┐
+  │  The window (renderer)   │
+  └────────────┬─────────────┘
+               │  HTTP
+  ┌────────────▼─────────────┐
+  │  The engine (backend)    │
+  └────────────┬─────────────┘
+               │  SQL
+  ┌────────────▼─────────────┐
+  │  game-release-tracker.db │   your whole library, one file
+  └──────────────────────────┘</code></pre></div>
+<h3 id="step-4-add-the-internet">Step 4: add the internet</h3>
+<p>When you press <strong>Sync now</strong>, or search for a game to add, the engine asks IGDB. The window never talks to IGDB's API itself.</p>
+<div class="figure"><pre class="diagram"><code>  ┌──────────────────────────┐
+  │  The window (renderer)   │
+  └────────────┬─────────────┘
+               │  HTTP
+  ┌────────────▼─────────────┐        ┌───────────────────────┐
+  │  The engine (backend)    ├───────►│ IGDB and SteamGridDB  │
+  └────────────┬─────────────┘  HTTPS │ (on the internet)     │
+               │  SQL                 └───────────────────────┘
+  ┌────────────▼─────────────┐
+  │  game-release-tracker.db │
+  └──────────────────────────┘</code></pre></div>
+<h3 id="step-5-add-the-desktop-shell">Step 5: add the desktop shell</h3>
+<p>One more program starts the others and looks after them. This is Electron's main process, <code>apps/desktop/src/main.ts</code>. It starts the engine, opens the window, and does the things only a desktop program can do: show a save dialog, pick a wallpaper file, encrypt your API keys with the operating system's protection.</p>
+<div class="figure"><pre class="diagram"><code>  ┌──────────────────────────────────────────────────────────┐
+  │  Desktop shell (Electron main process)                   │
+  │  starts the engine, opens the window, dialogs, keys      │
+  └───────┬──────────────────────────────────┬───────────────┘
+          │ opens                            │ starts
+  ┌───────▼──────────────────┐   HTTP   ┌────▼─────────────────┐     ┌──────────────┐
+  │  The window (renderer)   ├─────────►│  The engine (backend)├────►│ IGDB         │
+  └──────────────────────────┘          └────┬─────────────────┘     └──────────────┘
+                                             │
+                                        ┌────▼─────────────────┐
+                                        │ game-release-tracker │
+                                        │ .db                  │
+                                        └──────────────────────┘</code></pre></div>
+<p>That is the whole app. The rest of this guide zooms into each box.</p>
+<h3 id="where-each-box-lives-in-the-code">Where each box lives in the code</h3>
+<div class="table-wrap"><table><thead><tr><th>Box</th><th>Folder</th><th>Starts in</th></tr></thead><tbody><tr><td>Desktop shell</td><td><code>apps/desktop/src/</code></td><td><code>main.ts</code></td></tr><tr><td>Window</td><td><code>apps/frontend/src/</code></td><td><code>main.tsx</code></td></tr><tr><td>Engine</td><td><code>apps/backend/src/</code></td><td><code>child.ts</code></td></tr><tr><td>File locations</td><td><code>apps/runtime/src/</code></td><td><code>layout.ts</code></td></tr><tr><td>Shapes all three agree on</td><td><code>shared/</code></td><td><code>types.ts</code></td></tr></tbody></table></div>
+<p><code>shared/types.ts</code> defines the shape of every piece of data that crosses between the window and the engine, such as <code>ReleaseListItem</code> and <code>CompletedGameDetail</code>. Both sides import the same definitions, so if the engine changes the shape of a release, TypeScript flags every frontend file that reads it the old way.</p>
+</section>
+<section class="chapter" id="4-what-happens-when-you-double-click-the-app" aria-labelledby="4-what-happens-when-you-double-click-the-app-h">
+<h2 id="4-what-happens-when-you-double-click-the-app-h"><span class="num">4</span><span class="h2text">What happens when you double-click the app</span></h2>
+<p>Here is the startup, in order. Each step names the file that does it.</p>
+<ol><li><strong>Electron starts the main process.</strong> It runs <code>apps/desktop/src/main.ts</code>.</li><li><strong>The data folder is chosen.</strong> <code>main.ts</code> sets the folder to <code>Game Release Tracker</code> inside your app-data folder. It is named after the app, not after the code package, so two different builds of the code can't open each other's library by accident.</li><li><strong>Only one copy may run.</strong> <code>app.requestSingleInstanceLock()</code> checks for a copy that is already open. If there is one, the new copy quits and the old window comes to the front. Two copies writing to one database file would corrupt it.</li><li><strong>A secret is made.</strong> <code>main.ts</code> creates a random 64-character token with <code>randomBytes(32)</code>. Section 5 explains what it is for. It changes on every launch.</li><li><strong>Folders are prepared.</strong> <code>prepareDesktopRuntime</code> in <code>apps/desktop/src/desktopLifecycle.ts</code> works out every path (database, logs, covers) through <code>apps/runtime/src/layout.ts</code>, creates the log folder, and writes a line to <code>logs/startup.log</code>.</li><li><strong>The encryption key is loaded.</strong> <code>loadCredentialDataKey</code> in <code>apps/desktop/src/credentialKey.ts</code> reads a key file and decrypts it with the operating system's protection. Section 14 explains this chain.</li><li><strong>The engine is started.</strong> <code>startBackendProcess</code> in <code>apps/desktop/src/backendProcess.ts</code> starts <code>child.ts</code> as a separate process with Electron's <code>utilityProcess.fork</code>. It passes the data folder, the token and the encryption key through <strong>environment variables</strong>, which are named values a process receives when it starts.</li><li><strong>The window is built while the engine starts.</strong> <code>main.ts</code> creates the window hidden (<code>show: false</code>) before the engine is ready. Starting both at once saves time.</li><li><strong>The engine opens the database.</strong> In <code>apps/backend/src/child.ts</code>, <code>openDatabase</code> opens the SQLite file, and <code>runMigrations</code> brings its tables up to date (section 7).</li><li><strong>The engine encrypts any old plain-text keys.</strong> <code>encryptStoredCredentials</code> finds API keys an older version saved unencrypted and encrypts them.</li><li><strong>The engine starts its HTTP server.</strong> <code>createBackendApp</code> in <code>apps/backend/src/server.ts</code> builds the Fastify server and registers every route. Then <code>app.listen({ host: &quot;127.0.0.1&quot;, port: 0 })</code> starts it. Port <code>0</code> means "any free port". The server listens only on <code>127.0.0.1</code>, so other computers on your network can't reach it.</li><li><strong>The engine reports its port.</strong> It sends the message <code>{&quot;type&quot;:&quot;ready&quot;,&quot;port&quot;:53412}</code> (the number varies) back to the main process.</li><li><strong>The main process waits for that message.</strong> <code>waitForBackendReady</code> in <code>backendProcess.ts</code> waits up to 15 seconds. If the engine crashes first, it shows the engine's own error message. If 15 seconds pass, it kills the engine so it can't keep the database file locked.</li><li><strong>The window loads the app.</strong> In the installed app, the window loads <code>app://renderer/</code>, a private address that <code>apps/desktop/src/appProtocol.ts</code> forwards to the engine. In development it loads the Vite development server instead (section 17).</li><li><strong>The window is shown.</strong> <code>mainWindow.show()</code>.</li><li><strong>React starts.</strong> <code>apps/frontend/src/main.tsx</code> asks the main process for the engine's address and the token, builds the API client, and draws the <code>AppShell</code> component.</li><li><strong>The first data arrives.</strong> The Upcoming screen asks the engine for the release list, and the list appears.</li><li><strong>Maybe a sync starts.</strong> If you turned auto-sync on and the last successful sync is more than 12 hours old, the engine starts one 3 seconds after startup (<code>shouldAutoSync</code> in <code>apps/backend/src/sync/syncStatus.ts</code>). The delay lets the window load first.</li></ol>
+<p>When you close the app, the reverse happens. The <code>before-quit</code> handler in <code>main.ts</code> sends the engine a <code>shutdown</code> message. The engine stops its server, closes the database cleanly and exits. If it hasn't exited after 3 seconds, the main process kills it.</p>
+</section>
+<section class="chapter" id="5-how-the-window-talks-to-the-engine" aria-labelledby="5-how-the-window-talks-to-the-engine-h">
+<h2 id="5-how-the-window-talks-to-the-engine-h"><span class="num">5</span><span class="h2text">How the window talks to the engine</span></h2>
+<h3 id="the-api-client">The API client</h3>
+<p>Every request the window makes goes through one object, the <strong>API client</strong>, in <code>apps/frontend/src/api/client.ts</code>. It has one method per request, with names like <code>listReleases</code>, <code>patchRelease</code> and <code>spinRandomizer</code>. Here is the core of it, trimmed:</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">const request = async (path, init) =&gt; {
+  const headers = {
+    "Content-Type": "application/json",
+    "x-grt-token": apiToken
+  };
+  const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  return await response.json();
+};</code></pre></div>
+<p><code>fetch</code> is the browser's built-in way to send an HTTP request. Every request carries the secret token in a header called <code>x-grt-token</code>. If the engine answers with an error, the client turns it into a JavaScript error, which the screen shows in a banner.</p>
+<p>Because all requests go through one object, tests can swap it for a fake one (section 16).</p>
+<h3 id="why-http-and-not-electrons-own-messaging">Why HTTP and not Electron's own messaging</h3>
+<p>Electron has its own way for a window to talk to the main process, called <strong>IPC</strong> (inter-process communication). This app uses plain HTTP for data instead. The reason is in <code>docs/adr/0002-local-api-answers-only-the-app.md</code>: with HTTP, the same frontend code runs inside the desktop app, in a normal browser during development, and in tests against a fake client. IPC is used only for the few things that must touch the operating system (section 14).</p>
+<h3 id="the-problem-http-creates-and-the-token-that-solves-it">The problem HTTP creates, and the token that solves it</h3>
+<p>Any program on your computer can send requests to a port on <code>127.0.0.1</code>. So can any website open in your browser. Without protection, a malicious web page could ask the engine to delete your library.</p>
+<p>The engine refuses such requests in <code>apps/backend/src/requestGuard.ts</code>. It checks two things on every request:</p>
+<ol><li><strong>The Host header must be a loopback name</strong> (<code>127.0.0.1</code>, <code>localhost</code> or <code>[::1]</code>). This stops an attack called <strong>DNS rebinding</strong>, where a website makes its own domain name point at <code>127.0.0.1</code> to sneak past the browser's rules.</li><li><strong>Every <code>/api</code> request must carry the token.</strong> The main process created the token at startup (step 4 above). It gives the token only to the app's own window, through the preload script. Other programs and websites never see it, so their requests get <code>401 Missing or invalid app token</code>.</li></ol>
+<p>The comparison uses <code>timingSafeEqual</code>, which takes the same time whether the first wrong character is at the start or the end. A normal comparison stops at the first difference, and an attacker can measure that time to guess the token one character at a time.</p>
+<p>A few <code>GET</code> requests skip the token: the page itself, its scripts, and images (<code>/api/covers/...</code>, the wallpaper). An <code>&lt;img&gt;</code> tag can't send a custom header. These routes only return pictures or the app's own code, and a foreign web page can show an image but can't read its pixels.</p>
+<h3 id="how-the-window-gets-the-token-the-preload-bridge">How the window gets the token: the preload bridge</h3>
+<p>The window runs with Node.js turned off (<code>nodeIntegration: false</code>), inside Chromium's sandbox (<code>sandbox: true</code>), and isolated from Electron's internals (<code>contextIsolation: true</code>). So how does it ask the main process for anything?</p>
+<p>Electron runs a small <strong>preload script</strong> before the page loads. This app's preload is <code>apps/desktop/src/preload.ts</code>, and it is twelve lines long:</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">contextBridge.exposeInMainWorld("releaseTracker", {
+  getApiBaseUrl: () =&gt; ipcRenderer.invoke("api-base-url"),
+  getApiToken: () =&gt; ipcRenderer.invoke("api-token"),
+  chooseWallpaper: () =&gt; ipcRenderer.invoke("choose-wallpaper"),
+  saveImage: (png, suggestedName) =&gt; ipcRenderer.invoke("save-image", png, suggestedName),
+  deleteAppData: () =&gt; ipcRenderer.invoke("delete-app-data"),
+  // ...
+});</code></pre></div>
+<p>It puts one object, <code>window.releaseTracker</code>, on the page. That object offers a short fixed list of functions, and each one sends an IPC message to the main process. The page gets no other access. The main process answers <code>api-token</code> only when the asking frame is showing the app itself (<code>isAppFrame</code> in <code>main.ts</code>), so even a YouTube frame inside the window can't get it.</p>
+<h3 id="the-apprenderer-address">The <code>app://renderer</code> address</h3>
+<p>The engine's port changes on every launch. If the window loaded its page from <code>http://127.0.0.1:53412</code>, its <strong>origin</strong> (scheme, host and port together) would change every launch too. Browsers keep saved data per origin, so the window would forget its saved settings and its compiled-code cache each time.</p>
+<p><code>apps/desktop/src/appProtocol.ts</code> fixes this. It registers a private scheme, <code>app://</code>, and serves the page from <code>app://renderer</code>, which never changes. Every request to <code>app://renderer/...</code> is forwarded to the engine at whatever port it has today.</p>
+<div class="figure"><pre class="diagram"><code>  window asks for app://renderer/api/releases
+         │
+         ▼
+  appProtocol.ts rewrites it to http://127.0.0.1:53412/api/releases
+         │
+         ▼
+  engine answers</code></pre></div>
+</section>
+<section class="chapter" id="6-inside-the-engine-route-action-store-database" aria-labelledby="6-inside-the-engine-route-action-store-database-h">
+<h2 id="6-inside-the-engine-route-action-store-database-h"><span class="num">6</span><span class="h2text">Inside the engine: route, action, store, database</span></h2>
+<p>The engine is organised in layers. A request passes down through them and the answer comes back up. Each layer has one job.</p>
+<div class="figure"><pre class="diagram"><code>  HTTP request
+       │
+  ┌────▼────┐  routes/       reads the request, calls one action, sends the answer
+  │  Route  │
+  └────┬────┘
+  ┌────▼────┐  actions/      the steps of one user task, inside one transaction
+  │ Action  │
+  └────┬────┘
+  ┌────▼────┐  database/, completed/, ...   the only code that writes a set of tables
+  │  Store  │
+  └────┬────┘
+  ┌────▼────┐
+  │ SQLite  │
+  └─────────┘</code></pre></div>
+<h3 id="a-real-request-all-the-way-down">A real request, all the way down</h3>
+<p>You click <strong>Watch</strong> on a game. Here is everything that happens.</p>
+<p><strong>1. The window sends a request.</strong> The detail page calls <code>api.patchRelease(&quot;igdb-501&quot;, { watched: true })</code>. The client sends:</p>
+<div class="figure"><pre class="diagram"><code>PATCH /api/releases/igdb-501
+x-grt-token: 3f9a...
+Content-Type: application/json
+
+{"watched":true}</code></pre></div>
+<p><strong>2. The guard checks it.</strong> <code>requestGuard.ts</code> checks the Host header and the token.</p>
+<p><strong>3. The route receives it.</strong> In <code>apps/backend/src/routes/releaseRoutes.ts</code>:</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">app.patch("/api/releases/:id", async (request, reply) =&gt; {
+  const { id } = request.params as { id: string };
+  return sendActionResult(reply, await updateRelease(db, id, request.body ?? {}));
+});</code></pre></div>
+<p><code>:id</code> in the path is a placeholder. Fastify fills <code>request.params.id</code> with <code>igdb-501</code>. The route does nothing else: it hands the work to an action and sends back the result. Routes are kept this thin on purpose.</p>
+<p><strong>4. The action runs.</strong> <code>updateRelease</code> in <code>apps/backend/src/actions/releaseActions.ts</code>:</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">export function updateRelease(db, id, payload) {
+  return runWrite(db, () =&gt; updateReleaseNow(db, id, payload));
+}</code></pre></div>
+<p><code>runWrite</code> (below) queues the work and wraps it in a transaction. Inside, <code>updateReleaseNow</code> checks the release exists (<code>404</code> if not), checks the input (<code>400</code> if the title is empty), then asks the store to make the changes.</p>
+<p><strong>5. The store writes.</strong> <code>createReleaseStore(db).updateUserState(id, { watched: true })</code> in <code>apps/backend/src/database/releaseStore.ts</code> runs the SQL that sets <code>watched = 1</code> in the <code>user_release_state</code> table.</p>
+<p><strong>6. The answer goes back up.</strong> The action returns <code>{ ok: true, value: { ok: true, item: &lt;the updated release&gt; } }</code>. <code>sendActionResult</code> in <code>routes/actionResult.ts</code> turns that into a <code>200</code> response with the release as JSON. If the action had returned <code>{ ok: false, statusCode: 404, error: &quot;Release not found&quot; }</code>, it would send a <code>404</code> with that message.</p>
+<p><strong>7. The window updates.</strong> The detail page replaces its copy of the release with the one that came back, and the <strong>Watching</strong> label appears.</p>
+<h3 id="why-actions-return-results-instead-of-throwing-errors">Why actions return results instead of throwing errors</h3>
+<p>An action returns either <code>{ ok: true, value }</code> or <code>{ ok: false, statusCode, error }</code>. This type is <code>ActionResult</code> in <code>apps/backend/src/actions/actionResult.ts</code>. Expected problems, like "that game doesn't exist", are normal answers, not crashes. Only unexpected failures throw, and those become a safe <code>500</code> (section 15). This makes every expected outcome visible in the function's type, and TypeScript makes the caller handle both cases.</p>
+<h3 id="the-write-queue">The write queue</h3>
+<p>Two writes at the same moment could interfere: a sync saving a game while you edit the same game. <code>apps/backend/src/database/writeQueue.ts</code> prevents that in eighteen lines:</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">let tail = Promise.resolve();
+
+export function enqueueWrite(job) {
+  const run = tail.then(job, job);
+  tail = run.catch(() =&gt; undefined);
+  return run;
+}
+
+export function runWrite(db, job) {
+  return enqueueWrite(() =&gt; db.transaction(job)());
+}</code></pre></div>
+<p><code>tail</code> is the last write in line. Each new write is chained to start after it, so writes run one at a time, in the order they arrived, like a queue at a counter. <code>runWrite</code> also wraps each job in <code>db.transaction</code>, so if the job throws an error halfway, every change it made is rolled back. The <code>.catch</code> on <code>tail</code> means one failed write doesn't block the writes behind it.</p>
+<p>Reads don't go through the queue. SQLite's <strong>WAL mode</strong> (write-ahead logging, turned on in <code>apps/backend/src/database/db.ts</code>) lets reads happen while a write is in progress.</p>
+<h3 id="stores-own-their-tables">Stores own their tables</h3>
+<p>Each group of tables has exactly one module that writes to it:</p>
+<div class="table-wrap"><table><thead><tr><th>Store</th><th>File</th><th>Writes</th></tr></thead><tbody><tr><td>Release Store</td><td><code>database/releaseStore.ts</code></td><td><code>releases</code> and every <code>release_*</code> table, overrides, blocks</td></tr><tr><td>Completed Library store</td><td><code>completed/completedGameStore.ts</code></td><td><code>completed_games</code>, <code>completed_match_overrides</code></td></tr><tr><td>Settings Store</td><td><code>settings/settingsStore.ts</code></td><td>the <code>settings</code> table</td></tr><tr><td>Sync Settings Store</td><td><code>sync/syncSettingsStore.ts</code></td><td>tracked publishers and sync choices</td></tr><tr><td>Pick history</td><td><code>randomizer/pickHistoryStore.ts</code></td><td><code>randomizer_picks</code></td></tr><tr><td>Year in Review settings</td><td><code>yearInReview/yearInReviewSettingsStore.ts</code></td><td><code>year_in_review_settings</code></td></tr></tbody></table></div>
+<p>If you want to know every way a completed game can change, you read one file. Rules that must always hold live in that one file too. For example, the Completed Library store makes sure a game's rating text and rating number always agree.</p>
+<h3 id="read-models">Read models</h3>
+<p>Writing and reading are split. A <strong>read model</strong> builds the data a screen needs, and never changes anything. <code>database/releaseReadModel.ts</code> builds the release list. It has one detail worth knowing: to show 300 releases with their publishers, platforms and artwork, a simple approach would run one query per release per table, about 1,500 queries. <code>hydrateListItems</code> runs one query per table for the whole page instead, then groups the rows in memory. That is five queries.</p>
+</section>
+<section class="chapter" id="7-the-database" aria-labelledby="7-the-database-h">
+<h2 id="7-the-database-h"><span class="num">7</span><span class="h2text">The database</span></h2>
+<h3 id="tables">Tables</h3>
+<p>The database has about twenty tables. The ones that matter:</p>
+<div class="table-wrap"><table><thead><tr><th>Table</th><th>One row is</th></tr></thead><tbody><tr><td><code>releases</code></td><td>an upcoming game: title, date, date precision, category</td></tr><tr><td><code>release_publishers</code>, <code>release_developers</code>, <code>release_platforms</code>, <code>release_genres</code></td><td>one name in a release's list</td></tr><tr><td><code>release_artworks</code>, <code>release_screenshots</code>, <code>release_trailers</code></td><td>one image or video of a release</td></tr><tr><td><code>user_release_state</code></td><td>your flags on a release: hidden, watched, released</td></tr><tr><td><code>manual_overrides</code></td><td>one field you edited on a release, kept so sync doesn't undo it</td></tr><tr><td><code>blocked_releases</code></td><td>a game you deleted and never want back</td></tr><tr><td><code>releases_fts</code></td><td>a search index over release titles and names</td></tr><tr><td><code>sync_runs</code>, <code>sync_log</code></td><td>one sync, and one line of what it did</td></tr><tr><td><code>tracked_publishers</code></td><td>a company you follow</td></tr><tr><td><code>completed_games</code></td><td>a game you finished</td></tr><tr><td><code>completed_match_overrides</code></td><td>which IGDB game you linked a finished game to</td></tr><tr><td><code>randomizer_picks</code></td><td>one Randomizer result</td></tr><tr><td><code>year_in_review_settings</code></td><td>your Game of the Year choice and theme music for one year</td></tr><tr><td><code>settings</code></td><td>one named setting, including your encrypted API keys</td></tr><tr><td><code>schema_version</code></td><td>one number: the version of this table layout</td></tr></tbody></table></div>
+<p>A release's publishers are in their own table rather than a column, because one game can have several publishers. Each row of <code>release_publishers</code> links one release to one publisher. Connecting rows across tables like this is what makes it a <strong>relational</strong> database. The <code>release_id</code> column is a <strong>foreign key</strong>: it must match an existing release. The <code>on delete cascade</code> rule means deleting a release also deletes its publisher rows.</p>
+<p><code>releases_fts</code> is an <strong>FTS</strong> (full-text search) table. SQLite builds an index of every word in it, so searching "persona" finds matching titles instantly without reading every row. The Release Store refreshes a release's search row each time it saves the release.</p>
+<h3 id="migrations">Migrations</h3>
+<p>The table layout has changed twenty times since the first version. Each change is a <strong>migration</strong>: a function that turns layout version N into version N+1. They are all in <code>apps/backend/src/database/migrations.ts</code>, in a list from <code>migrateToV1</code> to <code>migrateToV20</code>.</p>
+<p>On every startup, <code>runMigrations</code>:</p>
+<ol><li>reads the number in <code>schema_version</code>;</li><li><strong>refuses to continue</strong> if that number is higher than the newest migration it knows. A newer version of the app saved this library, and an older app might damage it. The user sees: "This library was saved by a newer version of Game Release Tracker... Update the app to open it; nothing was changed";</li><li><strong>makes a backup</strong> if any migration is about to run, using SQLite's <code>vacuum into</code> to copy the whole database into a <code>backups</code> folder. It keeps the three newest backups;</li><li>runs each missing migration in order and updates the version number after each one.</li></ol>
+<p>A migration is never edited after it ships. A library on version 12 must go through exactly the same steps 13 to 20 as every other library did. To change something, you add migration 21.</p>
+<h3 id="settings-rows">Settings rows</h3>
+<p>The <code>settings</code> table is a simple list of name and value pairs: <code>UI_PALETTE = abyss-gold</code>, <code>SYNC_AUTO = 1</code>, <code>IGDB_CLIENT_ID = enc:v1:...</code>. Values starting <code>enc:v1:</code> are encrypted (section 14).</p>
+</section>
+<section class="chapter" id="8-feature-upcoming-releases-and-sync" aria-labelledby="8-feature-upcoming-releases-and-sync-h">
+<h2 id="8-feature-upcoming-releases-and-sync-h"><span class="num">8</span><span class="h2text">Feature: Upcoming releases and sync</span></h2>
+<h3 id="what-sync-means">What "sync" means</h3>
+<p><strong>Sync</strong> is the job of asking IGDB for games from the publishers you follow and updating your list to match. One sync is a <strong>Sync Run</strong>. The code is in <code>apps/backend/src/sync/syncRun.ts</code>.</p>
+<p>You choose what to track on <strong>Settings → Sync</strong>:</p>
+<ul><li><strong>Tracked publishers</strong>: the companies you follow, stored by their IGDB company ID.</li><li><strong>Platform families</strong>: PC, Xbox, PlayStation, Nintendo Switch. <code>PLATFORM_FAMILIES</code> in <code>shared/constants.ts</code> maps each one to IGDB's platform numbers.</li><li><strong>Track from</strong>: the earliest release date you care about. It defaults to January 1 of this year.</li><li><strong>Auto-sync</strong>: off by default.</li></ul>
+<h3 id="a-sync-run-step-by-step">A Sync Run, step by step</h3>
+<p><code>SyncRun.execute()</code> does this:</p>
+<p><strong>1. Record the start.</strong> It adds a row to <code>sync_runs</code> with status <code>running</code>.</p>
+<p><strong>2. Ask IGDB.</strong> <code>discoverIgdbCandidates</code> in <code>sync/igdbCandidateSource.ts</code> sends queries like this, in IGDB's own query language:</p>
+<div class="figure"><pre class="diagram"><code>fields id,name,game_type,first_release_date,platforms.id,release_dates.human,...;
+where game_type = (0,1,2,4,8,9,10,11)
+  &amp; involved_companies.company = (70,112,...)
+  &amp; (first_release_date &gt;= 1767225600 | release_dates.y &gt;= 2026);
+sort first_release_date asc;
+limit 500;
+offset 0;</code></pre></div>
+<p>That asks for every main game, DLC, expansion, remake, remaster and port that one of your companies was involved in, from your track-from year onward. IGDB returns at most 500 games per request, so the code asks again with <code>offset 500</code>, then <code>1000</code>, until a page comes back short. It sends at most 25 companies per query to keep queries a sensible size.</p>
+<p><strong>3. Apply your rules.</strong> Each game goes through the <strong>Release Policy</strong>, <code>createReleasePolicy</code> in <code>sync/releasePolicy.ts</code>. A game is rejected, with a reason, if:</p>
+<ul><li>its type is not one the app tracks;</li><li>its title contains a phrase like "Digital Deluxe", "Season Pass" or "Demo" (<code>EXCLUDED_TITLE_TERMS</code> in <code>shared/constants.ts</code>). These are editions and add-ons, not games;</li><li>it isn't on one of your platform families;</li><li>none of your companies is credited as its <strong>publisher or developer</strong>. IGDB also lists studios that only helped with a port, and those don't count;</li><li>it has no usable release date;</li><li>its date is before your track-from date.</li></ul>
+<p>Every accepted game is converted from IGDB's shape into the app's own shape, a <code>NormalizedRelease</code>, by <code>normalizeIgdbGame</code>.</p>
+<p><strong>4. Choose the date.</strong> A game often has several release dates: one per platform, and sometimes per region. <code>chooseBestReleaseDate</code> takes the earliest date on a platform you track.</p>
+<p>Then it works out the date's <strong>precision</strong>. IGDB stores a game announced for "2027" with the timestamp December 31, 2027. If the app trusted that timestamp, it would say "Arrives in 461 days" and put the game on New Year's Eve. So <code>precisionOfDatedHuman</code> reads IGDB's human-readable date text instead:</p>
+<div class="table-wrap"><table><thead><tr><th>Text</th><th>Precision</th><th>Countdown?</th></tr></thead><tbody><tr><td><code>Oct 21, 2026</code></td><td>Exact</td><td>yes</td></tr><tr><td><code>Oct 2026</code></td><td>Month</td><td>no</td></tr><tr><td><code>Q4 2026</code>, <code>Fall 2026</code>, <code>Late 2026</code></td><td>Window</td><td>no</td></tr><tr><td><code>2027</code></td><td>Year</td><td>no</td></tr><tr><td>nothing</td><td>TBA</td><td>not listed</td></tr></tbody></table></div>
+<p>Only an Exact date gets a countdown or a calendar square. Everything else shows its words. The timestamp is still kept for sorting, so "Q4 2026" sorts after the exact dates in October. This decision is in <code>docs/adr/0005-vague-release-dates-keep-their-words.md</code>.</p>
+<p><strong>5. Find missing artwork.</strong> For accepted games with no artwork beyond IGDB's own, <code>sync/syncArtworkEnrichment.ts</code> asks SteamGridDB, if you saved a SteamGridDB key. It runs four lookups at a time, which is faster than one by one without flooding the service.</p>
+<p><strong>6. Save each game separately.</strong> This is the part most worth understanding.</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">const saveOne = this.db.transaction(candidate =&gt; this.persistCandidate(...));
+for (const candidate of candidates) {
+  try {
+    saveOne(candidate);
+  } catch (error) {
+    counters.failed++;
+    log(this.db, syncRunId, candidate.title, "error", error.message);
+  }
+}</code></pre></div>
+<p>The whole save runs inside one outer transaction from <code>runWrite</code>. Each game is saved inside its own inner transaction, which SQLite calls a <strong>savepoint</strong>. If one game fails to save, only that game's changes roll back. The error is written to the sync log and counted, and the loop carries on. The run finishes as <code>partial</code> instead of losing every game because of one bad one.</p>
+<p><strong>7. Plan each save.</strong> For each game, <code>planReleaseSync</code> in <code>sync/releaseSyncPlanner.ts</code> decides what to do. It is a <strong>pure function</strong>: it takes the incoming game and the stored state, and returns a decision without touching the database. Pure functions are easy to test because the same input always gives the same output.</p>
+<ul><li>If the game is <strong>blocked</strong>, skip it.</li><li>If the game was <strong>rejected</strong> by the policy, skip it and log the reason.</li><li>Otherwise, merge it with what is stored, and save.</li></ul>
+<p><strong>8. Respect your edits.</strong> The merge, <code>mergeReleaseForPersistence</code> in <code>sync/releaseMerge.ts</code>, is how your changes survive. When you edit a release's title or date, the Release Store does two things: it changes the row, and it records the edit in <code>manual_overrides</code> with source type <code>user</code>. On every sync, the merge re-applies those overrides on top of IGDB's data:</p>
+<div class="figure"><pre class="diagram"><code>IGDB says:          title = "Persona 4 Revival"
+your override:      title = "P4 Revival (my name)"
+result saved:       title = "P4 Revival (my name)"</code></pre></div>
+<p>There are three kinds of override, ranked: <code>user</code> beats <code>seeded</code> (curated corrections shipped in <code>data/source-overrides.json</code>), which beats <code>igdb</code>. Fields you never edited keep following IGDB, so a corrected date from IGDB still arrives.</p>
+<p>Artwork you uploaded yourself (<code>source: &quot;local&quot;</code>) also stays in place through every sync.</p>
+<p><strong>9. One release per game.</strong> If you added a game by hand from IGDB search, it got an ID like <code>manual-7c1e...</code> and remembers its IGDB ID. When sync later finds the same game, <code>releaseStore.idForIgdbGame</code> finds your row and updates it instead of adding a duplicate <code>igdb-501</code> row. A unique index on <code>releases.igdb_id</code> (migration 13) makes a duplicate impossible.</p>
+<p><strong>10. Finish.</strong> The run's row is updated with counts (added, repaired, skipped, failed) and a status of <code>success</code> or <code>partial</code>. Old log lines are trimmed so only the newest 20 runs keep their logs.</p>
+<p><strong>If anything unexpected goes wrong</strong>, the <code>catch</code> in <code>execute()</code> marks the run <code>failed</code>. A run never stays marked <code>running</code> after an error. If you close the app mid-sync, the next startup marks the cut-off run <code>failed</code> with the message <code>interrupted</code> (<code>failInterruptedSyncRuns</code>).</p>
+<p><strong>Only one sync at a time.</strong> <code>startSync</code> keeps the current run in a variable called <code>running</code>. If you press <strong>Sync now</strong> while a sync is running, you get the same run back instead of starting a second one.</p>
+<h3 id="talking-to-igdb-politely">Talking to IGDB politely</h3>
+<p>All IGDB traffic goes through one object, the <strong>IGDB Gateway</strong> (<code>apps/backend/src/igdb/gateway.ts</code>), which uses <code>IgdbClient</code> (<code>apps/backend/src/igdb/client.ts</code>). Sync, manual search, completed-game matching, the Randomizer and the <strong>Test credentials</strong> button all share it. So they share one access token and one speed limit. The client:</p>
+<ul><li><strong>Gets a token from Twitch</strong> with your client ID and secret (<code>igdb/token.ts</code>). If several requests need a token at once, they share one token request.</li><li><strong>Keeps to 4 requests a second</strong> (<code>IGDB_REQUESTS_PER_SECOND</code>). Each request reserves the next free time slot before waiting, so requests made at the same moment are spaced out instead of racing.</li><li><strong>Retries <code>429 Too Many Requests</code></strong> up to three times, waiting a little longer each time.</li><li><strong>Gets a fresh token once on <code>401</code> or <code>403</code></strong>, in case the old token expired.</li><li><strong>Gives up after 10 seconds</strong> on any request (<code>AbortSignal.timeout</code>), so a hung connection can't freeze a sync forever.</li></ul>
+<h3 id="deleting-and-blocking">Deleting and blocking</h3>
+<p>You can delete a release, or <strong>delete and block</strong> it. Blocking adds a row to <code>blocked_releases</code> with the game's IGDB ID and normalized title. Every later sync checks <code>isBlocked</code> and skips it, so it never comes back.</p>
+<p>A <strong>normalized title</strong> is the title lower-cased with punctuation removed: <code>&quot;Persona 4: Revival!&quot;</code> becomes <code>&quot;persona 4 revival&quot;</code>. <code>normalizeText</code> in <code>apps/backend/src/text/normalizeText.ts</code> does this. The app uses normalized titles everywhere it compares names, so small differences in spelling don't matter.</p>
+<h3 id="listing-releases">Listing releases</h3>
+<p><code>GET /api/releases</code> builds its list in <code>listReleases</code> (<code>database/releaseReadModel.ts</code>). It adds a condition to the SQL for each filter you set: search text, publisher, category, platform, date precision. It hides releases you marked hidden or released unless you ask for them.</p>
+<p>Your track-from date is applied here, when the list is read, not when games are saved. So if you move it from 2026 to 2025, the older games show up straight away. Nothing has to be rewritten.</p>
+<p>The list is capped at 5,000 rows (<code>MAX_RELEASE_ROWS</code>) so a huge library can't freeze the window.</p>
+</section>
+<section class="chapter" id="9-feature-the-completed-library" aria-labelledby="9-feature-the-completed-library-h">
+<h2 id="9-feature-the-completed-library-h"><span class="num">9</span><span class="h2text">Feature: the Completed Library</span></h2>
+<h3 id="what-a-completed-game-is">What a completed game is</h3>
+<p>A row in <code>completed_games</code>: title, the platform you played on, your rating, when you finished, notes, and information copied from IGDB (cover, genres, developer, summary, IGDB's rating). The store is <code>apps/backend/src/completed/completedGameStore.ts</code>.</p>
+<h3 id="the-identity-key">The Identity Key</h3>
+<p>How does the app know whether a game you add is new, or one you already have? It builds an <strong>Identity Key</strong> from the normalized title and the normalized platform:</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">// completed/completedIdentity.ts
+export function completedIdentityKey(title, userPlatform = "") {
+  return `${normalizeText(title)}|${normalizeText(userPlatform)}`;
+}</code></pre></div>
+<p>"Hades" on "PC" becomes <code>hades|pc</code>. "Hades" on "Switch" becomes <code>hades|switch</code>, a separate entry, because finishing it twice on two systems is two journal entries.</p>
+<p>Adding a game whose key already exists updates that game instead of making a duplicate. Renaming a game rebuilds its key. If the new key belongs to another game, the rename is refused with <code>409 Another completed game already has this title and platform</code>.</p>
+<p>A game's <strong>ID</strong> (like <code>completed-hades-pc</code>) is set when it is created and never changes, even after a rename. Other things that point at the game, like your Game of the Year choice, use the ID, so a rename never breaks them.</p>
+<h3 id="matching-to-igdb">Matching to IGDB</h3>
+<p>When you add a finished game, you can search IGDB and pick the right entry. <code>apps/backend/src/completed/completedIgdbMatcher.ts</code> ranks IGDB's search results with a simple score:</p>
+<ul><li><strong>70 points</strong> if the title matches exactly, or <strong>45</strong> if one title contains the other (<code>matching/titleMatch.ts</code>);</li><li><strong>20 points</strong> if the platform matches exactly, or <strong>12</strong> if it partly matches;</li><li><strong>5 points</strong> if the game came out no later than the year you finished it.</li></ul>
+<p>The best match is called confident only if it scores at least 85 and beats the second best by at least 12. Otherwise the app asks you to choose. When you choose, the app fetches the game's full details and saves them together with your choice in one transaction (<code>applyMatch</code>). Your choice is kept in <code>completed_match_overrides</code>, keyed by the Identity Key, so it follows the game through renames.</p>
+<h3 id="ratings">Ratings</h3>
+<p>You type a rating the way you think of it. <code>parseRating</code> in <code>completed/completedRating.ts</code> turns it into a score out of 10:</p>
+<div class="table-wrap"><table><thead><tr><th>You type</th><th>Score</th></tr></thead><tbody><tr><td><code>9/10</code></td><td>9</td></tr><tr><td><code>4/5</code></td><td>8</td></tr><tr><td><code>95%</code></td><td>9.5</td></tr><tr><td><code>85</code></td><td>8.5</td></tr><tr><td><code>8</code></td><td>8</td></tr></tbody></table></div>
+<p>The text you typed and the number are both stored. Every write of the text also writes the number through <code>parseRating</code>, so they can never disagree.</p>
+<h3 id="finish-dates">Finish dates</h3>
+<p>You might remember the exact day, only the month, or only the year. <code>parseCompletionDate</code> in <code>completed/completedDate.ts</code> accepts <code>2026-03-14</code>, <code>14/03/2026</code>, <code>2026-03</code>, <code>March 2026</code> and <code>2026</code>, and stores the parts it can tell with a <strong>precision</strong>: <code>exact</code>, <code>month</code>, <code>year</code> or <code>none</code>. Year in Review uses the precision to decide which charts a game can appear in.</p>
+</section>
+<section class="chapter" id="10-feature-the-randomizer" aria-labelledby="10-feature-the-randomizer-h">
+<h2 id="10-feature-the-randomizer-h"><span class="num">10</span><span class="h2text">Feature: the Randomizer</span></h2>
+<h3 id="what-it-does">What it does</h3>
+<p>You set filters (genres, themes, platforms, ratings, years, "Made in Japan", "similar to a game") and press <strong>Spin</strong>. It picks one released game from the whole IGDB catalogue that matches, avoiding games it picked recently. It never adds anything to your library. Code: <code>apps/backend/src/randomizer/</code> and <code>apps/backend/src/actions/randomizerActions.ts</code>.</p>
+<h3 id="picking-fairly-from-millions-of-games">Picking fairly from millions of games</h3>
+<p>IGDB has hundreds of thousands of games. You can't download them all to pick one. <code>drawRandomGame</code> in <code>randomizer/draw.ts</code> does it in two requests:</p>
+<ol><li><strong>Count.</strong> Ask IGDB how many games match: <code>games/count</code> with the filters. Say the answer is 12,400.</li><li><strong>Fetch one small window.</strong> Pick a random position between 0 and 12,400, and ask for the 9 games starting at that position, sorted by ID. Pick one of those 9 at random. The other 8 become the spinning "reel" of covers you see before the result.</li></ol>
+<p>Every game has the same chance of being picked. Pools of 500 games or fewer are fetched whole and picked from exactly.</p>
+<h3 id="the-cooldown">The cooldown</h3>
+<p>The last 50 picks are excluded from every spin, so you don't see the same game twice in a row. But if your filters only match 30 games, excluding 50 leaves nothing. So the window shrinks by halves: 50, 25, 12, 6, 3, 1 (<code>cooldownWindows</code>). Before trying all of those, one count with no cooldown at all checks whether the filters can match anything. If they can't, you get a plain reason ("No games match these filters") after one request instead of six. The previous pick only repeats when it is literally the only game that matches.</p>
+<h3 id="keeping-the-query-safe">Keeping the query safe</h3>
+<p>The filters arrive from the window as JSON. <code>parseRandomizerFilters</code> in <code>randomizer/queryBuilder.ts</code> checks every value before it goes into IGDB's query text. Every value that reaches the query must be a number (an IGDB ID, a rating, a year) or a true/false. Text you type, like a game's title, is never put into the query. This prevents <strong>injection</strong>, where someone crafts input that changes the meaning of a query.</p>
+<h3 id="design-choices-worth-mentioning">Design choices worth mentioning</h3>
+<ul><li><strong>Made in Japan</strong> searches IGDB's <code>involved_companies</code> for Japanese studios credited as <em>developer</em>. Filtering games by company country would also match Japanese publishers and translators.</li><li><strong>Similar to</strong> spins among the games IGDB lists as similar to your chosen game. When none of those is left, it widens to games that at least two of them list as similar. Games listed by only one drift off topic.</li><li><strong>Filter option lists</strong> (all genres, themes and so on) are fetched with one IGDB <code>multiquery</code> and kept in memory for as long as the engine runs.</li><li><strong>Your filters</strong> are saved in the window's <code>localStorage</code> (section 13), not the database. They are a viewing preference, not library data.</li></ul>
+</section>
+<section class="chapter" id="11-feature-year-in-review" aria-labelledby="11-feature-year-in-review-h">
+<h2 id="11-feature-year-in-review-h"><span class="num">11</span><span class="h2text">Feature: Year in Review</span></h2>
+<h3 id="what-it-is">What it is</h3>
+<p>A recap of one year of your Completed Library, like Spotify Wrapped. It has five chapters, each drawn as its own illustrated world:</p>
+<div class="table-wrap"><table><thead><tr><th>Chapter</th><th>Scene</th><th>Shows</th></tr></thead><tbody><tr><td>Overview</td><td>The Atlas, a sea chart</td><td>games per month, busiest month, average rating, first and last finish</td></tr><tr><td>Taste</td><td>The Grimoire, a spellbook</td><td>top genres, themes, platforms, favourite developer</td></tr><tr><td>Ratings</td><td>The Forge</td><td>how you rate, hot takes against critics, hidden gems, your "player type"</td></tr><tr><td>Timing and habits</td><td>The Astrolabe</td><td>day-one finishes, old games you got to late, longest streak</td></tr><tr><td>Game of the Year</td><td>The Throne</td><td>your top game, with its own art filling the screen</td></tr></tbody></table></div>
+<h3 id="the-engine-side-one-pure-function">The engine side: one pure function</h3>
+<p>All the maths is in <code>buildYearInReview</code> in <code>apps/backend/src/yearInReview/buildYearInReview.ts</code>. It is pure: games in, summary out. It has no database access and doesn't read the clock. Today's date is passed in as an argument. That is why it can be tested with any made-up library and any "today".</p>
+<p>Every adjustable number lives in one file, <code>yearInReview/thresholds.ts</code>. For example, a "hot take" means your rating is at least 15 points away from the critics' score, and "The Completionist" player type needs at least 24 games.</p>
+<p>A few rules:</p>
+<ul><li><strong>Game of the Year</strong> is the highest-rated finish, with ties going to the later finish. You can override it. The override stores the game's ID, so it survives a rename.</li><li><strong>Finish order</strong> puts exact dates first, then month-only finishes (as if on the last day of the month), then year-only finishes.</li><li>A game finished in "2026" with no month counts in totals and ratings, but not in month charts. Each chapter's footnote says which games it had to leave out. Charts never guess.</li><li>Year in Review only reads completed games. Its only write is your per-year settings row.</li></ul>
+<h3 id="the-window-side">The window side</h3>
+<p><code>apps/frontend/src/views/YearInReviewView.tsx</code> and <code>views/yearInReview/</code> draw the chapters. The scenes in <code>RealmScenes.tsx</code> are SVG drawn in code, so they ship no image files. <strong>SVG</strong> is a format for pictures made of shapes and lines, described in text.</p>
+<p>Chapter navigation (scroll past the bottom to carry on into the next chapter) is a <strong>pure reducer</strong> in <code>yearInReviewNavigation.ts</code>. A reducer takes the current state and an event ("wheel scrolled down by 120 at time 5000") and returns the new state. Time is passed in as part of the event. So the scrolling rules are tested without a real screen or a real clock.</p>
+<p>Animations only run when <code>canAnimate</code> allows them. If your system asks for reduced motion, they are skipped.</p>
+<h3 id="save-as-image">Save as image</h3>
+<p><code>views/yearInReview/poster.ts</code> draws a poster of every game you finished that year onto an HTML <strong>canvas</strong>, a blank image the page can draw on pixel by pixel. There are two layouts: horizontal (1920×1080 for screens) and vertical (tall, for a phone's Reddit feed).</p>
+<p>There is a catch. A browser refuses to export a canvas containing images from another website, to stop pages from reading other sites' pixels. Covers come from <code>images.igdb.com</code>, which is another website. So covers are loaded through the engine's <strong>cover cache</strong> instead (<code>apps/backend/src/artwork/coverCache.ts</code>): <code>GET /api/covers/co2vvt</code> downloads that IGDB cover once into <code>&lt;app data&gt;/covers/</code>, then serves it from the app's own address. Same website, so the canvas can be exported. A side benefit: covers you have seen keep working offline. The same trick lets a game's detail page read its cover's main colour and tint the page with it (<code>theme/coverTint.ts</code>).</p>
+<p>The page can't write files, so it sends the finished PNG bytes to the main process through <code>window.releaseTracker.saveImage</code>. <code>apps/desktop/src/saveImageIpc.ts</code> checks the bytes really are a PNG under 40 MB, cleans the file name so it can't contain folder paths, shows a save dialog and writes the file.</p>
+<h3 id="theme-music">Theme music</h3>
+<p>You can paste a YouTube link for a year's theme music. Only the 11-character video ID is stored (<code>shared/youtubeLink.ts</code>), never the full link. It plays through YouTube's privacy-enhanced player (<code>youtube-nocookie.com</code>), which is loaded invisibly. It starts by itself only if you turned on theme autoplay in Settings.</p>
+</section>
+<section class="chapter" id="12-feature-the-sample-library" aria-labelledby="12-feature-the-sample-library-h">
+<h2 id="12-feature-the-sample-library-h"><span class="num">12</span><span class="h2text">Feature: the sample library</span></h2>
+<p>A new user without IGDB keys sees an empty app. The sample library fixes that. <strong>Try it with sample data</strong> loads 30 upcoming games and 46 finished games, all real games with their real IGDB data, plus made-up ratings, dates and notes. Code: <code>apps/backend/src/demo/demoLibrary.ts</code>, data in <code>demoLibrary.json</code>.</p>
+<p>Three details show care:</p>
+<ul><li><strong>The dates move with today.</strong> A sample stored with fixed dates would look stale a year later. <code>shiftedReleases</code> moves the upcoming dates by whole months so the list starts last month: a game or two just out, the rest still coming. In January it starts this month instead, because the default "from January 1" filter would hide last year's games. Finished games are placed in last year (for a full Year in Review) and this year up to today.</li><li><strong>It is written through the normal stores</strong>, so it behaves exactly like a real library.</li><li><strong>It can be removed exactly.</strong> The IDs it created are saved in a settings row called <code>DEMO_LIBRARY</code>. <strong>Remove sample data</strong> deletes exactly those rows and nothing you added yourself. Sample releases carry no IGDB ID, so a later real sync adds your own copies instead of taking over the sample's rows.</li></ul>
+<p>With the sample loaded and no keys saved, the Randomizer spins among 267 games bundled in <code>demo/randomizerSample.json</code> instead of IGDB, using the same <code>drawRandomGame</code> with an in-memory data source (<code>randomizer/sampleCatalog.ts</code>). This works because the draw takes its data source as a parameter (section 16 explains why that helps).</p>
+</section>
+<section class="chapter" id="13-the-window-in-depth-react-and-the-frontend" aria-labelledby="13-the-window-in-depth-react-and-the-frontend-h">
+<h2 id="13-the-window-in-depth-react-and-the-frontend-h"><span class="num">13</span><span class="h2text">The window in depth: React and the frontend</span></h2>
+<h3 id="components-state-and-hooks">Components, state and hooks</h3>
+<p>A React component is a function that returns what should be on screen. <strong>State</strong> is data a component remembers between redraws, created with <code>useState</code>:</p>
+<div class="figure"><span class="lang">tsx</span><pre><code class="language-typescript">const [moreFilters, setMoreFilters] = useState(false);
+// later
+&lt;button onClick={() =&gt; setMoreFilters(value =&gt; !value)}&gt;More filters&lt;/button&gt;
+{moreFilters &amp;&amp; &lt;div&gt;...the extra filters...&lt;/div&gt;}</code></pre></div>
+<p>Clicking the button flips <code>moreFilters</code>. React sees the state changed, calls the function again, and the extra filters appear.</p>
+<p>A <strong>hook</strong> is a function whose name starts with <code>use</code> that adds abilities to a component: <code>useState</code> remembers data, <code>useEffect</code> runs code after drawing (to load data, or listen for key presses), <code>useMemo</code> remembers a calculation until its inputs change. You can write your own hooks by combining these.</p>
+<h3 id="workflows-and-views">Workflows and views</h3>
+<p>This frontend splits every screen in two:</p>
+<ul><li>A <strong>workflow</strong> hook owns the data and the actions: what is loaded, what happens on each click, what to do on an error. Example: <code>useRandomizerWorkflow.ts</code>.</li><li>A <strong>view</strong> component only draws the workflow's data and calls its actions. Example: <code>views/RandomizerView.tsx</code>.</li></ul>
+<p>The split means the behaviour can be tested without drawing anything, and the drawing can change without touching the behaviour.</p>
+<h3 id="how-the-app-is-assembled">How the app is assembled</h3>
+<div class="figure"><pre class="diagram"><code>main.tsx
+  └─ ErrorBoundary              catches drawing crashes, shows a Reload screen
+      └─ AppShell (App.tsx)     top bar and navigation; picks which view to show
+          └─ useAppWorkflow     builds every workflow once
+              ├─ useAppShell              current view, error banner, dialogs
+              ├─ useReleaseWorkspace      Upcoming list, sync, release detail, Add game
+              ├─ useCompletedLibraryWorkflow
+              ├─ useRandomizerWorkflow
+              ├─ useYearInReviewWorkflow
+              ├─ useSettingsWorkflow, useSyncSettingsWorkflow
+              ├─ useDemoWorkflow
+              ├─ usePreferences           colour theme, theme-music autoplay
+              └─ useWallpaperWorkflow</code></pre></div>
+<p>There is no URL routing. <code>App.tsx</code> keeps the current view name in state (<code>&quot;gallery&quot;</code>, <code>&quot;calendar&quot;</code>, <code>&quot;completed-library&quot;</code> and so on) and shows the matching view.</p>
+<h3 id="shared-behaviour-written-once">Shared behaviour, written once</h3>
+<p>Upcoming and the Completed Library behave alike: search, filters, genre filter, tick boxes to select many, Ctrl+A to select all, bulk delete, and coming back from a detail page to the same scroll position. All of that lives once in <code>collectionWorkspace.ts</code>. Each collection only supplies how to load and how to delete. Similarly, <code>detailSession.ts</code> runs the detail page for both collections, and <code>collectionDeletion.ts</code> runs every delete with the same confirm dialog and error message.</p>
+<p>Search waits 250 milliseconds after you stop typing before asking the engine (<code>api/debounce.ts</code>). This is called <strong>debouncing</strong>. Without it, typing "persona" would send seven requests.</p>
+<h3 id="following-a-sync-it-didnt-start">Following a sync it didn't start</h3>
+<p>If auto-sync starts at launch, the window didn't ask for it, so it doesn't know when it ends. <code>releaseWorkspace.ts</code> checks the sync status every 3 seconds while it says <code>running</code>, then reloads the list once it finishes.</p>
+<h3 id="loading-only-what-you-open">Loading only what you open</h3>
+<p>The Randomizer and Year in Review are the largest screens, and many sessions never open them. <code>App.tsx</code> loads their code with <code>lazy(() =&gt; import(...))</code>, so it downloads only on the first visit. The Randomizer's workflow also waits until you open it before asking IGDB for its option lists.</p>
+<h3 id="look-and-feel">Look and feel</h3>
+<ul><li><strong>Palettes.</strong> <code>theme/palettes.ts</code> defines twelve colour themes, each with eight colours. <code>usePreferences.ts</code> applies the chosen one as <strong>CSS variables</strong> (<code>--c-bg</code>, <code>--c-accent</code> and so on). Every style in <code>styles.css</code> refers to those variables, so changing theme changes the whole app at once. The choice is saved in the database. A copy in <code>localStorage</code> lets the first frame draw in the right colours before the engine answers.</li><li><strong>Framed panels.</strong> <code>ui/FramedPanel.tsx</code> draws the ornamented corners that give the app its look, borrowed from "HD-2D" games like <em>Octopath Traveler</em>.</li><li><strong>Cover tint.</strong> <code>theme/coverTint.ts</code> reads a cover's pixels, skips greys, blacks and whites, and averages the hue of the colourful pixels. The detail page then blends its colours toward that hue.</li><li><strong>Missing images.</strong> <code>ui/imageFallback.ts</code> puts one listener on the whole document. When any image fails to load, it marks the image and CSS hides it, so you see an empty frame instead of a broken-image icon.</li></ul>
+<h3 id="localstorage">localStorage</h3>
+<p><code>localStorage</code> is a small store the browser keeps for each website origin. This app uses it only for viewing preferences: Randomizer filters and a copy of the palette. Your library is never stored there. Every read and write is wrapped in <code>try</code>, because storage can be unavailable.</p>
+</section>
+<section class="chapter" id="14-security-and-privacy" aria-labelledby="14-security-and-privacy-h">
+<h2 id="14-security-and-privacy-h"><span class="num">14</span><span class="h2text">Security and privacy</span></h2>
+<p>This section collects every protection in one place. In an interview, this is where you show you understand the risks of a desktop app built on web technology.</p>
+<h3 id="the-window-is-powerless">The window is powerless</h3>
+<p>The window shows content from the internet: covers, screenshots, YouTube trailers. If any of that were malicious, it would run inside the window. So the window is given nothing:</p>
+<ul><li>No Node.js (<code>nodeIntegration: false</code>), so it can't read files.</li><li>Chromium's sandbox (<code>sandbox: true</code>), so it is limited at the operating-system level too.</li><li>Context isolation (<code>contextIsolation: true</code>), so page scripts can't reach Electron's internals.</li><li>DevTools turned off in the installed app.</li><li>Every permission request (camera, microphone, location, notifications) refused, except fullscreen for trailers.</li></ul>
+<h3 id="the-window-only-ever-shows-the-app">The window only ever shows the app</h3>
+<p><code>apps/desktop/src/windowGuards.ts</code> decides where every link goes. The app's own pages stay in the window. <code>http</code> and <code>https</code> links open in your normal browser. Every other kind of address (<code>file:</code>, <code>javascript:</code>, custom schemes) is refused. The window carries the preload bridge and the token, so it must never display someone else's page.</p>
+<h3 id="only-the-app-can-use-the-engine">Only the app can use the engine</h3>
+<p>The token and Host header check from section 5. The token is new every launch, compared in constant time, and given only to the app's own frame.</p>
+<h3 id="content-security-policy">Content Security Policy</h3>
+<p>Every response from the engine carries a <strong>Content Security Policy</strong> header (<code>requestGuard.ts</code>). It tells Chromium what the page may load: its own scripts only, images only from IGDB, YouTube thumbnails and SteamGridDB, frames only from <code>youtube-nocookie.com</code>. Even if an attacker got some text onto the page, a script from anywhere else would be refused.</p>
+<h3 id="your-api-keys-are-encrypted-at-rest">Your API keys are encrypted at rest</h3>
+<p>This is a chain of three keys:</p>
+<div class="figure"><pre class="diagram"><code>  Your Windows login (or Linux keyring)
+        │ protects (Electron safeStorage: DPAPI on Windows)
+        ▼
+  credential-key.bin: a random 32-byte data key, stored only in encrypted form
+        │ encrypts (AES-256-GCM, secretCipher.ts)
+        ▼
+  your IGDB and SteamGridDB keys, stored as enc:v1:... in the settings table</code></pre></div>
+<ol><li>On first launch, <code>credentialKey.ts</code> makes a random 32-byte <strong>data key</strong>. It encrypts that key with Electron's <code>safeStorage</code>, which uses the operating system's own protection (DPAPI on Windows), and saves the result as <code>credential-key.bin</code>. Only your user account on your computer can decrypt it.</li><li>On each launch, the main process decrypts the data key and passes it to the engine in an environment variable. The engine reads it and immediately deletes the variable.</li><li>The engine encrypts each API key with <strong>AES-256-GCM</strong> (<code>settings/secretCipher.ts</code>) before saving it. AES is the standard encryption algorithm. GCM mode also adds a tag that detects tampering. Each value gets a fresh random 12-byte <strong>IV</strong> (initialisation vector), so the same key saved twice looks different each time.</li></ol>
+<p>The result: someone who copies your app-data folder to another computer gets only encrypted keys they can't read. After you save keys, the app never shows them again. Settings only shows whether each one is saved.</p>
+<p>In the installed app, API keys are read only from Settings. <code>backendChildEnv</code> in <code>backendProcess.ts</code> removes any <code>IGDB_*</code> and <code>STEAMGRIDDB_*</code> environment variables before starting the engine, so keys a user happens to have set elsewhere aren't used silently.</p>
+<h3 id="electron-fuses">Electron fuses</h3>
+<p><strong>Fuses</strong> are switches baked into the Electron program file when it is packaged (<code>electronFuses</code> in <code>package.json</code>). This app turns off "run as plain Node.js", the <code>NODE_OPTIONS</code> variable and the Node debugger flags. Without that, another program could start the app's executable as a general-purpose Node.js and run any code with the app's identity.</p>
+<h3 id="what-leaves-your-computer">What leaves your computer</h3>
+<p>The app contacts only: IGDB and Twitch (after you add keys), IGDB's image server (covers), SteamGridDB (only with its key), and YouTube's privacy-enhanced player (only when you press play, or theme autoplay is on). No analytics, no crash reporting, no account. Auto-sync is off until you turn it on.</p>
+<p><strong>Settings → Diagnostics → Delete all app data</strong> (<code>apps/desktop/src/appDataIpc.ts</code>) stops the engine so the database is closed, deletes the library, covers, wallpaper, keys, backups and logs, clears the browser storage and restarts the app as new.</p>
+<h3 id="other-small-protections">Other small protections</h3>
+<ul><li>Uploaded artwork is checked to be an image under 10 MB.</li><li>Cover IDs must match <code>^[a-z0-9]{1,40}$</code>, so a request can't name a file outside the covers folder (a <strong>path traversal</strong> attack).</li><li>Asset paths can't contain <code>..</code>.</li><li>Downloaded covers are written to a <code>.part</code> file and renamed when complete, so a half-written cover is never served.</li></ul>
+</section>
+<section class="chapter" id="15-when-things-go-wrong-errors-and-logs" aria-labelledby="15-when-things-go-wrong-errors-and-logs-h">
+<h2 id="15-when-things-go-wrong-errors-and-logs-h"><span class="num">15</span><span class="h2text">When things go wrong: errors and logs</span></h2>
+<h3 id="the-diagnostics-log">The diagnostics log</h3>
+<p>Both the main process and the engine write to one file, <code>logs/game-release-tracker.log</code>, through <code>apps/backend/src/diagnostics/logger.ts</code>. Each line is one JSON object with a time, an event name and details. This format is called <strong>JSON Lines</strong>.</p>
+<ul><li><strong>Secrets are removed before writing.</strong> Any detail whose name looks like <code>secret</code>, <code>token</code>, <code>password</code> or <code>api_key</code> becomes <code>[redacted]</code>. Secrets inside text, like <code>client_secret=...</code> in a URL or <code>Bearer ...</code> in a header, are replaced too.</li><li><strong>The log can't grow forever.</strong> At 5 MB it is renamed to <code>.log.1</code>, older files shift up, and only three old files are kept. This is called <strong>log rotation</strong>.</li><li><strong>Logging never throws.</strong> If a write fails, it is dropped. A logging problem must never cause a second failure.</li><li><strong>Only useful requests are logged.</strong> Failed requests and requests slower than one second. Routes are logged by pattern (<code>/api/releases/:id</code>), never the real URL, so your search text and IDs stay out of the log.</li></ul>
+<h3 id="errors-at-each-layer">Errors at each layer</h3>
+<ul><li><strong>Engine, expected problems</strong>: an action returns <code>{ ok: false, statusCode, error }</code>, and the window shows the message.</li><li><strong>Engine, unexpected problems</strong>: the error handler in <code>server.ts</code> logs the full error with its stack, and sends the window only "Something went wrong. Check the diagnostics log for details." Internal details never reach the screen.</li><li><strong>Window, failed action</strong>: <code>useAppShell</code> shows an "Action failed" banner and logs a <code>ui.operation.failed</code> event through the engine.</li><li><strong>Window, drawing crash</strong>: <code>ErrorBoundary.tsx</code> catches errors thrown while React draws, logs them, and shows "Something went wrong" with a <strong>Reload</strong> button instead of a blank window.</li><li><strong>Main process or engine crash</strong>: logged, then shown in a native error dialog. A failed startup always ends the app (<code>handleStartupFailure</code>), because a desktop app with no window would otherwise keep running invisibly.</li></ul>
+</section>
+<section class="chapter" id="16-how-the-code-is-tested" aria-labelledby="16-how-the-code-is-tested-h">
+<h2 id="16-how-the-code-is-tested-h"><span class="num">16</span><span class="h2text">How the code is tested</span></h2>
+<h3 id="kinds-of-test">Kinds of test</h3>
+<p>The 538 tests live in <code>tests/</code>, in three folders that match the three programs:</p>
+<ul><li><code>tests/backend/</code>: stores, sync, migrations, routes, the Randomizer draw, Year in Review, security checks.</li><li><code>tests/desktop/</code>: the main process's pieces, like startup failure, the navigation guards and saving an image.</li><li><code>tests/frontend/</code>: workflows and whole screens.</li></ul>
+<p><code>npm test</code> runs them all with Vitest.</p>
+<h3 id="testing-through-the-real-door">Testing through the real door</h3>
+<p>Most backend tests use a real SQLite database in a temporary folder, run the real migrations and call the real functions. Here is the shape of one, from <code>tests/backend/releaseEdits.test.ts</code>:</p>
+<div class="figure"><span class="lang">ts</span><pre><code class="language-typescript">test("user edits to a synced release survive the next IGDB sync", async () =&gt; {
+  const db = tempDb();                                   // a fresh real database
+  await runSync(db, [igdbGame()], undefined, noArtwork); // sync one fake IGDB game
+  await updateRelease(db, "igdb-501", { title: "Persona 4 Revival (my name)" });
+  await runSync(db, [igdbGame()], undefined, noArtwork); // sync again
+  // check the title is still the edited one
+});</code></pre></div>
+<p>It tests a behaviour a user cares about, through the same functions the app calls. It doesn't check private details, so the code inside can be rewritten freely as long as the behaviour holds.</p>
+<h3 id="fakes-and-why-the-code-is-shaped-for-them">Fakes, and why the code is shaped for them</h3>
+<p>A test can't call the real IGDB: it would be slow, need keys, and give different answers each day. So code that needs IGDB takes it as a parameter instead of creating it itself. This is called <strong>dependency injection</strong>:</p>
+<ul><li><code>createBackendApp({ db, igdb, today, fetchCover })</code> lets a test pass a fake IGDB gateway, a fixed "today" and a fake cover download.</li><li><code>runSync(db, candidates)</code> lets a test pass the IGDB games directly.</li><li><code>drawRandomGame({ io, rng })</code> takes its data source and its random-number generator, so a test can make the "random" choice predictable.</li><li>On the frontend, <code>AppShell</code> accepts an <code>api</code> prop. Tests pass <code>fakeApiClient()</code> from <code>tests/frontend/fakeApiClient.ts</code>, an in-memory API client where every method can be replaced per test. A test can then draw the whole app and click through it with no engine running.</li></ul>
+<h3 id="a-fixed-calendar">A fixed calendar</h3>
+<p>Many features depend on today's date: countdowns, "this year", the default track-from date. A test written in September that expects to see "September" fails in October. That happened on October 1, 2026, and was fixed in version 0.6.3. <code>tests/setup/suiteClock.ts</code> now runs the whole suite as if the day were 2026-09-25, with the clock still ticking from there. Results no longer depend on the day the tests run.</p>
+<h3 id="testing-the-installed-app">Testing the installed app</h3>
+<p>Unit tests can't catch packaging mistakes, like a file missing from the installer. <code>scripts/smoke-packaged.mjs</code> is a <strong>smoke test</strong>: it starts the real packaged app with a fresh, empty profile, presses <strong>Try it with sample data</strong>, opens every screen, quits, and fails if anything went wrong on the page or in the log. It controls the app through Chromium's DevTools protocol, the same channel Chrome's developer tools use.</p>
+<h3 id="continuous-integration">Continuous integration</h3>
+<p><strong>CI</strong> (continuous integration) means a server checks every change automatically. <code>.github/workflows/ci.yml</code> runs on GitHub for every push and pull request:</p>
+<ol><li><code>npm ci</code>: install the exact dependency versions from <code>package-lock.json</code>.</li><li><code>npm run typecheck</code>: TypeScript checks every file.</li><li><code>npm test</code>: all 538 tests.</li><li><code>npm run build</code>: compile everything.</li><li>A second job builds the Linux app and runs the smoke test on it, under <code>xvfb-run</code>, a fake screen for servers that have no display.</li></ol>
+</section>
+<section class="chapter" id="17-from-source-code-to-an-installer" aria-labelledby="17-from-source-code-to-an-installer-h">
+<h2 id="17-from-source-code-to-an-installer-h"><span class="num">17</span><span class="h2text">From source code to an installer</span></h2>
+<h3 id="development">Development</h3>
+<p>During development, two things run:</p>
+<ul><li><code>npm run dev</code> starts <strong>Vite</strong>, a development server that serves the frontend and reloads the page the moment you save a file.</li><li>The Electron app loads the page from Vite at <code>http://127.0.0.1:5173</code> instead of from the engine.</li></ul>
+<h3 id="the-build">The build</h3>
+<p><code>npm run build</code> runs three steps (<code>package.json</code>):</p>
+<ol><li><strong><code>tsc -p tsconfig.build.json</code></strong>: the TypeScript compiler checks types and turns TypeScript into plain JavaScript in <code>dist/</code>.</li><li><strong><code>vite build</code></strong>: Vite bundles the frontend into a few optimised files in <code>dist/frontend/</code>. Each file name contains a hash of its contents, like <code>index-3f9a1c.js</code>. Since a changed file gets a new name, the engine can tell the browser to cache these files forever (<code>frontendRoutes.ts</code>).</li><li><strong><code>node scripts/bundle.mjs</code><strong>: </strong>esbuild</strong> bundles the main process, the preload and the engine into one file each. The installer then ships three scripts instead of thousands of files from <code>node_modules</code>.</li></ol>
+<h3 id="the-native-module-problem">The native module problem</h3>
+<p><code>better-sqlite3</code> is written partly in C++, not JavaScript. It must be compiled into a <strong>native module</strong>, a <code>.node</code> file built for one operating system and one exact version of Node or Electron. The copy built for running tests with Node won't load inside Electron, and the reverse.</p>
+<p>So <code>npm run rebuild</code> rebuilds it for Electron before packaging. Where a ready-made build exists for the Electron version, it is downloaded. Otherwise it must be compiled, which needs C++ build tools on every machine that packages the app. That is why Electron is kept on a version that has ready-made SQLite builds (Electron 42 today). The decision is in <code>docs/adr/0004-electron-follows-sqlite-prebuilds.md</code>.</p>
+<h3 id="packaging">Packaging</h3>
+<p><strong>electron-builder</strong> (configured under <code>build</code> in <code>package.json</code>) turns <code>dist/</code> into installers:</p>
+<ul><li>Windows: an installer <code>.exe</code> (made with NSIS) and a portable <code>.zip</code>.</li><li>Linux: a <code>.deb</code> for Ubuntu and Linux Mint, and an <code>.AppImage</code> that runs without installing.</li></ul>
+<p>It packs the app's files into one archive called <code>app.asar</code>. <code>better-sqlite3</code> stays outside the archive (<code>asarUnpack</code>), because the operating system must load its <code>.node</code> file directly. <code>scripts/afterPack.cjs</code> deletes two Windows DLLs only needed for WebGPU, which the app doesn't use.</p>
+<p>The Windows build isn't signed with a paid certificate, which is why Windows shows "Windows protected your PC" on first run.</p>
+<h3 id="releases">Releases</h3>
+<p><code>.github/workflows/release.yml</code> runs when a version tag like <code>v0.6.3</code> is pushed, or when started by hand with a tag. It builds Windows on a Windows machine and Linux on a Linux machine, runs the tests and the smoke test on each, installs the <code>.deb</code> the way a user would and smoke-tests it, then publishes all four files as a GitHub release. The release notes are cut from the matching section of <code>CHANGELOG.md</code>, and the job fails if the tag doesn't match the version in <code>package.json</code>.</p>
+</section>
+<section class="chapter" id="18-every-folder-explained" aria-labelledby="18-every-folder-explained-h">
+<h2 id="18-every-folder-explained-h"><span class="num">18</span><span class="h2text">Every folder, explained</span></h2>
+<div class="figure"><pre class="diagram"><code>apps/
+  desktop/src/          Electron main process and preload
+  backend/src/          the engine
+  frontend/src/         the window (React)
+  runtime/src/          file paths and app-data files
+shared/                 types and constants all three share
+tests/                  backend, desktop, frontend, setup
+scripts/                build helpers and the smoke test
+docs/                   guides, decision records, screenshots
+build/                  app icons
+data/                   source-overrides.json (curated release corrections)
+.github/workflows/      CI and release automation</code></pre></div>
+<h3 id="appsdesktopsrc"><code>apps/desktop/src/</code></h3>
+<div class="table-wrap"><table><thead><tr><th>File</th><th>Does</th></tr></thead><tbody><tr><td><code>main.ts</code></td><td>Starts everything: data folder, single-instance lock, token, engine, window, IPC handlers, quit</td></tr><tr><td><code>preload.ts</code></td><td>Puts <code>window.releaseTracker</code> on the page: the only bridge from page to main process</td></tr><tr><td><code>backendProcess.ts</code></td><td>Starts the engine, waits for its port, stops it</td></tr><tr><td><code>appProtocol.ts</code></td><td>The <code>app://renderer</code> address, and the YouTube referrer fix</td></tr><tr><td><code>windowGuards.ts</code></td><td>Where each link may go</td></tr><tr><td><code>credentialKey.ts</code></td><td>The OS-protected data key</td></tr><tr><td><code>desktopLifecycle.ts</code></td><td>Startup paths, startup log, startup failure handling</td></tr><tr><td><code>appDataIpc.ts</code></td><td>Delete all app data, open the log folder</td></tr><tr><td><code>saveImageIpc.ts</code></td><td>Save the Year in Review poster</td></tr><tr><td><code>wallpaperIpc.ts</code></td><td>Pick and copy a wallpaper image</td></tr></tbody></table></div>
+<h3 id="appsbackendsrc"><code>apps/backend/src/</code></h3>
+<div class="table-wrap"><table><thead><tr><th>Folder or file</th><th>Does</th></tr></thead><tbody><tr><td><code>child.ts</code></td><td>The engine's entry point: open the database, migrate, start the server, report the port</td></tr><tr><td><code>server.ts</code></td><td>Builds the Fastify server, the error handler, request logging; registers routes; schedules auto-sync</td></tr><tr><td><code>requestGuard.ts</code></td><td>Host check, token check, security headers</td></tr><tr><td><code>routes/</code></td><td>One file per area. Thin: read the request, call an action, send the result</td></tr><tr><td><code>actions/</code></td><td>One user task each, run through <code>runWrite</code></td></tr><tr><td><code>database/</code></td><td>Connection, migrations, write queue, Release Store, release read model</td></tr><tr><td><code>sync/</code></td><td>Sync Run, Release Policy, planner, merge, sync settings, SteamGridDB enrichment, status</td></tr><tr><td><code>igdb/</code></td><td>The gateway, the rate-limited client, tokens, reading IGDB's data shapes</td></tr><tr><td><code>steamgriddb/</code></td><td>The SteamGridDB client</td></tr><tr><td><code>completed/</code></td><td>Completed Library store, read model, Identity Key, matcher, ratings, dates</td></tr><tr><td><code>randomizer/</code></td><td>Filter checking and query text, the draw, pick history, platform and tag catalog, sample data</td></tr><tr><td><code>yearInReview/</code></td><td>The pure recap, its thresholds, per-year settings</td></tr><tr><td><code>artwork/</code></td><td>Uploaded artwork, the cover cache</td></tr><tr><td><code>settings/</code></td><td>Settings Store, encryption, credential status and testing</td></tr><tr><td><code>demo/</code></td><td>The sample library and its data</td></tr><tr><td><code>diagnostics/</code></td><td>The log file</td></tr><tr><td><code>matching/</code>, <code>text/</code></td><td>Title scoring, text normalization</td></tr></tbody></table></div>
+<h3 id="appsfrontendsrc"><code>apps/frontend/src/</code></h3>
+<div class="table-wrap"><table><thead><tr><th>Folder or file</th><th>Does</th></tr></thead><tbody><tr><td><code>main.tsx</code></td><td>Gets the address and token, builds the API client, draws the app</td></tr><tr><td><code>App.tsx</code></td><td>Top bar, navigation, picks the view</td></tr><tr><td><code>useAppWorkflow.ts</code></td><td>Builds every workflow</td></tr><tr><td><code>appShell.ts</code></td><td>Current view, error banner, dialogs, UI event logging</td></tr><tr><td><code>api/client.ts</code></td><td>Every request to the engine</td></tr><tr><td><code>releaseWorkspace.ts</code>, <code>collectionWorkspace.ts</code>, <code>detailSession.ts</code></td><td>Upcoming list, shared list behaviour, shared detail behaviour</td></tr><tr><td><code>use*Workflow.ts</code></td><td>One workflow per screen or task</td></tr><tr><td><code>views/</code></td><td>One component per screen</td></tr><tr><td><code>views/yearInReview/</code></td><td>The five chapters, scenes, poster, shelves</td></tr><tr><td><code>ui/</code></td><td>Small reusable pieces: buttons, fields, panels, countdown text, image fallback</td></tr><tr><td><code>theme/</code></td><td>Palettes, saved preferences, cover tint</td></tr><tr><td><code>artwork.ts</code></td><td>The one place that knows IGDB image URL shapes and sizes</td></tr><tr><td><code>styles.css</code>, <code>fonts.css</code></td><td>The look</td></tr></tbody></table></div>
+<h3 id="appsruntimesrc"><code>apps/runtime/src/</code></h3>
+<p><code>layout.ts</code> works out every path from the data folder: database, logs, covers, artwork, wallpaper. It also handles restoring a backup folder on first launch. <code>wallpaperStorage.ts</code> copies and serves the wallpaper image.</p>
+<h3 id="shared"><code>shared/</code></h3>
+<p><code>types.ts</code> (the shapes of all data crossing between programs), <code>constants.ts</code> (accepted game types, excluded title phrases, platform families, suggested publishers, limits), and a few tiny rules both sides need: <code>completedGenres.ts</code>, <code>wholeRating.ts</code>, <code>youtubeLink.ts</code>. Nothing in <code>shared/</code> may import from <code>apps/</code>.</p>
+<h3 id="docs"><code>docs/</code></h3>
+<div class="table-wrap"><table><thead><tr><th>File</th><th>For</th></tr></thead><tbody><tr><td><code>USER_GUIDE.md</code></td><td>Using every screen</td></tr><tr><td><code>HOW_IT_WORKS.md</code></td><td>A short non-technical overview</td></tr><tr><td><code>DOCUMENTATION.md</code></td><td>Full technical reference</td></tr><tr><td><code>CODEBASE_MAP.md</code></td><td>Which folder owns which feature</td></tr><tr><td><code>REVIEW_GUIDE.md</code></td><td>A guided tour for code reviewers</td></tr><tr><td><code>YEAR_IN_REVIEW_SPEC.md</code></td><td>The Year in Review design</td></tr><tr><td><code>adr/</code></td><td>Six short decision records (section 19)</td></tr><tr><td><code>BEGINNER_GUIDE.md</code></td><td>This guide</td></tr></tbody></table></div>
+<p><code>CONTEXT.md</code> at the root is the project's vocabulary: what each domain word (Release, Sync Run, Identity Key, Spin) means exactly.</p>
+</section>
+<section class="chapter" id="19-why-it-is-built-this-way" aria-labelledby="19-why-it-is-built-this-way-h">
+<h2 id="19-why-it-is-built-this-way-h"><span class="num">19</span><span class="h2text">Why it is built this way</span></h2>
+<p>An interviewer cares more about <em>why</em> than <em>what</em>. These are the decisions that shaped the app, with the trade-off each one accepts.</p>
+<p><strong>Local-first, no account</strong> (<code>docs/adr/0001</code>). A personal journal doesn't need a server. No sign-up, no running cost, no server to breach, works offline. The cost: no syncing between devices, and a download instead of a website.</p>
+<p><strong>Three processes.</strong> The window, which shows internet content, is separated from the engine, which holds your files and keys. A crash in one doesn't take down the others. The cost: more moving parts at startup and shutdown, and more memory than one process.</p>
+<p><strong>HTTP between window and engine, protected by a token</strong> (<code>docs/adr/0002</code>). The same frontend runs in the app, in a plain browser during development, and in tests with a fake client. The cost: a local port any program can reach, which is why the token, the Host check and the CSP exist.</p>
+<p><strong>SQLite.</strong> One file, no database server to install, transactions, and fast enough for tens of thousands of rows. The cost: a native module that ties the Electron version to available SQLite builds (<code>docs/adr/0004</code>).</p>
+<p><strong>Every change in a queued transaction.</strong> Writes can't interleave and can't half-happen. The cost: writes wait in line, which for one user is unnoticeable.</p>
+<p><strong>Each game in a sync saves separately.</strong> One bad game makes the run <code>partial</code> instead of failing everything.</p>
+<p><strong>User edits stored as overrides.</strong> Your edits survive every sync, and fields you never touched keep updating from IGDB.</p>
+<p><strong>Vague dates keep their words</strong> (<code>docs/adr/0005</code>). The app never promises a day nobody announced.</p>
+<p><strong>The user chooses what to track</strong> (<code>docs/adr/0006</code>). Early versions had one person's publishers and platforms built in. The public version starts tracking nothing. The cost: a setup step, which the sample library and <strong>Add suggested publishers</strong> make up for.</p>
+<p><strong>Completed games live only in the app</strong> (<code>docs/adr/0003</code>). The journal began as an Excel workbook the app imported. Keeping both in step meant two places to edit the same game. Version 18 of the schema removed the import.</p>
+<p><strong>Pure functions for the logic that matters.</strong> The release policy, the sync planner, the merge, the Randomizer draw, Year in Review and the chapter navigation take inputs and return outputs, with no database, network or clock inside. They are the easiest code to test and to reason about.</p>
+</section>
+<section class="chapter" id="20-interview-preparation" aria-labelledby="20-interview-preparation-h">
+<h2 id="20-interview-preparation-h"><span class="num">20</span><span class="h2text">Interview preparation</span></h2>
+<h3 id="the-30-second-version">The 30-second version</h3>
+<blockquote class="script"><p>"Game Release Tracker is a cross-platform desktop app I designed for people who play a lot of games. It tracks upcoming releases from publishers you follow, keeps a journal of games you finish, picks something random to play, and builds a yearly recap you can save as an image. It's Electron with a React and TypeScript frontend, a Fastify backend in its own process, and SQLite. Everything stays on the user's computer. It has 538 automated tests, CI on every change, and automated Windows and Linux releases."</p></blockquote>
+<h3 id="the-two-minute-walkthrough">The two-minute walkthrough</h3>
+<p>Practise saying this with the diagram from section 3 in your head.</p>
+<blockquote class="script"><p>"It's three processes. Electron's main process starts everything and handles the operating system: dialogs, encrypting the API keys. The window is a React app with no file or network access of its own. The backend is a small Fastify server on localhost with the SQLite database.</p><p>The window talks to the backend over HTTP, which means the same frontend runs in tests against a fake client. Because any local program can reach a localhost port, every API call needs a random token that changes every launch and only the app's window receives.</p><p>Inside the backend there are layers: thin routes, actions that each run one user task inside a queued transaction, and stores that are the only code allowed to write their tables.</p><p>The main flow is sync. It asks IGDB for every game from the tracked publishers, filters them through a release policy (platform, game type, publisher actually credited, real date), merges in any edits the user made so those survive, and saves each game in its own savepoint so one bad record doesn't fail the whole run."</p></blockquote>
+<h3 id="questions-you-are-likely-to-get-with-answers">Questions you are likely to get, with answers</h3>
+<p><strong>"Why Electron and not a website?"</strong> The data is personal and the app should work offline with no account. Electron gave me a desktop app while reusing web skills. The trade-off is download size and memory, since every Electron app ships its own Chromium.</p>
+<p><strong>"Why is the backend a separate process?"</strong> Isolation. The window shows content from the internet, so it gets no access to files or keys. The backend holds the database and secrets and never shows web content. A crash in one doesn't take down the other.</p>
+<p><strong>"How do you stop other programs from using your local API?"</strong> Three layers. A per-launch random token required on every <code>/api</code> call, given only to the app's own frame through the preload bridge and compared in constant time. A Host header check against DNS rebinding. And the server listens only on <code>127.0.0.1</code>. On top of that there's a Content Security Policy on every response.</p>
+<p><strong>"How are API keys stored?"</strong> Encrypted with AES-256-GCM using a random data key. The data key itself is encrypted with the operating system's protection through Electron's safeStorage, which is DPAPI on Windows. A copy of the data folder on another machine can't be decrypted.</p>
+<p><strong>"What happens if the app crashes in the middle of a sync?"</strong> Every write runs in a transaction, so nothing is half-saved. Each game is its own savepoint, so a bad game rolls back alone and the run is marked partial. A run still marked running at the next startup is marked failed with "interrupted".</p>
+<p><strong>"How do you change the database layout without losing users' data?"</strong> Numbered migrations that run in order at startup and are never edited once shipped. Before migrating an existing library, the app copies it into a backups folder and keeps the last three. An older app refuses to open a library saved by a newer one instead of damaging it.</p>
+<p><strong>"How do user edits survive syncing?"</strong> An edit changes the row and is also recorded as a <code>user</code> override for that field. Every sync re-applies the overrides on top of IGDB's data. Fields the user never edited keep following IGDB.</p>
+<p><strong>"How does the Randomizer pick fairly from IGDB without downloading everything?"</strong> It asks IGDB to count the matching games, picks a random offset, and fetches a page of nine games at that offset. That's two requests, and every game has an equal chance. Recent picks are excluded, and that exclusion shrinks by halves if it would empty the pool.</p>
+<p><strong>"How did you test it?"</strong> 538 tests with Vitest. Backend tests use a real SQLite database in a temp folder. Anything external (IGDB, the clock, random numbers, the HTTP client) is passed in as a parameter, so tests use fakes. The whole suite runs on a fixed calendar day. A smoke test starts the real packaged app as a new user and opens every screen, and CI runs everything on every change.</p>
+<p><strong>"Tell me about a bug you fixed."</strong> On October 1 a test failed because it expected the calendar to show "September". It was written in September. I moved the real clock forward to probe the whole suite and found more tests that would break later (three in 2027, seventeen from 2028), plus a real bug: in January the sample library hid two of its games behind the default "from January 1" filter. The fix was a fixed calendar for the whole suite and a change so the sample starts this month in January. That shipped as 0.6.3.</p>
+<p><strong>"What would you improve?"</strong> Pick ones you believe. Some honest options:</p>
+<ul><li>Code-sign the Windows build so users don't see the SmartScreen warning.</li><li>Add a macOS build.</li><li>Move the backend out of a separate OS process into a worker thread to save memory. This is already done in the personal version of the app.</li><li>Sync only games that changed since the last run, using IGDB's <code>updated_at</code>, instead of re-reading everything.</li><li>Make a library export and import, so users can move between computers.</li></ul>
+<p><strong>"What was hard?"</strong> Honest dates (IGDB's vague dates disguised as exact timestamps), keeping user edits alive through sync, and making the packaged app's origin stable so saved settings weren't lost every launch.</p>
+<h3 id="talking-about-ai-assistance">Talking about AI assistance</h3>
+<p>The README says that you designed the app, wrote the specifications, made every product decision, reviewed each change and tested the results, and that AI coding assistants wrote most of the code. Say the same thing in the interview, plainly. Then show you understand the code by explaining it, which this guide prepares you to do. Interviewers increasingly expect AI use. What they want to know is whether you can judge the output, explain it, debug it and make decisions about it.</p>
+<p>Be ready to open any file named in this guide and explain what it does. The ones most worth knowing cold:</p>
+<ol><li><code>apps/desktop/src/main.ts</code>: startup order.</li><li><code>apps/backend/src/requestGuard.ts</code>: the token and Host check.</li><li><code>apps/backend/src/database/writeQueue.ts</code>: the write queue, eighteen lines.</li><li><code>apps/backend/src/sync/syncRun.ts</code>: the Sync Run and savepoints.</li><li><code>apps/backend/src/sync/releasePolicy.ts</code>: what counts as an upcoming release, and date precision.</li><li><code>apps/backend/src/sync/releaseMerge.ts</code>: how edits survive.</li><li><code>apps/backend/src/database/migrations.ts</code>: the first 75 lines (version check and backup).</li><li><code>apps/backend/src/randomizer/draw.ts</code>: count, offset, cooldown.</li><li><code>apps/frontend/src/api/client.ts</code>: how the window makes requests.</li><li><code>tests/backend/releaseEdits.test.ts</code>: what a good test looks like.</li></ol>
+<h3 id="numbers-to-remember">Numbers to remember</h3>
+<div class="table-wrap"><table class="facts"><tbody><tr><td>Version</td><td>0.6.3</td></tr><tr><td>Source</td><td>about 14,300 lines of TypeScript</td></tr><tr><td>Tests</td><td>538 tests, about 9,800 lines</td></tr><tr><td>Platforms</td><td>Windows (installer, zip), Linux (.deb, AppImage)</td></tr><tr><td>Stack</td><td>Electron 42, React 19, TypeScript 5.9, Fastify 5, SQLite through better-sqlite3, Vite 7, Vitest 4</td></tr><tr><td>Schema</td><td>version 20</td></tr><tr><td>IGDB</td><td>at most 4 requests a second, 10-second timeout, 3 tries on 429</td></tr><tr><td>Randomizer</td><td>50-pick cooldown, 9-cover reel, two requests per spin</td></tr><tr><td>Sample</td><td>30 upcoming, 46 finished, 267 Randomizer games</td></tr></tbody></table></div>
+</section>
+<section class="chapter" id="21-glossary" aria-labelledby="21-glossary-h">
+<h2 id="21-glossary-h"><span class="num">21</span><span class="h2text">Glossary</span></h2>
+<div class="table-wrap"><table><thead><tr><th>Word</th><th>Meaning</th></tr></thead><tbody><tr><td>Action</td><td>Backend function that runs one user task in a queued transaction (<code>apps/backend/src/actions/</code>)</td></tr><tr><td>ActionResult</td><td><code>{ ok: true, value }</code> or <code>{ ok: false, statusCode, error }</code></td></tr><tr><td>API</td><td>The list of requests a server understands</td></tr><tr><td>API client</td><td>The frontend object that sends every request (<code>api/client.ts</code>)</td></tr><tr><td>API key</td><td>A password that lets a program use an online service</td></tr><tr><td>asar</td><td>The single archive Electron packs an app's files into</td></tr><tr><td>Async, await, promise</td><td>Code that waits for slow work without freezing everything else</td></tr><tr><td>Backend, engine</td><td>The Fastify server that holds the data (<code>apps/backend/</code>)</td></tr><tr><td>Blocked release</td><td>A deleted game that sync never brings back</td></tr><tr><td>CI</td><td>Automatic checks on every change (<code>.github/workflows/ci.yml</code>)</td></tr><tr><td>Component</td><td>A React function that returns part of the screen</td></tr><tr><td>Content Security Policy</td><td>A response header listing what a page may load</td></tr><tr><td>Context isolation, sandbox</td><td>Electron settings that keep page code away from the system</td></tr><tr><td>Cooldown window</td><td>The recent Randomizer picks excluded from a spin</td></tr><tr><td>Cover cache</td><td>Covers downloaded once and served from the app's own address</td></tr><tr><td>Date precision</td><td>Exact, Month, Window, Year or TBA</td></tr><tr><td>Debounce</td><td>Waiting until typing stops before acting</td></tr><tr><td>Dependency injection</td><td>Passing a function its collaborators (IGDB, the clock) so tests can pass fakes</td></tr><tr><td>DPAPI, safeStorage</td><td>Windows' and Electron's way to encrypt data for one user account</td></tr><tr><td>Electron</td><td>A toolkit for desktop apps built from Chromium and Node.js</td></tr><tr><td>esbuild, Vite, tsc</td><td>Tools that compile and bundle the code</td></tr><tr><td>Fastify</td><td>A Node.js library for HTTP servers</td></tr><tr><td>Foreign key</td><td>A column that must match a row in another table</td></tr><tr><td>FTS</td><td>Full-text search index in SQLite</td></tr><tr><td>Fuses</td><td>Switches baked into the packaged Electron program</td></tr><tr><td>Hook</td><td>A React function starting with <code>use</code> that adds state or effects</td></tr><tr><td>HTTP, status code</td><td>How the window and engine talk, and the number that says how a request went</td></tr><tr><td>Identity Key</td><td>Normalized title plus platform, used to spot duplicate finished games</td></tr><tr><td>IGDB</td><td>The Internet Game Database</td></tr><tr><td>IGDB Gateway</td><td>The one object all IGDB requests go through</td></tr><tr><td>IPC</td><td>Messages between Electron processes</td></tr><tr><td>JSON, JSON Lines</td><td>A text format for data, and one JSON object per line</td></tr><tr><td>localhost, port</td><td>Your own computer's address, and a numbered door on it</td></tr><tr><td>localStorage</td><td>Small per-origin browser storage, used only for view preferences</td></tr><tr><td>Main process</td><td>Electron's controlling process (<code>apps/desktop/src/main.ts</code>)</td></tr><tr><td>Migration</td><td>A numbered change to the database layout</td></tr><tr><td>Native module</td><td>Compiled C++ code loaded by Node.js, like better-sqlite3</td></tr><tr><td>Normalized title</td><td>Lower-case, punctuation-free title used for comparing</td></tr><tr><td>Origin</td><td>Scheme, host and port together; browsers keep saved data per origin</td></tr><tr><td>Override</td><td>A field value that wins over IGDB's during sync</td></tr><tr><td>Preload</td><td>The small script that gives the page <code>window.releaseTracker</code></td></tr><tr><td>Process</td><td>A running program with its own memory</td></tr><tr><td>Pure function</td><td>Output depends only on input; no database, network or clock</td></tr><tr><td>Read model</td><td>Code that builds data for a screen and never writes</td></tr><tr><td>Reducer</td><td>A pure function from state and event to new state</td></tr><tr><td>Release</td><td>An upcoming game in the list</td></tr><tr><td>Release Policy</td><td>The rules that decide which IGDB games become releases</td></tr><tr><td>Renderer</td><td>The process that draws a window's web page</td></tr><tr><td>Route</td><td>A backend function for one URL and method</td></tr><tr><td>Savepoint</td><td>A transaction inside a transaction</td></tr><tr><td>Schema</td><td>The layout of the database's tables</td></tr><tr><td>Smoke test</td><td>Starting the real packaged app and clicking through it</td></tr><tr><td>SQL, SQLite</td><td>The database language, and a database in one file</td></tr><tr><td>Store</td><td>The only module allowed to write a group of tables</td></tr><tr><td>Sync Run</td><td>One sync with IGDB</td></tr><tr><td>Token</td><td>The per-launch secret every <code>/api</code> call must carry</td></tr><tr><td>Transaction</td><td>A group of changes that all happen or none do</td></tr><tr><td>TypeScript</td><td>JavaScript with types checked before running</td></tr><tr><td>WAL</td><td>SQLite mode that lets reads happen during a write</td></tr><tr><td>Workflow</td><td>A frontend hook that owns a screen's data and actions</td></tr><tr><td>Write queue</td><td>The line every database write waits in (<code>writeQueue.ts</code>)</td></tr></tbody></table></div>
+</section>
+    <a class="to-top" href="#top">Back to the top</a>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+(function () {
+  if (window.hljs) {
+    document.querySelectorAll("pre code[class*='language-']").forEach(function (block) {
+      try { window.hljs.highlightElement(block); } catch (e) { /* plain code is fine */ }
+    });
+  }
+
+  var bar = document.getElementById("progress");
+  var links = Array.prototype.slice.call(document.querySelectorAll("#rail a"));
+  var chapters = links.map(function (a) { return document.getElementById(a.dataset.target); });
+
+  function update() {
+    var doc = document.documentElement;
+    var max = doc.scrollHeight - window.innerHeight;
+    bar.style.width = (max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0) + "%";
+    var current = 0;
+    for (var i = 0; i < chapters.length; i++) {
+      if (chapters[i] && chapters[i].getBoundingClientRect().top < window.innerHeight * 0.3) current = i;
+    }
+    links.forEach(function (a, i) {
+      var on = i === current;
+      a.classList.toggle("is-current", on);
+      if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+    });
+  }
+
+  var queued = false;
+  window.addEventListener("scroll", function () {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; update(); });
+  }, { passive: true });
+  window.addEventListener("resize", update);
+  update();
+
+  document.querySelectorAll(".toc-mobile a").forEach(function (a) {
+    a.addEventListener("click", function () { a.closest("details").open = false; });
+  });
+})();
+</script>
+
+</body>
+</html>
