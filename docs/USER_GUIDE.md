@@ -133,6 +133,7 @@ Settings has four tabs. It opens on **API keys** while your keys need attention.
 - **Track releases from**: the earliest release date to show. It starts at 1 January of the current year.
 - **Sync automatically**: off by default. When on, the app syncs at startup if the last sync was over 12 hours ago, and again every 12 hours while it stays open (in the tray, for example).
 - **Notify me when a watched game comes out or its date changes**: on by default. The app shows a system notification on a watched game's release day, and when a sync finds a new date for one. Click the notification to open the game. Notifications only come while the app is running (it can wait in the tray).
+- **Start with Windows, in the tray** (on Linux: **Start when I log in**): off by default. When on, the app starts when you log in and waits in the tray, so syncs and alerts keep coming without opening it. Only shown in the installed app.
 
 **Diagnostics**: where the app's log file is, with buttons to open the log or its folder. **Delete all app data** removes your library, covers, wallpaper, saved keys, backups and logs from this computer and restarts the app as a new install. It asks you to confirm first.
 

@@ -9,6 +9,9 @@ interface ReleaseTrackerBridge {
   openLogFolder?(): Promise<{ ok: boolean; error?: string }>;
   // Asks the user to confirm, deletes everything the app stored on this computer and restarts. Desktop only.
   deleteAppData?(): Promise<{ ok: boolean; canceled?: boolean; error?: string }>;
+  // Start with Windows (or the Linux session), straight into the tray. Packaged desktop app only.
+  getStartAtLogin?(): Promise<{ supported: boolean; enabled: boolean }>;
+  setStartAtLogin?(on: boolean): Promise<{ supported: boolean; enabled: boolean }>;
   // Calls back with a release id when the user clicks a release alert. Returns the unsubscribe function.
   onOpenRelease?(callback: (releaseId: string) => void): () => void;
 }

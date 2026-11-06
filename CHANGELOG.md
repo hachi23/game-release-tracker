@@ -14,6 +14,9 @@ What changed in each version, in plain language.
 - A system notification tells you when a watched game comes out today, or when a sync finds it delayed, moved up or given a real date. Click it to open the game. Turn them off in **Settings → Sync**.
 - With **Sync automatically** on, the app also syncs every 12 hours while it stays open, so alerts reach you while it waits in the tray.
 
+**Start with Windows**
+- **Settings → Sync → Start with Windows, in the tray** starts the app when you log in, waiting in the tray so syncs and alerts keep coming. On Linux it's **Start when I log in** and works through the desktop's autostart folder.
+
 **Minimize to tray**
 - Minimizing the window now hides it to a Game Release Tracker icon in the system tray (the notification area on Windows). Click the icon, or choose **Open Game Release Tracker** from its menu, to bring the window back; **Quit** in the same menu closes the app. The close button still quits.
 - Starting the app again while it is in the tray brings the window back. On Linux desktops that don't show tray icons (GNOME without an AppIndicator extension), that is the way back.

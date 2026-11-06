@@ -76,7 +76,7 @@ The Fastify child process and the server-side application modules.
 
 ### `apps/desktop/src`
 
-The privileged Electron main process. It creates the window, starts/stops the backend child, owns lifecycle/crash handling, exposes the preload bridge, and implements native file-picker IPC for wallpapers, plus Year in Review's Save as image (`saveImageIpc.ts`). `releaseAlerts.ts` turns the backend's release alerts into system notifications. `trayWindow.ts` owns minimize to tray (the tray icon, its menu, and bringing the window back); `main.ts` only adapts Electron's `Tray` to it. In packaged mode it serves the renderer from the fixed `app://renderer` origin (`appProtocol.ts`), passing each request through to the backend.
+The privileged Electron main process. It creates the window, starts/stops the backend child, owns lifecycle/crash handling, exposes the preload bridge, and implements native file-picker IPC for wallpapers, plus Year in Review's Save as image (`saveImageIpc.ts`). `startAtLogin.ts` registers the app to start at login in the tray (a Windows login item or a Linux autostart file). `releaseAlerts.ts` turns the backend's release alerts into system notifications. `trayWindow.ts` owns minimize to tray (the tray icon, its menu, and bringing the window back); `main.ts` only adapts Electron's `Tray` to it. In packaged mode it serves the renderer from the fixed `app://renderer` origin (`appProtocol.ts`), passing each request through to the backend.
 
 ### `apps/frontend/src`
 

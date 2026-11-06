@@ -1,8 +1,15 @@
 import { ALL_PLATFORM_FAMILIES, PLATFORM_FAMILIES } from "../../../../../shared/constants";
 import type { SyncSettingsWorkflow } from "../../useSyncSettingsWorkflow";
+import { useStartAtLogin } from "../../useStartAtLogin";
+
+// Linux has no "Windows"; the switch is named for the system it runs on.
+const loginLabel = typeof navigator !== "undefined" && /Linux/.test(navigator.userAgent)
+  ? "Start when I log in, in the tray"
+  : "Start with Windows, in the tray";
 
 export function SyncSettingsPanel({ workflow }: { workflow: SyncSettingsWorkflow }) {
   const { settings, searchText, results, notFound, actions } = workflow;
+  const startAtLogin = useStartAtLogin();
   if (!settings) return <p>Loading sync settings...</p>;
   const tracked = new Set(settings.publishers.map(publisher => publisher.id));
   return (
@@ -74,6 +81,12 @@ export function SyncSettingsPanel({ workflow }: { workflow: SyncSettingsWorkflow
           <input type="checkbox" className="check" aria-label="Notify me about watched games" checked={settings.alerts} onChange={event => void actions.setAlerts(event.target.checked)} />
           {" "}Notify me when a watched game comes out or its date changes (desktop app)
         </label>
+        {startAtLogin.supported && (
+          <label className="sync-auto">
+            <input type="checkbox" className="check" aria-label="Start with Windows in the tray" checked={startAtLogin.enabled} onChange={event => void startAtLogin.setEnabled(event.target.checked)} />
+            {" "}{loginLabel}
+          </label>
+        )}
       </section>
     </>
   );

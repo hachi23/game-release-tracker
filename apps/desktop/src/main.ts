@@ -11,6 +11,7 @@ import { decideNavigation, installWindowGuards } from "./windowGuards";
 import { loadCredentialDataKey } from "./credentialKey";
 import { type AppTray, bringWindowBack, installMinimizeToTray } from "./trayWindow";
 import { startReleaseAlerts } from "./releaseAlerts";
+import { createStartAtLogin, registerStartAtLoginIpc, startsHidden } from "./startAtLogin";
 import type { ReleaseAlert } from "../../../shared/types";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
 
@@ -96,6 +97,18 @@ registerAppDataIpc({
     }
   }
 });
+registerStartAtLoginIpc({
+  ipcMain,
+  isAppFrame,
+  startAtLogin: createStartAtLogin({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    launchPath: process.env.APPIMAGE || process.execPath,
+    autostartDir: join(app.getPath("appData"), "autostart"),
+    getLoginItemSettings: options => app.getLoginItemSettings(options),
+    setLoginItemSettings: settings => app.setLoginItemSettings(settings)
+  })
+});
 registerWallpaperIpc({
   ipcMain,
   dialog,
@@ -178,7 +191,8 @@ async function createWindow() {
   } else {
     await mainWindow.loadURL(layout.frontendDevUrl);
   }
-  mainWindow.show();
+  // Started at login: wait in the tray. Without a tray there would be no way back, so show the window.
+  if (!(startsHidden(process.argv) && tray)) mainWindow.show();
   startReleaseAlerts({
     takeAlerts: takeBackendAlerts,
     notifier: {
