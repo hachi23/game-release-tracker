@@ -5,6 +5,7 @@ import type { TrackerDatabase } from "../database/db";
 const PLATFORMS_KEY = "SYNC_PLATFORMS";
 const TRACK_FROM_KEY = "SYNC_TRACK_FROM";
 const AUTO_SYNC_KEY = "SYNC_AUTO";
+const ALERTS_KEY = "SYNC_ALERTS";
 
 // The user's sync settings: tracked publishers (their own table) and the platform, date and auto-sync
 // choices (rows of `settings`). Reads fill in the defaults for anything never saved.
@@ -21,7 +22,8 @@ export function createSyncSettingsStore(db: TrackerDatabase, today: () => Date =
         publishers: db.prepare("select company_id id, name from tracked_publishers order by name collate nocase").all() as TrackedPublisher[],
         platforms: platforms ?? [...ALL_PLATFORM_FAMILIES],
         trackFrom: readValue(TRACK_FROM_KEY) ?? `${today().getUTCFullYear()}-01-01`,
-        autoSync: readValue(AUTO_SYNC_KEY) === "1"
+        autoSync: readValue(AUTO_SYNC_KEY) === "1",
+        alerts: readValue(ALERTS_KEY) !== "0"
       };
     },
 
@@ -29,6 +31,7 @@ export function createSyncSettingsStore(db: TrackerDatabase, today: () => Date =
       if (patch.platforms !== undefined) writeValue(PLATFORMS_KEY, JSON.stringify(patch.platforms));
       if (patch.trackFrom !== undefined) writeValue(TRACK_FROM_KEY, patch.trackFrom);
       if (patch.autoSync !== undefined) writeValue(AUTO_SYNC_KEY, patch.autoSync ? "1" : "0");
+      if (patch.alerts !== undefined) writeValue(ALERTS_KEY, patch.alerts ? "1" : "0");
     },
 
     addPublishers(publishers: TrackedPublisher[]) {
@@ -59,6 +62,10 @@ export function parseSyncSettingsPatch(body: unknown): { ok: true; patch: SyncSe
   if (input.autoSync !== undefined) {
     if (typeof input.autoSync !== "boolean") return { ok: false, error: "Auto-sync must be on or off" };
     patch.autoSync = input.autoSync;
+  }
+  if (input.alerts !== undefined) {
+    if (typeof input.alerts !== "boolean") return { ok: false, error: "Alerts must be on or off" };
+    patch.alerts = input.alerts;
   }
   return { ok: true, patch };
 }

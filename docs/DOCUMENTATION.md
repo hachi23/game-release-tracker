@@ -74,6 +74,7 @@ SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations
 | `releases` | Upcoming releases | `id`, `title`, `normalized_title`, `date_text`, `release_date`, `date_precision`, `category`, `eligible`, `effective_sort_date`, `archived_at` |
 | `release_artworks` | Artwork per release | `release_id`, `image_id`, `source`, `sort_order` |
 | `user_release_state` | Per-user flags | `release_id`, `hidden`, `watched`, `released` |
+| `release_alerts_sent` | Release alerts already shown (v21), so each shows once; deleted with the release | `release_id`, `alert_key` (`out:<day>` or `change:<id>`), `sent_at` |
 | `release_date_changes` | Date history recorded by sync (v21); deleted with the release | `release_id`, `kind` (delayed, announced, earlier), `from_text`, `to_text`, `from_sort_date`, `to_sort_date`, `sync_run_id`, `changed_at` |
 | `manual_overrides` | User edits (title, lists, category, dates) and seeded date overrides that sync re-applies | `release_id`, `field`, `value`, `source_type`, `source_url` |
 | `sources` | Source URLs per release | `release_id`, `source_name`, `source_url`, `field` |
@@ -182,7 +183,8 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 | POST | `/api/demo` | Loads the sample library → `{ loaded, releases, completedGames }`; 409 if already loaded |
 | DELETE | `/api/demo` | Removes exactly the sample rows → `{ loaded: false }` |
 | GET | `/api/sync/settings` | Sync settings: tracked publishers, platform families, track-from date, auto-sync |
-| PUT | `/api/sync/settings` | Body `{ platforms?, trackFrom?, autoSync? }` → the updated settings; 400 for no platforms, an unknown platform, a bad date or a non-boolean auto-sync |
+| PUT | `/api/sync/settings` | Body `{ platforms?, trackFrom?, autoSync?, alerts? }` → the updated settings; 400 for no platforms, an unknown platform, a bad date or a non-boolean auto-sync or alerts |
+| POST | `/api/alerts/take` | Release alerts not yet shown for watched games (`{ items: [{ releaseId, kind, title, body }] }`), each marked shown; empty while alerts are off. The desktop app shows them as notifications |
 | GET | `/api/sync/publishers/search?q=` | IGDB companies whose name contains the text (at least two letters), most published first; 409 without IGDB keys |
 | POST | `/api/sync/publishers` | Body `{ id, name }` tracks an IGDB company → the updated settings |
 | POST | `/api/sync/publishers/suggested` | Tracks the suggested publishers IGDB knows by exact name → the settings plus `notFound`; 409 without IGDB keys |
@@ -308,6 +310,8 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 
 ### Main process (`apps/desktop/src/main.ts`)
 - Single-instance lock; starting the app again brings the running window back, even from the tray
+- `releaseAlerts.ts`: release alerts as system notifications (Electron `Notification`, the app icon; on Windows under the app's AppUserModelID). It takes `POST /api/alerts/take` with the API token 15 s after startup and every 5 min; a click brings the window back and sends `open-release` to the page. Without notification support it does nothing
+- Background sync: the backend checks every 30 min while running and starts a sync when auto-sync is on and the last successful sync is over 12 hours old (`server.ts`). Coming back from the tray (the page becoming visible) reloads the list and sync status
 - `trayWindow.ts`: minimizing hides the window to a tray icon (the app icon: `build/icon.ico` on Windows, `build/icon.png` scaled to 32 px elsewhere, both shipped in the package). A click or **Open Game Release Tracker** in the tray menu shows, restores and focuses it; **Quit** quits. Closing the window still quits. If the tray cannot be created, minimize stays a normal minimize, so the window is never hidden without a way back
 - IPC handlers: `api-base-url`, diagnostics log path/open, wallpaper file dialog, `save-image` (Save as image)
 - Backend lifecycle: spawn on startup, graceful shutdown on quit (3s timeout). The hidden window is created while the backend boots, and the page loads once the backend reports its port
@@ -320,7 +324,7 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 - `credentialKey.ts`: a random 256-bit data key, stored only as `credential-key.bin` encrypted with Electron `safeStorage` (DPAPI on Windows), is passed to the backend (`GRT_CREDENTIAL_KEY`); the backend encrypts API keys with it before they reach SQLite (`enc:v1:` values) and seals plain-text values from older versions at startup. A key file the OS can no longer decrypt is kept as `credential-key.bin.unreadable` (later ones get `.2`, `.3`, …; none is overwritten) and a new key is made; Settings shows the affected API keys as "can no longer be read - enter it again". If the key cannot be stored at all (for example a read-only data folder or a keychain error), the app still starts and values stay unencrypted. Without OS encryption (or in development) values stay as they are
 
 ### Preload (`apps/desktop/src/preload.ts`)
-Exposes a safe IPC bridge to the renderer for the API base URL and per-launch API token, diagnostics, wallpaper, and `saveImage(png, name)` operations.
+Exposes a safe IPC bridge to the renderer for the API base URL and per-launch API token, diagnostics, wallpaper, and `saveImage(png, name)` operations, and `onOpenRelease(callback)`, which a clicked release alert uses to open that game.
 
 ### IPC modules
 - `wallpaperIpc.ts` — native file dialog for wallpaper image selection
@@ -490,6 +494,8 @@ apps/
       buildYearInReview.ts       Pure yearly recap (and the years list)
       thresholds.ts              Every tunable Year in Review number
       yearInReviewSettingsStore.ts  year_in_review_settings reads/writes
+    releaseAlerts/
+      releaseAlerts.ts           Release alerts for watched games (out today, date changes), each handed out once
     releaseDates/
       dateChanges.ts             Date history: names a change (delayed, announced, earlier); only writer of release_date_changes
     settings/

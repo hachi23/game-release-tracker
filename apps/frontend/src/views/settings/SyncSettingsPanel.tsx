@@ -68,7 +68,11 @@ export function SyncSettingsPanel({ workflow }: { workflow: SyncSettingsWorkflow
         </label>
         <label className="sync-auto">
           <input type="checkbox" className="check" aria-label="Sync automatically when the app starts" checked={settings.autoSync} onChange={event => void actions.setAutoSync(event.target.checked)} />
-          {" "}Sync automatically when the app starts (at most every 12 hours)
+          {" "}Sync automatically when the app starts, and every 12 hours while it stays open
+        </label>
+        <label className="sync-auto">
+          <input type="checkbox" className="check" aria-label="Notify me about watched games" checked={settings.alerts} onChange={event => void actions.setAlerts(event.target.checked)} />
+          {" "}Notify me when a watched game comes out or its date changes (desktop app)
         </label>
       </section>
     </>

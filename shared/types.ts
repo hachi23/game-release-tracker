@@ -13,6 +13,14 @@ export type DatePrecision = "Exact" | "Month" | "Window" | "Year" | "TBA";
 // How a sync changed a release's date: pushed later, set more exactly within the old period, or moved up.
 export type DateChangeKind = "delayed" | "announced" | "earlier";
 
+// A system notification about a watched game, handed to the desktop app once.
+export interface ReleaseAlert {
+  releaseId: string;
+  kind: "out" | DateChangeKind;
+  title: string;
+  body: string;
+}
+
 export interface ReleaseDateChange {
   kind: DateChangeKind;
   fromText: string;
@@ -208,9 +216,11 @@ export interface SyncSettings {
   platforms: PlatformFamily[];
   trackFrom: string;
   autoSync: boolean;
+  // Desktop notifications about watched games (on unless turned off).
+  alerts: boolean;
 }
 
-export type SyncSettingsPatch = Partial<Pick<SyncSettings, "platforms" | "trackFrom" | "autoSync">>;
+export type SyncSettingsPatch = Partial<Pick<SyncSettings, "platforms" | "trackFrom" | "autoSync" | "alerts">>;
 
 export interface SettingsStatus {
   credentialStatus: { status: string; message?: string };

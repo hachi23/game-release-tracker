@@ -9,6 +9,8 @@ interface ReleaseTrackerBridge {
   openLogFolder?(): Promise<{ ok: boolean; error?: string }>;
   // Asks the user to confirm, deletes everything the app stored on this computer and restarts. Desktop only.
   deleteAppData?(): Promise<{ ok: boolean; canceled?: boolean; error?: string }>;
+  // Calls back with a release id when the user clicks a release alert. Returns the unsubscribe function.
+  onOpenRelease?(callback: (releaseId: string) => void): () => void;
 }
 
 interface Window {

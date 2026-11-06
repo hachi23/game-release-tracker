@@ -107,6 +107,7 @@ Important modules:
 - `apps/backend/src/completed/*`: completed-library identity, matching, ratings, stores
 - `apps/backend/src/sync/*`: upcoming IGDB sync planning, rules, enrichment
 - `apps/backend/src/randomizer/*`: Randomizer query text, pure draw, pick history (writes only `randomizer_picks`)
+- `apps/backend/src/releaseAlerts/*`: release alerts for watched games, handed to the desktop app once each (writes only `release_alerts_sent`)
 - `apps/backend/src/releaseDates/*`: release date history: names each date change (delayed, announced, earlier) and is the only writer of `release_date_changes`
 - `apps/backend/src/yearInReview/*`: Year in Review pure recap (`buildYearInReview`), thresholds, per-year settings (writes only `year_in_review_settings`)
 - `apps/runtime/src/*`: app-data file storage and runtime path resolution

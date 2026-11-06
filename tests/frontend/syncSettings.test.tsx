@@ -10,7 +10,7 @@ afterEach(async () => {
   while (cleanups.length) await cleanups.pop()!();
 });
 
-const newLibrary: SyncSettings = { publishers: [], platforms: ["pc", "xbox", "playstation", "switch"], trackFrom: "2026-01-01", autoSync: false };
+const newLibrary: SyncSettings = { publishers: [], platforms: ["pc", "xbox", "playstation", "switch"], trackFrom: "2026-01-01", autoSync: false, alerts: true };
 
 async function openSyncSettings(settings: SyncSettings = newLibrary, overrides = {}) {
   let current = settings;

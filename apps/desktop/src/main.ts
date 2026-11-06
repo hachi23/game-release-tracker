@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, protocol, safeStorage, session, shell, Tray } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, protocol, safeStorage, session, shell, Tray } from "electron";
 import { APP_ORIGIN, handleAppProtocol, identifyAppToYouTube, registerAppScheme } from "./appProtocol";
 import { type BackendChild, startBackendProcess, stopBackendProcess } from "./backendProcess";
 import { handleStartupFailure, logBackendStoppedBeforeQuit, logDesktopFatalStartup, logDesktopProcessFailure, prepareDesktopRuntime } from "./desktopLifecycle";
@@ -10,6 +10,8 @@ import { registerAppDataIpc } from "./appDataIpc";
 import { decideNavigation, installWindowGuards } from "./windowGuards";
 import { loadCredentialDataKey } from "./credentialKey";
 import { type AppTray, bringWindowBack, installMinimizeToTray } from "./trayWindow";
+import { startReleaseAlerts } from "./releaseAlerts";
+import type { ReleaseAlert } from "../../../shared/types";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
 
 let mainWindow: BrowserWindow | null = null;
@@ -23,6 +25,8 @@ let dataDir = "";
 let frontendDevUrl = "";
 let backendShutdownStarted = false;
 let fatalDialogShown = false;
+// Shown notifications, held until clicked or closed so their click handler is not garbage-collected.
+const liveNotifications = new Set<Notification>();
 // A fresh secret each launch: the backend refuses /api calls without it, so web pages and other local
 // programs cannot use the local API. Only this app's renderer receives it, through the preload.
 const apiToken = randomBytes(32).toString("hex");
@@ -30,6 +34,8 @@ const apiToken = randomBytes(32).toString("hex");
 // The data folder is named after the app (on Windows %APPDATA%\Game Release Tracker), not after the npm
 // package, so the app never shares a folder with another build of the same package. Set before anything
 // reads userData. An explicit --user-data-dir (a test profile) still wins.
+// Windows shows notifications under this id (the installer's shortcut carries the same one).
+if (process.platform === "win32") app.setAppUserModelId("io.github.hachi23.game-release-tracker");
 if (!app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", join(app.getPath("appData"), "Game Release Tracker"));
 registerAppScheme(protocol);
 
@@ -173,13 +179,44 @@ async function createWindow() {
     await mainWindow.loadURL(layout.frontendDevUrl);
   }
   mainWindow.show();
+  startReleaseAlerts({
+    takeAlerts: takeBackendAlerts,
+    notifier: {
+      isSupported: () => Notification.isSupported(),
+      show: (alert, onClick) => {
+        const notification = new Notification({ title: alert.title, body: alert.body, icon: appIconImage(root) });
+        liveNotifications.add(notification);
+        notification.on("click", () => {
+          liveNotifications.delete(notification);
+          onClick();
+        });
+        notification.on("close", () => liveNotifications.delete(notification));
+        notification.show();
+      }
+    },
+    openRelease: releaseId => {
+      bringWindowBack(mainWindow);
+      mainWindow?.webContents.send("open-release", releaseId);
+    },
+    log: message => diagnostics.log("desktop.release_alerts", { message })
+  });
 }
 
-// The tray icon is the app icon: the multi-size .ico on Windows, the PNG scaled down elsewhere.
-function createAppTray(root: string): AppTray {
-  const image = process.platform === "win32"
+async function takeBackendAlerts(): Promise<ReleaseAlert[]> {
+  const response = await fetch(`${apiBaseUrl}/api/alerts/take`, { method: "POST", headers: { "x-grt-token": apiToken } });
+  if (!response.ok) throw new Error(`backend answered ${response.status}`);
+  return ((await response.json()) as { items: ReleaseAlert[] }).items;
+}
+
+// The app icon for the tray and notifications: the multi-size .ico on Windows, the PNG scaled down elsewhere.
+function appIconImage(root: string) {
+  return process.platform === "win32"
     ? nativeImage.createFromPath(join(root, "build", "icon.ico"))
     : nativeImage.createFromPath(join(root, "build", "icon.png")).resize({ width: 32, height: 32, quality: "best" });
+}
+
+function createAppTray(root: string): AppTray {
+  const image = appIconImage(root);
   if (image.isEmpty()) throw new Error("tray icon image is missing");
   const electronTray = new Tray(image);
   return {

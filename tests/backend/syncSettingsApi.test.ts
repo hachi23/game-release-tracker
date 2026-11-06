@@ -50,14 +50,15 @@ function setup(igdb = fakeGateway()) {
 }
 
 describe("sync settings API", () => {
-  test("a new library tracks no publishers, every platform, releases from January 1 this year, and doesn't auto-sync", async () => {
+  test("a new library tracks no publishers, every platform, releases from January 1 this year, doesn't auto-sync, and alerts", async () => {
     const { app, db } = setup();
 
     expect((await app.inject({ method: "GET", url: "/api/sync/settings" })).json()).toEqual({
       publishers: [],
       platforms: ["pc", "xbox", "playstation", "switch"],
       trackFrom: `${new Date().getUTCFullYear()}-01-01`,
-      autoSync: false
+      autoSync: false,
+      alerts: true
     });
     expect(shouldAutoSync(db)).toBe(false);
   });

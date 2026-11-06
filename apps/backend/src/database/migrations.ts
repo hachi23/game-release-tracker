@@ -596,8 +596,8 @@ function migrateToV20(db: TrackerDatabase) {
 }
 
 // v21 keeps a release's date history: each date change a sync brings in (delayed, announced, moved up),
-// for the "Delayed from" badge, the detail page's history and release alerts. Deleting a release deletes
-// its history.
+// for the "Delayed from" badge, the detail page's history and release alerts, and which alerts were
+// already shown (release_alerts_sent), so each is shown once. Deleting a release deletes both.
 function migrateToV21(db: TrackerDatabase) {
   db.exec(`
     create table if not exists release_date_changes (
@@ -612,5 +612,11 @@ function migrateToV21(db: TrackerDatabase) {
       changed_at text not null default current_timestamp
     );
     create index if not exists idx_release_date_changes_release on release_date_changes(release_id, id);
+    create table if not exists release_alerts_sent (
+      release_id text not null references releases(id) on delete cascade,
+      alert_key text not null,
+      sent_at text not null default current_timestamp,
+      primary key (release_id, alert_key)
+    );
   `);
 }

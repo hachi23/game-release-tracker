@@ -83,6 +83,21 @@ export function useReleaseWorkspace({ api, initialState, shell }: { api: ApiClie
     if (!initialState) void Promise.all([reload(), refreshSyncStatus()]);
   }, [api]);
 
+  // Coming back from the tray: a background sync may have changed the list while the window was hidden.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void Promise.all([reload(), refreshSyncStatus()]);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [api]);
+
+  // A clicked release alert (desktop) opens that game's page.
+  useEffect(() => window.releaseTracker?.onOpenRelease?.(releaseId => {
+    logUiEvent("ui.click", { action: "open-release-alert", releaseId });
+    void api.getRelease(releaseId).then(detailWorkflow.actions.showDetail, error => reportOperationError("open-release-alert", error));
+  }), [api]);
+
   // A sync the app did not start (the startup auto-sync) is followed until it ends, then the list reloads.
   useEffect(() => {
     if (syncStatus.status !== "running" || ownSyncRunning.current) return;
