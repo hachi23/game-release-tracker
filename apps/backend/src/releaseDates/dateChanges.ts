@@ -13,32 +13,60 @@ export interface DateSnapshot {
 const PRECISION_RANK: Record<DatePrecision, number> = { TBA: 0, Year: 1, Window: 2, Month: 3, Exact: 4 };
 
 // What a date change means for the person waiting for the game, or null when nothing a reader would call
-// a change happened (the same date reworded). A later date is a delay; a sharper date inside the old
-// period ("2027" becoming "Mar 14, 2027") is the date being announced; anything earlier moved the game up.
+// a change happened (the same date reworded). Dates are compared as the periods they name ("2027" is all
+// of 2027), because a vague date's sort date is the start of its period when typed or given as words,
+// and the end when IGDB sends a timestamp. Ending later is a delay, starting earlier moved the game up,
+// and a sharper date inside the old period is the date being announced.
 export function classifyDateChange(before: DateSnapshot, after: DateSnapshot): DateChangeKind | null {
   if (before.dateText === after.dateText && before.releaseDate === after.releaseDate) return null;
-  if (!before.sortDate) return after.sortDate ? "announced" : null;
-  if (!after.sortDate) return "delayed";
-  if (after.sortDate > before.sortDate) return "delayed";
+  const was = periodOf(before);
+  const now = periodOf(after);
+  if (!was) return now ? "announced" : null;
+  if (!now) return "delayed";
   const sharper = PRECISION_RANK[after.datePrecision] > PRECISION_RANK[before.datePrecision];
-  if (sharper && after.sortDate >= periodStart(before)) return "announced";
-  if (after.sortDate < before.sortDate) return "earlier";
+  if (sharper && within(now, was)) return "announced";
+  // One period inside the other with no sharper date: the same date in other words, or a less exact one.
+  if (within(now, was) || within(was, now)) return null;
+  if (now.end > was.end) return "delayed";
+  if (now.start < was.start) return "earlier";
   return null;
 }
 
-// The first day the old, vaguer date could have meant.
-function periodStart({ datePrecision, sortDate }: DateSnapshot) {
-  const date = sortDate!;
-  if (datePrecision === "Year") return `${date.slice(0, 4)}-01-01`;
-  if (datePrecision === "Month") return `${date.slice(0, 7)}-01`;
+const within = (inner: Period, outer: Period) => inner.start >= outer.start && inner.end <= outer.end;
+
+interface Period { start: string; end: string }
+
+// The first and last day a date could mean, or null for TBA.
+export function periodOf({ dateText, releaseDate, datePrecision, sortDate }: DateSnapshot): Period | null {
+  const day = releaseDate ?? sortDate;
+  if (datePrecision === "TBA" || !day) return null;
+  const year = Number(dateText.match(/\b(20\d{2})\b/)?.[1] ?? day.slice(0, 4));
+  if (datePrecision === "Exact") return { start: day, end: day };
+  if (datePrecision === "Month") return monthsOf(year, Number(day.slice(5, 7)), Number(day.slice(5, 7)));
   if (datePrecision === "Window") {
-    // A quarter or season: the three months ending in the sort month.
-    const year = Number(date.slice(0, 4));
-    const month = Number(date.slice(5, 7)) - 2;
-    const start = month < 1 ? { year: year - 1, month: month + 12 } : { year, month };
-    return `${start.year}-${String(start.month).padStart(2, "0")}-01`;
+    const [first, last] = windowMonths(dateText);
+    return monthsOf(year, first, last);
   }
-  return date;
+  return monthsOf(year, 1, 12);
+}
+
+// The months a window phrase names; a phrase it can't read counts as the whole year.
+function windowMonths(text: string): [number, number] {
+  const words = text.toLowerCase();
+  if (/\bq1\b|first quarter|winter|early/.test(words)) return [1, 3];
+  if (/\bq2\b|second quarter|spring/.test(words)) return [4, 6];
+  if (/\bq3\b|third quarter|summer/.test(words)) return [7, 9];
+  if (/\bq4\b|fourth quarter|fall|autumn|late|holiday/.test(words)) return [10, 12];
+  if (/\bh1\b/.test(words)) return [1, 6];
+  if (/\bh2\b/.test(words)) return [7, 12];
+  if (/\bmid\b/.test(words)) return [4, 9];
+  return [1, 12];
+}
+
+function monthsOf(year: number, first: number, last: number): Period {
+  const lastDay = new Date(Date.UTC(year, last, 0)).getUTCDate();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return { start: `${year}-${pad(first)}-01`, end: `${year}-${pad(last)}-${pad(lastDay)}` };
 }
 
 export function readDateSnapshot(db: TrackerDatabase, releaseId: string): DateSnapshot | null {

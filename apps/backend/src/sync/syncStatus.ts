@@ -34,5 +34,6 @@ export function shouldAutoSync(db: TrackerDatabase, staleHours = 12) {
   if (!createSyncSettingsStore(db).read().autoSync) return false;
   const row = db.prepare("select finished_at from sync_runs where status = 'success' order by id desc limit 1").get() as { finished_at?: string } | undefined;
   if (!row?.finished_at) return true;
-  return Date.now() - new Date(row.finished_at).getTime() > staleHours * 60 * 60 * 1000;
+  // SQLite's current_timestamp is UTC without a zone ("2026-11-06 20:21:10"); read it as UTC, not local time.
+  return Date.now() - Date.parse(`${row.finished_at.replace(" ", "T")}Z`) > staleHours * 60 * 60 * 1000;
 }

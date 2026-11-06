@@ -21,6 +21,10 @@ What changed in each version, in plain language.
 - Minimizing the window now hides it to a Game Release Tracker icon in the system tray (the notification area on Windows). Click the icon, or choose **Open Game Release Tracker** from its menu, to bring the window back; **Quit** in the same menu closes the app. The close button still quits.
 - Starting the app again while it is in the tray brings the window back. On Linux desktops that don't show tray icons (GNOME without an AppIndicator extension), that is the way back.
 
+**Fixes**
+- Changing a game's date by hand to a vague one ("2028", "Q4 2027") without clearing its old day now drops that day, so the game sorts and counts down by the date you typed. Before, it kept using the old day until the next sync.
+- Automatic sync now waits the full 12 hours in every time zone. Before, it read the last sync's time as local time, so ahead of UTC it synced early and behind UTC it waited too long.
+
 **Your library**
 - The first start upgrades your library to keep date history and alerts (schema v21). A backup is made first, as with every upgrade; after it, older versions of the app can't open the library.
 

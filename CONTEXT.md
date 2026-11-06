@@ -43,7 +43,7 @@ How exactly a release's date is known: **Exact** (a day), **Month**, **Window** 
 
 ### Date Change
 
-A change to a release's date that a sync brought in, kept in `release_date_changes` (schema v21) by `releaseDates/dateChanges.ts`. Its kind is **delayed** (a later date, or the date lost to TBA), **announced** (a sharper date inside the old period: "2027" becoming "Mar 14, 2027", or a TBA game getting a date) or **earlier** (moved up). The same date reworded is no change. A date the user set by hand is kept by sync, so it records nothing. The Upcoming list shows the newest delay or move up ("Delayed from Mar 14, 2027") on the row and the featured panel; an announced date shows only in the detail page's **Date history**. Deleting a release deletes its history.
+A change to a release's date that a sync brought in, kept in `release_date_changes` (schema v21) by `releaseDates/dateChanges.ts`. Its kind is **delayed** (a later date, or the date lost to TBA), **announced** (a sharper date inside the old period: "2027" becoming "Mar 14, 2027", or a TBA game getting a date) or **earlier** (moved up). Dates are compared as the periods they name ("2027" is all of 2027, "Q4 2027" October to December), never by sort date, because a vague date sorts by the start of its period when typed or given as words and by the end when IGDB sends a timestamp. The same date reworded is no change, nor is a date made less exact within its period. A date the user set by hand is kept by sync, so it records nothing. The Upcoming list shows the newest delay or move up ("Delayed from Mar 14, 2027") on the row and the featured panel; an announced date shows only in the detail page's **Date history**. Deleting a release deletes its history.
 
 ### Release List Item
 

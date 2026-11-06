@@ -69,6 +69,16 @@ const dateColumns = {
 
 const dateFieldsSql = "date_text dateText, release_date releaseDate, date_precision datePrecision, release_window releaseWindow";
 
+// A user who changes a game's date to a vague one ("2028", "Q4 2027") without touching its day means the
+// old day no longer holds; kept, it would still decide the sort and the countdown. So the day is cleared
+// (and that is saved as their edit too, so sync keeps it cleared). An Exact date keeps its day.
+function withoutStaleDay(db: TrackerDatabase, releaseId: string, edit: ReleaseEdit): ReleaseEdit {
+  if (edit.releaseDate !== undefined || (edit.dateText === undefined && edit.datePrecision === undefined)) return edit;
+  const current = db.prepare("select date_precision datePrecision from releases where id = ?").get(releaseId) as { datePrecision: string } | undefined;
+  const precision = edit.datePrecision ?? current?.datePrecision;
+  return precision === "Exact" ? edit : { ...edit, releaseDate: null };
+}
+
 // The Release Store: the only module that writes the releases table family (lists, media, sources,
 // search index, user state, overrides, blocks). Callers work in releases, not tables.
 export function createReleaseStore(db: TrackerDatabase) {
@@ -134,7 +144,8 @@ export function createReleaseStore(db: TrackerDatabase) {
       db.prepare("update releases set date_text = ?, updated_at = current_timestamp where id = ?").run(patch.dateText, releaseId);
       recomputeEligibility(db, releaseId);
     },
-    edit(releaseId: string, edit: ReleaseEdit) {
+    edit(releaseId: string, requested: ReleaseEdit) {
+      const edit = withoutStaleDay(db, releaseId, requested);
       const apply = db.transaction(() => {
         if (edit.title !== undefined) {
           db.prepare("update releases set title = ?, normalized_title = ?, updated_at = current_timestamp where id = ?").run(edit.title, normalizeText(edit.title), releaseId);

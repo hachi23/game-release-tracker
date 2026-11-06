@@ -8,6 +8,7 @@ import { createReleaseStore } from "../../apps/backend/src/database/releaseStore
 import type { IgdbGateway } from "../../apps/backend/src/igdb/gateway";
 import { createBackendApp } from "../../apps/backend/src/server";
 import { shouldAutoSync } from "../../apps/backend/src/sync/syncStatus";
+import { createSyncSettingsStore } from "../../apps/backend/src/sync/syncSettingsStore";
 import { computeSortDateAndEligibility } from "../../apps/backend/src/sync/releasePolicy";
 
 let dirs: string[] = [];
@@ -72,6 +73,28 @@ describe("sync settings API", () => {
     expect(shouldAutoSync(db)).toBe(true);
     for (const payload of [{ platforms: [] }, { platforms: ["dreamcast"] }, { trackFrom: "2025-13-01" }, { trackFrom: "soon" }, { autoSync: "yes" }]) {
       expect((await app.inject({ method: "PUT", url: "/api/sync/settings", payload })).statusCode, JSON.stringify(payload)).toBe(400);
+    }
+  });
+
+  test("auto-sync waits 12 hours after the last successful sync, whatever the computer's time zone", () => {
+    const zone = process.env.TZ;
+    process.env.TZ = "Asia/Kolkata";
+    try {
+      const { db } = setup();
+      createSyncSettingsStore(db).update({ autoSync: true });
+      // Stored the way SQLite's current_timestamp stores it: UTC, no zone.
+      const finishedHoursAgo = (hours: number) => {
+        db.prepare("delete from sync_runs").run();
+        const at = new Date(Date.now() - hours * 3_600_000).toISOString().replace("T", " ").slice(0, 19);
+        db.prepare("insert into sync_runs (status, finished_at) values ('success', ?)").run(at);
+      };
+
+      finishedHoursAgo(11);
+      expect(shouldAutoSync(db)).toBe(false);
+      finishedHoursAgo(13);
+      expect(shouldAutoSync(db)).toBe(true);
+    } finally {
+      process.env.TZ = zone;
     }
   });
 

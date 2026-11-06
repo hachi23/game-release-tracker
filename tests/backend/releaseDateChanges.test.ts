@@ -63,6 +63,12 @@ describe("classifying a date change", () => {
     expect(classifyDateChange(snap("TBA", "TBA", null), snap("2027", "Year", "2027-12-31"))).toBe("announced");
   });
 
+  test("a vague date sorted by the start of its period (no IGDB timestamp, or typed by hand) is announced, not delayed, when it gets a day", () => {
+    expect(classifyDateChange(snap("2027", "Year", "2027-01-01"), snap("Mar 14, 2027", "Exact", "2027-03-14", "2027-03-14"))).toBe("announced");
+    expect(classifyDateChange(snap("Q4 2027", "Window", "2027-10-01"), snap("Nov 20, 2027", "Exact", "2027-11-20", "2027-11-20"))).toBe("announced");
+    expect(classifyDateChange(snap("Q4 2027", "Window", "2027-10-01"), snap("Feb 2028", "Month", "2028-02-01"))).toBe("delayed");
+  });
+
   test("a sharper date before the old period moved the game up; losing the date is a delay", () => {
     expect(classifyDateChange(snap("Q4 2027", "Window", "2027-12-31"), snap("Feb 2027", "Month", "2027-02-28"))).toBe("earlier");
     expect(classifyDateChange(snap("Mar 14, 2027", "Exact", "2027-03-14", "2027-03-14"), snap("TBA", "TBA", null))).toBe("delayed");
@@ -92,6 +98,19 @@ describe("date history from sync", () => {
 
     await runSync(db, [game("2027-09-01")], undefined, noArtwork);
 
+    expect(getRelease(db, item.id)!.dateChanges).toEqual([]);
+  });
+
+  test("changing a game's date to a vague one by hand drops the old exact day, so it sorts by the new date", async () => {
+    const db = tempDb();
+    await runSync(db, [game("2027-03-14")], undefined, noArtwork);
+    const [item] = listReleases(db, {}).items;
+
+    await updateRelease(db, item.id, { dateText: "2028", datePrecision: "Year", releaseWindow: "2028" });
+
+    expect(getRelease(db, item.id)).toMatchObject({ dateText: "2028", datePrecision: "Year", releaseDate: null, effectiveSortDate: "2028-01-01" });
+    await runSync(db, [game("2027-09-01")], undefined, noArtwork);
+    expect(getRelease(db, item.id)).toMatchObject({ dateText: "2028", releaseDate: null, effectiveSortDate: "2028-01-01" });
     expect(getRelease(db, item.id)!.dateChanges).toEqual([]);
   });
 
