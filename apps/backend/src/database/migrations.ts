@@ -25,7 +25,8 @@ const migrations: Array<(db: TrackerDatabase) => void> = [
   migrateToV17,
   migrateToV18,
   migrateToV19,
-  migrateToV20
+  migrateToV20,
+  migrateToV21
 ];
 
 const LATEST_SCHEMA_VERSION = migrations.length;
@@ -592,4 +593,24 @@ function migrateToV20(db: TrackerDatabase) {
     `);
   }
   createReleaseStore(db).refreshAllEligibility();
+}
+
+// v21 keeps a release's date history: each date change a sync brings in (delayed, announced, moved up),
+// for the "Delayed from" badge, the detail page's history and release alerts. Deleting a release deletes
+// its history.
+function migrateToV21(db: TrackerDatabase) {
+  db.exec(`
+    create table if not exists release_date_changes (
+      id integer primary key autoincrement,
+      release_id text not null references releases(id) on delete cascade,
+      kind text not null,
+      from_text text not null,
+      to_text text not null,
+      from_sort_date text,
+      to_sort_date text,
+      sync_run_id integer,
+      changed_at text not null default current_timestamp
+    );
+    create index if not exists idx_release_date_changes_release on release_date_changes(release_id, id);
+  `);
 }

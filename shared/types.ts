@@ -9,6 +9,16 @@ export type ReleaseCategory =
   | "Port";
 
 export type DatePrecision = "Exact" | "Month" | "Window" | "Year" | "TBA";
+
+// How a sync changed a release's date: pushed later, set more exactly within the old period, or moved up.
+export type DateChangeKind = "delayed" | "announced" | "earlier";
+
+export interface ReleaseDateChange {
+  kind: DateChangeKind;
+  fromText: string;
+  toText: string;
+  changedAt: string;
+}
 export type SyncRunStatus = "idle" | "running" | "success" | "partial" | "failed";
 export type OverrideSourceType = "igdb" | "seeded" | "user";
 
@@ -134,9 +144,13 @@ export interface ReleaseListItem {
   hidden?: boolean;
   watched?: boolean;
   released?: boolean;
+  // The newest date change a sync recorded, if any.
+  lastDateChange?: ReleaseDateChange | null;
 }
 
 export interface ReleaseDetail extends ReleaseListItem {
+  // Every recorded date change, newest first.
+  dateChanges?: ReleaseDateChange[];
   igdbUrl?: string | null;
   sources: Array<{ sourceName: string; sourceUrl: string; field?: string | null }>;
   eligibilityReason?: string | null;

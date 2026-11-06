@@ -57,3 +57,16 @@ describe("watchlist", () => {
     expect(api.patchRelease).toHaveBeenLastCalledWith("a", { watched: false });
   });
 });
+
+describe("date changes on the list", () => {
+  test("a delayed game says so on its row and the featured panel; an announced date stays off the list", async () => {
+    const delayed = { ...release("d", "Delta Run"), lastDateChange: { kind: "delayed", fromText: "Mar 14, 2027", toText: "Jun 2, 2027", changedAt: "2026-11-01 10:00:00" } } as ReleaseListItem;
+    const announced = { ...release("e", "Echo Tale"), lastDateChange: { kind: "announced", fromText: "2027", toText: "Mar 3, 2027", changedAt: "2026-11-01 10:00:00" } } as ReleaseListItem;
+    const api = fakeApiClient({ getDemo: async () => ({ loaded: true }), listReleases: async () => ({ items: [delayed, announced], truncated: false, total: 2 }) });
+    const view = await renderInteractive(<AppShell apiBaseUrl="http://unused" api={api} />);
+    cleanups.push(view.cleanup);
+
+    const badges = [...view.container.querySelectorAll(".date-badge")].map(node => node.textContent);
+    expect(badges).toEqual(["Delayed from Mar 14, 2027", "Delayed from Mar 14, 2027"]);
+  });
+});

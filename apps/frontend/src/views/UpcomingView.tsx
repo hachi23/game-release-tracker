@@ -5,6 +5,7 @@ import { artworkSrc } from "../artwork";
 import { Backdrop } from "../ui/Backdrop";
 import { Button } from "../ui/Button";
 import { WatchButton } from "../ui/WatchButton";
+import { listDateBadge } from "../ui/dateChange";
 import { Field, SelectShell } from "../ui/Field";
 import { FramedPanel } from "../ui/FramedPanel";
 import { bannerLabel, daysUntil, rowSubLine, rowWhenLabel, stripCurrentYear } from "../ui/countdown";
@@ -32,6 +33,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
   const items = useMemo(() => groups.flatMap(group => group.items), [groups]);
   const featured = items.find(item => item.id === featuredId) ?? items.find(item => item.datePrecision !== "Exact" || (item.releaseDate && daysUntil(item.releaseDate, today) >= 0)) ?? items[0];
   useEffect(() => { if (featured?.id !== featuredId) setFeaturedId(featured?.id ?? null); }, [featured?.id, featuredId]);
+  const featuredBadge = listDateBadge(featured?.lastDateChange);
   const art = featured?.artworks ?? [];
   const backdropArt = art.find(a => a.source === "artwork") ?? art.find(a => a.source === "local" || a.source === "steamgriddb");
   const cover = art.find(a => a.source === "cover") ?? art[0];
@@ -74,12 +76,13 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
       <div className="upcoming-list__scroll" ref={listRef} onKeyDown={handleListKey} tabIndex={0}>
         {groups.map(group => <section key={group.heading}><h2 className="upcoming-month">{stripCurrentYear(group.heading, today)}</h2>{group.items.map(item => {
           const rowCover = item.artworks.find(a => a.source === "cover") ?? item.artworks[0];
+          const badge = listDateBadge(item.lastDateChange);
           return <div className={`release-row${featured?.id === item.id ? " release-row--selected" : ""}`} data-release-id={item.id} key={item.id}>
             <span className="release-row__marker">{featured?.id === item.id ? "◆" : ""}</span>
             <label className="release-row__check"><input className="check" aria-label={`Select ${item.title}`} type="checkbox" checked={selectedReleaseIds.has(item.id)} onChange={event => onToggleReleaseSelection(item.id, event.target.checked)} /></label>
             <button type="button" className="release-row__open" onClick={() => setFeaturedId(item.id)} onDoubleClick={() => onOpenDetail(item)} onKeyDown={event => { if (event.key === "Enter") { event.stopPropagation(); onOpenDetail(item); } }}>
               <span className="release-row__cover">{rowCover && <img src={artworkSrc(rowCover, "small", apiBaseUrl)} alt="" loading="lazy" draggable={false} />}</span>
-              <span className="release-row__text"><strong>{item.watched && <span className="watch-star" title="Watching">★ </span>}{item.title}</strong><small>{rowSubLine(item)}</small></span>
+              <span className="release-row__text"><strong>{item.watched && <span className="watch-star" title="Watching">★ </span>}{item.title}</strong><small>{rowSubLine(item)}</small>{badge && <small className={`date-badge date-badge--${badge.kind}`}>{badge.label}</small>}</span>
               <span className="release-row__when">{rowWhenLabel(item, today)}</span>
             </button>
           </div>;
@@ -87,7 +90,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
       </div>
     </FramedPanel>
     {showWelcome && <WelcomeTour />}
-    {featured && <FramedPanel className="upcoming-feature"><div className="upcoming-feature__layout"><div className="upcoming-feature__cover">{cover && <img src={artworkSrc(cover, "grid", apiBaseUrl)} alt="" draggable={false} />}</div><div className="upcoming-feature__content"><h2>{featured.title}</h2><p>{[featured.publishers[0] ?? featured.developers[0], featured.category === "Main" ? "" : featured.category, featured.platforms.join(", ")].filter(Boolean).join(". ")}.</p><div className="upcoming-feature__actions"><Button variant="primary" onClick={() => onOpenDetail(featured)}>Open details</Button><WatchButton watched={Boolean(featured.watched)} onChange={watched => onSetWatched(featured, watched)} /></div></div></div></FramedPanel>}
+    {featured && <FramedPanel className="upcoming-feature"><div className="upcoming-feature__layout"><div className="upcoming-feature__cover">{cover && <img src={artworkSrc(cover, "grid", apiBaseUrl)} alt="" draggable={false} />}</div><div className="upcoming-feature__content"><h2>{featured.title}</h2>{featuredBadge && <p className={`date-badge date-badge--${featuredBadge.kind}`}>{featuredBadge.label}</p>}<p>{[featured.publishers[0] ?? featured.developers[0], featured.category === "Main" ? "" : featured.category, featured.platforms.join(", ")].filter(Boolean).join(". ")}.</p><div className="upcoming-feature__actions"><Button variant="primary" onClick={() => onOpenDetail(featured)}>Open details</Button><WatchButton watched={Boolean(featured.watched)} onChange={watched => onSetWatched(featured, watched)} /></div></div></div></FramedPanel>}
   </>;
 }
 

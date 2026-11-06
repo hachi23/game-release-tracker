@@ -44,6 +44,7 @@ Games coming out from the publishers you follow, grouped by month.
 - **Double-click** it, press **Enter**, or click **Open details** for its full page: artwork, screenshots, trailer, dates, platforms and publisher. Every detail page takes on the colours of the game's cover.
 - **Search** by title, publisher or keyword, and filter by **Genre**. **More filters** narrows by publisher, platform, category or date precision, can show games you've hidden or marked as released, and can show only the games you watch.
 - **☆ Watch** (on the featured game or a game's page) adds a game to your watchlist; it then shows a ★ in the list. **More filters → Watched only** shows just your watched games. Click **★ Watching** to stop watching.
+- When a sync finds a new date for a game, its row says **Delayed from …** or **Moved up from …**. The game's page lists every change under **Date history**, including a vague date becoming exact ("Date announced").
 - **Add game** adds one by hand. You can search IGDB for it or type the details yourself.
 - Tick several games to delete them together.
 

@@ -65,7 +65,7 @@ All cross-boundary TypeScript interfaces live here. Key types:
 
 ## 3. Database Schema
 
-SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations.ts` (version-tracked in `schema_version` table, currently at **schema v19**; startup runs only pending migrations, no per-launch data repair). Before upgrading an existing library, the database is copied with `VACUUM INTO` to `backups/<name>.v<old>.<time>.db` next to it; the three newest backups are kept. A library whose schema is newer than the app is refused unchanged, and the startup dialog shows that reason.
+SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations.ts` (version-tracked in `schema_version` table, currently at **schema v21**; startup runs only pending migrations, no per-launch data repair). Before upgrading an existing library, the database is copied with `VACUUM INTO` to `backups/<name>.v<old>.<time>.db` next to it; the three newest backups are kept. A library whose schema is newer than the app is refused unchanged, and the startup dialog shows that reason.
 
 ### Core tables
 
@@ -74,6 +74,7 @@ SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations
 | `releases` | Upcoming releases | `id`, `title`, `normalized_title`, `date_text`, `release_date`, `date_precision`, `category`, `eligible`, `effective_sort_date`, `archived_at` |
 | `release_artworks` | Artwork per release | `release_id`, `image_id`, `source`, `sort_order` |
 | `user_release_state` | Per-user flags | `release_id`, `hidden`, `watched`, `released` |
+| `release_date_changes` | Date history recorded by sync (v21); deleted with the release | `release_id`, `kind` (delayed, announced, earlier), `from_text`, `to_text`, `from_sort_date`, `to_sort_date`, `sync_run_id`, `changed_at` |
 | `manual_overrides` | User edits (title, lists, category, dates) and seeded date overrides that sync re-applies | `release_id`, `field`, `value`, `source_type`, `source_url` |
 | `sources` | Source URLs per release | `release_id`, `source_name`, `source_url`, `field` |
 | `blocked_releases` | Deleted+blocked games | `id`, `igdb_id`, `normalized_title`, `title`, `reason` |
@@ -489,6 +490,8 @@ apps/
       buildYearInReview.ts       Pure yearly recap (and the years list)
       thresholds.ts              Every tunable Year in Review number
       yearInReviewSettingsStore.ts  year_in_review_settings reads/writes
+    releaseDates/
+      dateChanges.ts             Date history: names a change (delayed, announced, earlier); only writer of release_date_changes
     settings/
       settingsStore.ts             The settings table: credential keys (encrypted at rest), env fallback, seed version
       secretCipher.ts              AES-256-GCM sealing of credentials with the desktop app's data key
