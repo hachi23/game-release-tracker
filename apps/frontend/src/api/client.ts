@@ -1,3 +1,4 @@
+import { API_TOKEN_HEADER } from "../../../../shared/constants";
 import type {
   CompletedGameDetail,
   CompletedGameFilters,
@@ -89,7 +90,7 @@ export function createApiClient(baseUrl: string, apiToken?: string): ApiClient {
   const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
     const headers = {
       ...(init?.body === undefined ? {} : { "Content-Type": "application/json" }),
-      ...(apiToken ? { "x-grt-token": apiToken } : {}),
+      ...(apiToken ? { [API_TOKEN_HEADER]: apiToken } : {}),
       ...init?.headers as Record<string, string> | undefined
     };
     const response = await fetch(`${baseUrl}${path}`, {

@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { ALERT_CHECK_MS, FIRST_ALERT_CHECK_MS, startReleaseAlerts } from "../../apps/desktop/src/releaseAlerts";
+import { ALERT_CHECK_MS, FIRST_ALERT_CHECK_MS, createSystemNotifier, startReleaseAlerts } from "../../apps/desktop/src/releaseAlerts";
 import type { ReleaseAlert } from "../../shared/types";
 
 const alert: ReleaseAlert = { releaseId: "igdb-1", kind: "out", title: "Out today: Out Now", body: "A game on your watchlist comes out today." };
@@ -54,5 +54,35 @@ describe("release alerts on the desktop", () => {
     const { scheduled, timers } = fakeTimers();
     startReleaseAlerts({ takeAlerts: vi.fn(), notifier: { isSupported: () => false, show: vi.fn() }, openRelease: vi.fn(), timers });
     expect(scheduled).toEqual([]);
+  });
+});
+
+describe("system notifier", () => {
+  function fakeNotification() {
+    const listeners: Record<string, () => void> = {};
+    return { listeners, notification: { on: (event: string, listener: () => void) => { listeners[event] = listener; }, show: vi.fn() } };
+  }
+
+  test("shows a notification whose click opens the game", () => {
+    const { listeners, notification } = fakeNotification();
+    const notifier = createSystemNotifier({ isSupported: () => true, create: () => notification });
+    const onClick = vi.fn();
+
+    notifier.show(alert, onClick);
+    expect(notification.show).toHaveBeenCalled();
+    listeners.click();
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  test("a notification the system refuses is shown through the fallback, which still opens the game", () => {
+    const { listeners, notification } = fakeNotification();
+    const fallback = vi.fn();
+    const notifier = createSystemNotifier({ isSupported: () => true, create: () => notification, fallback });
+    const onClick = vi.fn();
+
+    notifier.show(alert, onClick);
+    listeners.failed();
+
+    expect(fallback).toHaveBeenCalledWith(alert, onClick);
   });
 });

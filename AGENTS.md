@@ -93,7 +93,7 @@ Build IGDB image URLs only through `artwork.ts` (`artworkSrc`, `igdbCoverSrc`, `
 ## Package Footprint
 
 - Only native modules (`better-sqlite3`) are `dependencies`. Everything else is bundled (Vite for the renderer, esbuild for main, preload and the backend child), so it is a `devDependency` and must not ship in `app.asar`.
-- Keep large, rarely used backend modules off the boot path by loading them on first use.
+- Keep large, rarely used backend modules off the boot path by loading them on first use (the sample data JSON files are loaded with a cached `import()`).
 - See "Package footprint and boot cost" in `docs/DOCUMENTATION.md` before changing `build.files` or `electronLanguages`.
 
 ## Backend Shape

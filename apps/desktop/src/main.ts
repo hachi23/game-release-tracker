@@ -10,9 +10,10 @@ import { registerAppDataIpc } from "./appDataIpc";
 import { decideNavigation, installWindowGuards } from "./windowGuards";
 import { loadCredentialDataKey } from "./credentialKey";
 import { type AppTray, bringWindowBack, installMinimizeToTray } from "./trayWindow";
-import { startReleaseAlerts } from "./releaseAlerts";
+import { createSystemNotifier, startReleaseAlerts } from "./releaseAlerts";
 import { createStartAtLogin, registerStartAtLoginIpc, startsHidden } from "./startAtLogin";
 import type { ReleaseAlert } from "../../../shared/types";
+import { API_TOKEN_HEADER } from "../../../shared/constants";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
 
 let mainWindow: BrowserWindow | null = null;
@@ -26,8 +27,6 @@ let dataDir = "";
 let frontendDevUrl = "";
 let backendShutdownStarted = false;
 let fatalDialogShown = false;
-// Shown notifications, held until clicked or closed so their click handler is not garbage-collected.
-const liveNotifications = new Set<Notification>();
 // A fresh secret each launch: the backend refuses /api calls without it, so web pages and other local
 // programs cannot use the local API. Only this app's renderer receives it, through the preload.
 const apiToken = randomBytes(32).toString("hex");
@@ -195,25 +194,11 @@ async function createWindow() {
   if (!(startsHidden(process.argv) && tray)) mainWindow.show();
   startReleaseAlerts({
     takeAlerts: takeBackendAlerts,
-    notifier: {
+    notifier: createSystemNotifier({
       isSupported: () => Notification.isSupported(),
-      show: (alert, onClick) => {
-        const notification = new Notification({ title: alert.title, body: alert.body, icon: appIconImage(root) });
-        liveNotifications.add(notification);
-        notification.on("click", () => {
-          liveNotifications.delete(notification);
-          onClick();
-        });
-        notification.on("close", () => liveNotifications.delete(notification));
-        // Windows refuses notifications from an app with no Start-menu shortcut (the zip build): the tray
-        // icon shows it as a balloon instead.
-        notification.on("failed", () => {
-          liveNotifications.delete(notification);
-          tray?.showBalloon?.(alert.title, alert.body, onClick);
-        });
-        notification.show();
-      }
-    },
+      create: alert => new Notification({ title: alert.title, body: alert.body, icon: appIconImage(root) }),
+      fallback: (alert, onClick) => tray?.showBalloon?.(alert.title, alert.body, onClick)
+    }),
     openRelease: releaseId => {
       bringWindowBack(mainWindow);
       mainWindow?.webContents.send("open-release", releaseId);
@@ -223,7 +208,7 @@ async function createWindow() {
 }
 
 async function takeBackendAlerts(): Promise<ReleaseAlert[]> {
-  const response = await fetch(`${apiBaseUrl}/api/alerts/take`, { method: "POST", headers: { "x-grt-token": apiToken } });
+  const response = await fetch(`${apiBaseUrl}/api/alerts/take`, { method: "POST", headers: { [API_TOKEN_HEADER]: apiToken } });
   if (!response.ok) throw new Error(`backend answered ${response.status}`);
   return ((await response.json()) as { items: ReleaseAlert[] }).items;
 }

@@ -6,7 +6,6 @@ import { createReleaseStore } from "../database/releaseStore";
 import { runWrite } from "../database/writeQueue";
 import { normalizeText } from "../text/normalizeText";
 import { computeSortDateAndEligibility } from "../sync/releasePolicy";
-import sample from "./demoLibrary.json";
 
 // The sample library a new user can load to try the app without IGDB keys: real games with their public
 // IGDB data (covers, artwork, genres, ratings), and made-up personal data (ratings, finish dates, platforms,
@@ -27,8 +26,11 @@ interface SampleCompletedGame {
 }
 
 const SAMPLE_KEY = "DEMO_LIBRARY";
-const releases = sample.releases as SampleRelease[];
-const completedGames = sample.completedGames as SampleCompletedGame[];
+interface SampleData { releases: SampleRelease[]; completedGames: SampleCompletedGame[] }
+
+// The sample (about 100 KB) loads the first time it is added, not every time the backend starts.
+let sampleData: Promise<SampleData> | null = null;
+const loadSampleData = () => (sampleData ??= import("./demoLibrary.json").then(module => module.default as unknown as SampleData));
 
 interface LoadedSample {
   releaseIds: string[];
@@ -49,17 +51,18 @@ export function createDemoLibrary(db: TrackerDatabase, today: () => Date) {
     isLoaded: () => readLoaded() !== null,
 
     // Resolves to the counts written, or null when the sample is already loaded.
-    load() {
+    async load() {
+      const { releases, completedGames } = await loadSampleData();
       return runWrite(db, () => {
         if (readLoaded()) return null;
         const now = today();
         const releaseStore = createReleaseStore(db);
-        const releaseIds = shiftedReleases(now).map(release => {
+        const releaseIds = shiftedReleases(releases, now).map(release => {
           releaseStore.save(release);
           return release.id;
         });
         const completedStore = createCompletedGameStore(db);
-        const completedIds = finishedByToday(now).map(({ game, completionDate }) => {
+        const completedIds = finishedByToday(completedGames, now).map(({ game, completionDate }) => {
           const saved = completedStore.createManual({ title: game.title, userPlatform: game.userPlatform, ratingRaw: game.ratingRaw, completionDate, notes: game.notes });
           completedStore.applyMatch(saved.id, game.metadata.igdbId!, game.metadata);
           return saved.id;
@@ -87,7 +90,7 @@ export function createDemoLibrary(db: TrackerDatabase, today: () => Date) {
 // a game or two just out and the rest still to come. In January it lands this month instead, because the
 // default "from January 1" filter would hide last year's games. A vague date ("Q4 2026", "2027") moves by
 // whole years, rounded up, so it stays after the exact dates around it.
-function shiftedReleases(now: Date): NormalizedRelease[] {
+function shiftedReleases(releases: SampleRelease[], now: Date): NormalizedRelease[] {
   const first = releases.map(release => release.releaseDate).filter((date): date is string => Boolean(date)).sort()[0];
   const target = Math.max(now.getUTCFullYear() * 12 + now.getUTCMonth() - 1, now.getUTCFullYear() * 12);
   const months = target - (Number(first.slice(0, 4)) * 12 + Number(first.slice(5, 7)) - 1);
@@ -121,7 +124,7 @@ function exactDate(iso: string) {
 }
 
 // Last year's finishes all count; this year's only up to today, so "so far" stays true.
-function finishedByToday(now: Date) {
+function finishedByToday(completedGames: SampleCompletedGame[], now: Date) {
   const todayIso = now.toISOString().slice(0, 10);
   return completedGames
     .map(game => {

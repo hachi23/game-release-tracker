@@ -125,6 +125,20 @@ describe("database migrations and FTS", () => {
     ]);
   });
 
+  test("v21 adds date history and alert bookkeeping to a v20 library, keeping its releases and watchlist", () => {
+    const db = tempDb();
+    db.prepare("insert into releases (id, title, normalized_title, date_text, date_precision, category, source_confidence) values ('r1', 'Kept', 'kept', '2027', 'Year', 'Main', 70)").run();
+    db.prepare("insert into user_release_state (release_id, watched) values ('r1', 1)").run();
+    db.exec("drop table release_date_changes; drop table release_alerts_sent; update schema_version set version = 20;");
+
+    runMigrations(db);
+
+    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 21 });
+    expect(db.prepare("select name from sqlite_master where type = 'table' and name in ('release_date_changes', 'release_alerts_sent') order by name").all())
+      .toEqual([{ name: "release_alerts_sent" }, { name: "release_date_changes" }]);
+    expect(db.prepare("select releases.title, state.watched from releases join user_release_state state on state.release_id = releases.id").all()).toEqual([{ title: "Kept", watched: 1 }]);
+  });
+
   test("v20 replaces the built-in publisher list with the user's tracked publishers", () => {
     const db = tempDb();
 

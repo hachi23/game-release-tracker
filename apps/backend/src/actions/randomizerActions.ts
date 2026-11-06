@@ -7,7 +7,7 @@ import type { IgdbGateway } from "../igdb/gateway";
 import { COOLDOWN, drawRandomGame, toRandomizerPick, toReelItem, type DrawIo } from "../randomizer/draw";
 import { createPickHistoryStore } from "../randomizer/pickHistoryStore";
 import { MAINSTREAM_PLATFORMS, POPULAR_TAGS } from "../randomizer/catalog";
-import { SAMPLE_OPTIONS, sampleDrawIo, sampleUnsupportedReason } from "../randomizer/sampleCatalog";
+import { loadSampleCatalog, sampleUnsupportedReason } from "../randomizer/sampleCatalog";
 import { isDemoLibraryLoaded } from "../demo/demoLibrary";
 import {
   buildCountQuery,
@@ -87,7 +87,7 @@ export function createRandomizerActions(db: TrackerDatabase, igdb: IgdbGateway, 
 
   return {
     async loadOptions(): Promise<ActionResult<RandomizerOptions>> {
-      if (sampleMode()) return { ok: true, value: SAMPLE_OPTIONS };
+      if (sampleMode()) return { ok: true, value: (await loadSampleCatalog()).options };
       if (options) return { ok: true, value: options };
       if (!igdb.hasCredentials()) return missingCredentials;
       loadingOptions ??= fetchOptions().finally(() => { loadingOptions = null; });
@@ -154,7 +154,7 @@ export function createRandomizerActions(db: TrackerDatabase, igdb: IgdbGateway, 
         recentIds,
         fixedExcludedIds,
         rng,
-        io: sampleMode() ? sampleDrawIo(filters) : ioFor(candidateIds)
+        io: sampleMode() ? (await loadSampleCatalog()).drawIo(filters) : ioFor(candidateIds)
       });
 
       if (!result.game) {

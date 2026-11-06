@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-
-const API_TOKEN_HEADER = "x-grt-token";
+import { API_TOKEN_HEADER } from "../../../shared/constants";
 
 // What the renderer may load: its own code and styles (inline styles for React style props), images
 // from IGDB, YouTube thumbnails and SteamGridDB, and the privacy-enhanced YouTube player. Nothing else.

@@ -54,3 +54,38 @@ export function startReleaseAlerts({
     timers.clearInterval(every as never);
   };
 }
+
+// The shape of Electron's Notification this needs, so tests can pass a fake.
+export interface SystemNotification {
+  on(event: "click" | "close" | "failed", listener: () => void): unknown;
+  show(): void;
+}
+
+// The AlertNotifier for system notifications. Each shown notification is held until clicked, closed or
+// failed, so its click handler is not garbage-collected. Where the system refuses one (Windows, for an
+// app with no Start-menu shortcut such as the zip build), `fallback` shows it another way: a tray balloon.
+export function createSystemNotifier({ isSupported, create, fallback }: {
+  isSupported: () => boolean;
+  create: (alert: ReleaseAlert) => SystemNotification;
+  fallback?: (alert: ReleaseAlert, onClick: () => void) => void;
+}): AlertNotifier {
+  const live = new Set<SystemNotification>();
+  return {
+    isSupported,
+    show(alert, onClick) {
+      const notification = create(alert);
+      live.add(notification);
+      const release = () => live.delete(notification);
+      notification.on("click", () => {
+        release();
+        onClick();
+      });
+      notification.on("close", release);
+      notification.on("failed", () => {
+        release();
+        fallback?.(alert, onClick);
+      });
+      notification.show();
+    }
+  };
+}

@@ -32,6 +32,9 @@ export const EXCLUDED_TITLE_TERMS = [
 export const CREDENTIAL_KEYS = ["IGDB_CLIENT_ID", "IGDB_CLIENT_SECRET", "IGDB_ACCESS_TOKEN", "STEAMGRIDDB_API_KEY"] as const;
 
 export const MAX_RELEASE_ROWS = 5000;
+// The header that carries the per-launch API token: the backend requires it on /api calls, and the
+// renderer and the desktop app's own calls (release alerts) send it.
+export const API_TOKEN_HEADER = "x-grt-token";
 export const IGDB_REQUESTS_PER_SECOND = 4;
 
 // IGDB platforms per family, by id and by slug (IGDB lists some ports without an id).
