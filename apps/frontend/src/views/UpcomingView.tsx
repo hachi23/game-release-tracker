@@ -4,6 +4,7 @@ import type { ReleaseDeletionMode } from "../releaseDeletion";
 import { artworkSrc } from "../artwork";
 import { Backdrop } from "../ui/Backdrop";
 import { Button } from "../ui/Button";
+import { WatchButton } from "../ui/WatchButton";
 import { Field, SelectShell } from "../ui/Field";
 import { FramedPanel } from "../ui/FramedPanel";
 import { bannerLabel, daysUntil, rowSubLine, rowWhenLabel, stripCurrentYear } from "../ui/countdown";
@@ -13,17 +14,17 @@ import { BulkActions, GenreField, SyncState } from "./CollectionControls";
 import type { DemoWorkflow } from "../useDemoWorkflow";
 
 interface ReleaseGroup { heading: string; items: ReleaseListItem[] }
-export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, status, syncStatus, error, onDeleteSelected, onOpenDetail, onAddGame, demo, onSetUpOwnLibrary }: {
+export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, status, syncStatus, error, onDeleteSelected, onOpenDetail, onSetWatched, onAddGame, demo, onSetUpOwnLibrary }: {
   apiBaseUrl: string; wallpaperUrl?: string; releases: CollectionWorkspace<ReleaseListItem, ReleaseFilters>; groups: ReleaseGroup[];
   status: "starting" | "ready" | "error"; syncStatus: SyncStatus; error?: string;
-  onDeleteSelected: (mode: ReleaseDeletionMode) => void; onOpenDetail: (item: ReleaseListItem) => void; onAddGame: () => void;
+  onDeleteSelected: (mode: ReleaseDeletionMode) => void; onOpenDetail: (item: ReleaseListItem) => void; onSetWatched: (item: ReleaseListItem, watched: boolean) => void; onAddGame: () => void;
   demo: DemoWorkflow; onSetUpOwnLibrary: () => void;
 }) {
   const { filters, setFilter: onFilter, debouncedSearch: onSearch, selectedIds: selectedReleaseIds, toggleSelection: onToggleReleaseSelection } = releases;
   // An empty list under a filter means no match, not an empty library.
-  const filtering = Boolean(filters.search || filters.publisher || filters.category || filters.platform || filters.datePrecision || releases.genre);
+  const filtering = Boolean(filters.search || filters.publisher || filters.category || filters.platform || filters.datePrecision || filters.watchedOnly || releases.genre);
   const showWelcome = status === "ready" && releases.loadedCount === 0 && !filtering && !demo.loaded;
-  const { includeReleased, includeHidden } = filters;
+  const { includeReleased, includeHidden, watchedOnly } = filters;
   const [moreFilters, setMoreFilters] = useState(false);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -37,7 +38,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
   const backdropSrc = backdropArt ? artworkSrc(backdropArt, "detail", apiBaseUrl) : wallpaperUrl || (cover ? artworkSrc(cover, "backdrop", apiBaseUrl) : undefined);
   const backdropFillSrc = backdropArt ? artworkSrc(backdropArt, "backdrop", apiBaseUrl) : undefined;
   const backdropBlur: 0 | 18 = backdropArt || wallpaperUrl || !cover ? 0 : 18;
-  const activeFilterCount = [filters.publisher, filters.category, filters.platform, filters.datePrecision, includeReleased, includeHidden].filter(Boolean).length;
+  const activeFilterCount = [filters.publisher, filters.category, filters.platform, filters.datePrecision, includeReleased, includeHidden, watchedOnly].filter(Boolean).length;
   const handleListKey = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!items.length || !["ArrowUp", "ArrowDown", "Enter"].includes(event.key)) return;
     if ((event.target as HTMLElement).closest("input,select")) return;
@@ -61,7 +62,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
         <Field label="Category"><SelectShell><select className="field__control" value={filters.category} onChange={event => onFilter("category", event.target.value)}><option value="">All</option><option>Main</option><option>DLC</option><option>Expansion</option><option>Remake</option><option>Remaster</option><option>Port</option></select></SelectShell></Field>
         <Field label="Platform"><input className="field__control" value={filters.platform} onChange={event => onFilter("platform", event.target.value)} placeholder="Any" /></Field>
         <Field label="Precision"><SelectShell><select className="field__control" value={filters.datePrecision} onChange={event => onFilter("datePrecision", event.target.value)}><option value="">All</option><option>Exact</option><option>Month</option><option>Window</option><option>Year</option></select></SelectShell></Field>
-        <div className="upcoming-extra-filters__checks"><label><input className="check" type="checkbox" checked={includeReleased} onChange={event => onFilter("includeReleased", event.target.checked)} /> Released</label><label><input className="check" type="checkbox" checked={includeHidden} onChange={event => onFilter("includeHidden", event.target.checked)} /> Hidden</label></div>
+        <div className="upcoming-extra-filters__checks"><label><input className="check" type="checkbox" checked={includeReleased} onChange={event => onFilter("includeReleased", event.target.checked)} /> Released</label><label><input className="check" type="checkbox" checked={includeHidden} onChange={event => onFilter("includeHidden", event.target.checked)} /> Hidden</label><label><input className="check" type="checkbox" checked={watchedOnly} onChange={event => onFilter("watchedOnly", event.target.checked)} /> Watched only</label></div>
       </div>}
       <BulkActions label="Bulk release actions" count={releases.selectedVisibleCount} onSelectAll={releases.selectAllVisible} onClear={releases.clearSelection}><Button small danger onClick={() => onDeleteSelected("delete")}>Delete selected</Button><Button small danger onClick={() => onDeleteSelected("delete-block")}>Delete + block selected</Button></BulkActions>
       <SyncState status={syncStatus.status} message={syncStatus.message} />
@@ -78,7 +79,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
             <label className="release-row__check"><input className="check" aria-label={`Select ${item.title}`} type="checkbox" checked={selectedReleaseIds.has(item.id)} onChange={event => onToggleReleaseSelection(item.id, event.target.checked)} /></label>
             <button type="button" className="release-row__open" onClick={() => setFeaturedId(item.id)} onDoubleClick={() => onOpenDetail(item)} onKeyDown={event => { if (event.key === "Enter") { event.stopPropagation(); onOpenDetail(item); } }}>
               <span className="release-row__cover">{rowCover && <img src={artworkSrc(rowCover, "small", apiBaseUrl)} alt="" loading="lazy" draggable={false} />}</span>
-              <span className="release-row__text"><strong>{item.title}</strong><small>{rowSubLine(item)}</small></span>
+              <span className="release-row__text"><strong>{item.watched && <span className="watch-star" title="Watching">★ </span>}{item.title}</strong><small>{rowSubLine(item)}</small></span>
               <span className="release-row__when">{rowWhenLabel(item, today)}</span>
             </button>
           </div>;
@@ -86,7 +87,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
       </div>
     </FramedPanel>
     {showWelcome && <WelcomeTour />}
-    {featured && <FramedPanel className="upcoming-feature"><div className="upcoming-feature__layout"><div className="upcoming-feature__cover">{cover && <img src={artworkSrc(cover, "grid", apiBaseUrl)} alt="" draggable={false} />}</div><div className="upcoming-feature__content"><h2>{featured.title}</h2><p>{[featured.publishers[0] ?? featured.developers[0], featured.category === "Main" ? "" : featured.category, featured.platforms.join(", ")].filter(Boolean).join(". ")}.</p><div className="upcoming-feature__actions"><Button variant="primary" onClick={() => onOpenDetail(featured)}>Open details</Button>{featured.watched && <Button aria-disabled="true" className="watching-status">Watching</Button>}</div></div></div></FramedPanel>}
+    {featured && <FramedPanel className="upcoming-feature"><div className="upcoming-feature__layout"><div className="upcoming-feature__cover">{cover && <img src={artworkSrc(cover, "grid", apiBaseUrl)} alt="" draggable={false} />}</div><div className="upcoming-feature__content"><h2>{featured.title}</h2><p>{[featured.publishers[0] ?? featured.developers[0], featured.category === "Main" ? "" : featured.category, featured.platforms.join(", ")].filter(Boolean).join(". ")}.</p><div className="upcoming-feature__actions"><Button variant="primary" onClick={() => onOpenDetail(featured)}>Open details</Button><WatchButton watched={Boolean(featured.watched)} onChange={watched => onSetWatched(featured, watched)} /></div></div></div></FramedPanel>}
   </>;
 }
 

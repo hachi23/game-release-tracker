@@ -42,7 +42,8 @@ Games coming out from the publishers you follow, grouped by month.
 
 - **Click** a game to feature it: its artwork fills the screen with a countdown ("Arrives in 5 days"). A game with only a month, quarter or year announced shows just that ("Dec 2026", "Q4 2026", "2027") instead of a countdown, and stays off the calendar until it has a day.
 - **Double-click** it, press **Enter**, or click **Open details** for its full page: artwork, screenshots, trailer, dates, platforms and publisher. Every detail page takes on the colours of the game's cover.
-- **Search** by title, publisher or keyword, and filter by **Genre**. **More filters** narrows by publisher, platform, category or date precision, and can show games you've hidden or marked as released.
+- **Search** by title, publisher or keyword, and filter by **Genre**. **More filters** narrows by publisher, platform, category or date precision, can show games you've hidden or marked as released, and can show only the games you watch.
+- **☆ Watch** (on the featured game or a game's page) adds a game to your watchlist; it then shows a ★ in the list. **More filters → Watched only** shows just your watched games. Click **★ Watching** to stop watching.
 - **Add game** adds one by hand. You can search IGDB for it or type the details yourself.
 - Tick several games to delete them together.
 

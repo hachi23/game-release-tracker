@@ -87,4 +87,19 @@ describe("release read model", () => {
       sources: [{ sourceName: "Release", sourceUrl: "https://example.test/manual-game", field: "release" }]
     });
   });
+
+  test("watched only lists just the releases the user is watching", () => {
+    const db = tempDb();
+    const store = createReleaseStore(db);
+    for (const id of ["a", "b"]) {
+      store.save({
+        id, title: `Game ${id}`, normalizedTitle: `game ${id}`, dateText: "2027", releaseDate: null, datePrecision: "Year",
+        releaseWindow: "2027", sourceConfidence: 70, category: "Main", publishers: [], developers: [], platforms: [], genres: [], artworks: []
+      });
+    }
+    db.prepare("insert into user_release_state (release_id, watched) values (?, 1)").run("b");
+
+    expect(listReleases(db, {}).items.map(item => item.id)).toEqual(["a", "b"]);
+    expect(listReleases(db, { watchedOnly: true }).items.map(item => item.id)).toEqual(["b"]);
+  });
 });

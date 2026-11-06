@@ -51,6 +51,10 @@ export function useReleaseDetailWorkflow({
     await session.mutate("edit-release-details", async current => (await api.patchRelease(current.id, { ...patch })).item);
   };
 
+  const setWatched = async (watched: boolean) => {
+    await session.mutate(watched ? "watch-release" : "unwatch-release", async current => (await api.patchRelease(current.id, { watched })).item);
+  };
+
   const uploadArtwork = async (file: File | null) => {
     if (!file) return;
     await session.mutate("upload-artwork", async current => {
@@ -93,7 +97,7 @@ export function useReleaseDetailWorkflow({
 
   return {
     detail: session.detail,
-    actions: { openDetail, showDetail, renameRelease, editReleaseDetails, uploadArtwork, removeHeroArtwork, promoteNextArtwork, deleteCurrent }
+    actions: { openDetail, showDetail, renameRelease, editReleaseDetails, setWatched, uploadArtwork, removeHeroArtwork, promoteNextArtwork, deleteCurrent }
   };
 }
 

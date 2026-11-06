@@ -12,6 +12,8 @@ export interface ReleaseFilters {
   datePrecision?: string;
   includeReleased?: boolean;
   includeHidden?: boolean;
+  // Only releases the user is watching.
+  watchedOnly?: boolean;
   // The earliest effective date to list (the user's "track from" setting).
   releasedFrom?: string;
 }
@@ -48,6 +50,7 @@ export function listReleases(db: TrackerDatabase, filters: ReleaseFilters) {
   }
   if (!filters.includeHidden) where.push("coalesce(state.hidden, 0) = 0");
   if (!filters.includeReleased) where.push("coalesce(state.released, 0) = 0");
+  if (filters.watchedOnly) where.push("coalesce(state.watched, 0) = 1");
 
   const rows = db.prepare(`
     select releases.*, coalesce(state.hidden, 0) hidden, coalesce(state.watched, 0) watched, coalesce(state.released, 0) released

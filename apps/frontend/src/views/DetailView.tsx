@@ -1,6 +1,7 @@
 import { artworkSrc, cachedCoverSrc } from "../artwork";
 import { CoverScene } from "../ui/CoverScene";
 import { FramedPanel } from "../ui/FramedPanel";
+import { WatchButton } from "../ui/WatchButton";
 import type { ReleaseDetailWorkflow } from "../useReleaseDetailWorkflow";
 import { ReleaseFieldsPanel, ReleaseTitleEditor } from "./ReleaseDetailEditors";
 import { ReleaseMediaGallery } from "./ReleaseMediaGallery";
@@ -37,7 +38,10 @@ export function DetailView({ apiBaseUrl, workflow, onBack }: { apiBaseUrl: strin
           <div className="detail-fields__scroll">
             <button type="button" className="secondary inline" onClick={onBack}>← Back</button>
             <ReleaseTitleEditor detail={detail} onRename={onRename} />
-            <p className="journal-date-subtitle">{detail.category} · {detail.dateText}</p>
+            <div className="detail-title-actions">
+              <p className="journal-date-subtitle">{detail.category} · {detail.dateText}</p>
+              <WatchButton small watched={Boolean(detail.watched)} onChange={watched => void actions.setWatched(watched)} />
+            </div>
             <hr className="entry-divider" />
             <ReleaseFieldsPanel detail={detail} onEditDetails={onEditDetails} />
             {detail.igdbUrl && <a className="external" href={detail.igdbUrl}>Open IGDB →</a>}

@@ -132,7 +132,7 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 #### Releases
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/releases` | List releases (filters: search, publisher, category, platform, datePrecision, includeHidden, includeReleased) |
+| GET | `/api/releases` | List releases (filters: search, publisher, category, platform, datePrecision, includeHidden, includeReleased, watchedOnly) |
 | GET | `/api/releases/:id` | Get release detail |
 | POST | `/api/releases/manual` | Create manual release |
 | PATCH | `/api/releases/:id` | Update release (title, publishers, developers, platforms, category, dateText, releaseDate, datePrecision, releaseWindow, hidden, watched, released) |

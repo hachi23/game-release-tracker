@@ -79,6 +79,7 @@ export function AppShell({ apiBaseUrl, api, initialState, diagnosticsLogPath, on
           error={state.error}
           onDeleteSelected={actions.deleteSelected}
           onOpenDetail={actions.openDetail}
+          onSetWatched={actions.setWatched}
           onAddGame={() => actions.setView("add")}
           demo={demo}
           onSetUpOwnLibrary={actions.setUpOwnLibrary}

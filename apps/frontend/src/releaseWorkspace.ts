@@ -16,6 +16,7 @@ export interface ReleaseFilters {
   datePrecision: string;
   includeReleased: boolean;
   includeHidden: boolean;
+  watchedOnly: boolean;
 }
 
 type ReleaseListState = Pick<AppState, "status" | "releases" | "error">;
@@ -23,7 +24,7 @@ type ReleaseListState = Pick<AppState, "status" | "releases" | "error">;
 const emptySync: SyncStatus = { status: "idle", added: 0, repaired: 0, skipped: 0, failed: 0 };
 // How often to check on a sync the app did not start itself (the startup auto-sync).
 const SYNC_POLL_MS = 3000;
-const initialReleaseFilters: ReleaseFilters = { search: "", publisher: "", category: "", platform: "", datePrecision: "", includeReleased: false, includeHidden: false };
+const initialReleaseFilters: ReleaseFilters = { search: "", publisher: "", category: "", platform: "", datePrecision: "", includeReleased: false, includeHidden: false, watchedOnly: false };
 
 // The Upcoming workspace: the release list, sync, and navigation between the list and its detail and
 // Add game pages. Detail editing and manual add live in their own workflows.
@@ -121,6 +122,18 @@ export function useReleaseWorkspace({ api, initialState, shell }: { api: ApiClie
     return detailWorkflow.actions.openDetail(item);
   };
 
+  // Watch or stop watching a game from the list; its detail page has its own toggle.
+  const setWatched = async (item: ReleaseListItem, watched: boolean) => {
+    logUiEvent("ui.click", { action: watched ? "watch-release" : "unwatch-release", releaseId: item.id });
+    clearOperationError();
+    try {
+      await api.patchRelease(item.id, { watched });
+      await reload();
+    } catch (error) {
+      reportOperationError(watched ? "watch-release" : "unwatch-release", error);
+    }
+  };
+
   const deleteSelected = (mode: ReleaseDeletionMode) =>
     releases.deleteSelected(selected => deleteManyReleases(selected.map(({ id, title }) => ({ id, title })), mode, {
       confirm: dialogs.confirm,
@@ -142,6 +155,7 @@ export function useReleaseWorkspace({ api, initialState, shell }: { api: ApiClie
       openDetail,
       reload,
       returnToReleaseList: releases.returnToList,
+      setWatched,
       deleteSelected
     }
   };

@@ -4,6 +4,9 @@ What changed in each version, in plain language.
 
 ## Unreleased
 
+**Watchlist**
+- **☆ Watch** on the featured game or a game's page adds it to your watchlist. Watched games show a ★ in the Upcoming list, and **More filters → Watched only** lists just them.
+
 **Minimize to tray**
 - Minimizing the window now hides it to a Game Release Tracker icon in the system tray (the notification area on Windows). Click the icon, or choose **Open Game Release Tracker** from its menu, to bring the window back; **Quit** in the same menu closes the app. The close button still quits.
 - Starting the app again while it is in the tray brings the window back. On Linux desktops that don't show tray icons (GNOME without an AppIndicator extension), that is the way back.
