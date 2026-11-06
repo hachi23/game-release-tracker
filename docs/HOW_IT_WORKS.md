@@ -55,6 +55,7 @@ Your library is a single database file on your computer. Nothing is uploaded any
 3. **Fill in.** For games with no artwork, it asks SteamGridDB.
 4. **Save, one game at a time.** Each game is saved separately, so one bad entry can't spoil the rest: the sync finishes and says **partial**.
 5. **Respect your changes.** If you edited a game's title or date by hand, your edit wins over IGDB's. Games you deleted and blocked never come back.
+6. **Note what moved.** When a game's date is different from last time, the engine writes down the change: delayed, moved up, or a vague date ("2027") becoming a real day. It compares the stretch of time each date means, so "2027" turning into "March 14, 2027" counts as the date being announced, not a delay. That history is what the "Delayed from" badge and the alerts read.
 
 ---
 
@@ -77,6 +78,8 @@ Your library is a single database file on your computer. Nothing is uploaded any
 **A sample library for trying it out.** The app needs free IGDB keys to find games, and setting those up takes a few minutes. So a first-time user can load a sample library instead and see every screen straight away, including a Randomizer that spins among 267 bundled games.
 
 **Privacy by default.** Automatic syncing is off until you turn it on. YouTube only loads when you press play. There's no analytics or crash reporting, and one button deletes everything the app stored.
+
+**It keeps watch, quietly.** Minimizing tucks the app into the tray instead of closing it, and it can start there when you log in. While it waits it can sync every 12 hours and tell you, with an ordinary system notification, when a game you watch comes out or changes date. Each alert shows once, only for games you chose to watch, and never for a change that happened before you started watching. All of this is your choice: auto-sync starts off, and alerts and starting at login each have their own switch.
 
 **Honest dates.** IGDB stores a game announced for "2027" as December 31, 2027. The app keeps the words ("2027", "Q4 2026") and only counts down to a real day, so it never promises a date nobody has announced.
 

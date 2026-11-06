@@ -205,6 +205,12 @@ async function createWindow() {
           onClick();
         });
         notification.on("close", () => liveNotifications.delete(notification));
+        // Windows refuses notifications from an app with no Start-menu shortcut (the zip build): the tray
+        // icon shows it as a balloon instead.
+        notification.on("failed", () => {
+          liveNotifications.delete(notification);
+          tray?.showBalloon?.(alert.title, alert.body, onClick);
+        });
         notification.show();
       }
     },
@@ -237,6 +243,13 @@ function createAppTray(root: string): AppTray {
     setToolTip: text => electronTray.setToolTip(text),
     setContextMenu: items => electronTray.setContextMenu(Menu.buildFromTemplate(items)),
     on: (event, listener) => (event === "click" ? electronTray.on("click", listener) : electronTray.on("double-click", listener)),
+    showBalloon: process.platform === "win32"
+      ? (title, body, onClick) => {
+          electronTray.removeAllListeners("balloon-click");
+          electronTray.once("balloon-click", onClick);
+          electronTray.displayBalloon({ title, content: body, icon: image });
+        }
+      : undefined,
     destroy: () => electronTray.destroy()
   };
 }

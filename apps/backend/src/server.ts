@@ -17,6 +17,7 @@ import { registerSettingsRoutes } from "./routes/settingsRoutes";
 import { registerPreferencesRoutes } from "./routes/preferencesRoutes";
 import { registerSyncRoutes } from "./routes/syncRoutes";
 import { registerAlertRoutes } from "./routes/alertRoutes";
+import { scheduleAutoSync } from "./sync/autoSyncSchedule";
 import { registerWallpaperRoutes } from "./routes/wallpaperRoutes";
 import { registerFrontendRoutes } from "./routes/frontendRoutes";
 import { installRequestGuard } from "./requestGuard";
@@ -38,9 +39,6 @@ interface BackendOptions {
 
 const safeServerErrorMessage = "Something went wrong. Check the diagnostics log for details.";
 const SLOW_REQUEST_MS = 1000;
-// Give the renderer its first load before auto-sync competes for the backend.
-const AUTO_SYNC_DELAY_MS = 3000;
-const BACKGROUND_SYNC_CHECK_MS = 30 * 60 * 1000;
 
 const routeOf = (request: FastifyRequest) => request.routeOptions.url ?? request.url.split("?")[0];
 
@@ -99,17 +97,9 @@ export function createBackendApp({ db, autoSync = true, apiToken, logger = creat
   registerFrontendRoutes(routeContext);
 
   void runWrite(db, () => failInterruptedSyncRuns(db));
-  if (autoSync && shouldAutoSync(db)) {
-    setTimeout(() => void startSync(db, undefined, igdb), AUTO_SYNC_DELAY_MS);
-  }
-  // While the app stays open (often in the tray), auto-sync keeps running: every check syncs when the
-  // last successful sync is over 12 hours old.
   if (autoSync) {
-    const timer = setInterval(() => {
-      if (shouldAutoSync(db)) void startSync(db, undefined, igdb);
-    }, BACKGROUND_SYNC_CHECK_MS);
-    timer.unref?.();
-    app.addHook("onClose", async () => clearInterval(timer));
+    const stop = scheduleAutoSync({ isDue: () => shouldAutoSync(db), sync: () => void startSync(db, undefined, igdb) });
+    app.addHook("onClose", async () => stop());
   }
 
   return app;

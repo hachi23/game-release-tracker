@@ -4,12 +4,16 @@ import type { IpcMain } from "electron";
 
 // Start with Windows (or with the Linux desktop session): the app starts at login, straight into the
 // tray, with this argument. Windows keeps the choice as a login item; Linux as an XDG autostart file.
-// Only a packaged app can register itself, so a development run never lands in the user's login items.
+// Only a packaged app (installer, zip or AppImage) can register itself, so a development run never lands
+// in the user's login items. It registers the program where it is now; a moved zip or AppImage needs the
+// switch turned off and on again.
 export const START_HIDDEN_ARG = "--hidden";
 const AUTOSTART_FILE = "game-release-tracker.desktop";
 
 export interface StartAtLogin {
   supported: boolean;
+  // Names the switch: "Start with Windows" or "Start when I log in".
+  platform: "windows" | "linux" | null;
   isEnabled(): boolean;
   setEnabled(on: boolean): void;
 }
@@ -27,10 +31,11 @@ export interface StartAtLoginPlatform {
 
 export function createStartAtLogin(platform: StartAtLoginPlatform): StartAtLogin {
   if (!platform.packaged) return unsupported;
-  if (platform.platform === "win32" || platform.platform === "darwin") {
+  if (platform.platform === "win32") {
     const args = [START_HIDDEN_ARG];
     return {
       supported: true,
+      platform: "windows",
       isEnabled: () => platform.getLoginItemSettings({ args }).openAtLogin,
       setEnabled: on => platform.setLoginItemSettings({ openAtLogin: on, args })
     };
@@ -39,6 +44,7 @@ export function createStartAtLogin(platform: StartAtLoginPlatform): StartAtLogin
     const file = join(platform.autostartDir, AUTOSTART_FILE);
     return {
       supported: true,
+      platform: "linux",
       isEnabled: () => existsSync(file),
       setEnabled: on => {
         if (!on) return rmSync(file, { force: true });
@@ -50,7 +56,7 @@ export function createStartAtLogin(platform: StartAtLoginPlatform): StartAtLogin
   return unsupported;
 }
 
-const unsupported: StartAtLogin = { supported: false, isEnabled: () => false, setEnabled: () => undefined };
+const unsupported: StartAtLogin = { supported: false, platform: null, isEnabled: () => false, setEnabled: () => undefined };
 
 export function autostartEntry(launchPath: string) {
   // Exec quotes the path (it may contain spaces) and escapes what the desktop-entry spec reserves.
@@ -79,7 +85,7 @@ export function registerStartAtLoginIpc({ ipcMain, startAtLogin, isAppFrame }: {
   startAtLogin: StartAtLogin;
   isAppFrame: (url: string) => boolean;
 }) {
-  const state = () => ({ supported: startAtLogin.supported, enabled: startAtLogin.supported && startAtLogin.isEnabled() });
+  const state = () => ({ supported: startAtLogin.supported, platform: startAtLogin.platform, enabled: startAtLogin.supported && startAtLogin.isEnabled() });
   ipcMain.handle("start-at-login", () => state());
   ipcMain.handle("set-start-at-login", (event: { senderFrame?: { url?: string } | null }, on: unknown) => {
     if (!isAppFrame(event.senderFrame?.url ?? "") || typeof on !== "boolean" || !startAtLogin.supported) return state();

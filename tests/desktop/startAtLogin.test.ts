@@ -81,6 +81,6 @@ describe("start at login", () => {
     expect(set({ senderFrame: { url: "https://evil.example/" } }, true)).toMatchObject({ enabled: false });
     expect(set({ senderFrame: { url: "app://renderer/" } }, "yes")).toMatchObject({ enabled: false });
     expect(set({ senderFrame: { url: "app://renderer/" } }, true)).toMatchObject({ enabled: true });
-    expect((handlers["start-at-login"] as () => unknown)()).toEqual({ supported: true, enabled: true });
+    expect((handlers["start-at-login"] as () => unknown)()).toEqual({ supported: true, platform: "windows", enabled: true });
   });
 });

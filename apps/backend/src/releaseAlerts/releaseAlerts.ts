@@ -2,7 +2,7 @@ import type { DateChangeKind, ReleaseAlert } from "../../../../shared/types";
 import type { TrackerDatabase } from "../database/db";
 import { createSyncSettingsStore } from "../sync/syncSettingsStore";
 
-// A date change older than this is history, not news: watching a game later does not alert about it.
+// A date change older than this is history, not news. So is one from before the user watched the game.
 const CHANGE_NEWS_DAYS = 7;
 
 const changeTitle: Record<DateChangeKind, string> = {
@@ -30,7 +30,7 @@ export function takeReleaseAlerts(db: TrackerDatabase, today: Date): ReleaseAler
     select changes.id changeId, releases.id releaseId, releases.title title, changes.kind kind, changes.from_text fromText, changes.to_text toText
     from release_date_changes changes
     join releases on releases.id = changes.release_id ${watched}
-    where changes.changed_at >= datetime('now', ?)
+    where changes.changed_at >= datetime('now', ?) and changes.changed_at >= state.updated_at
       and not exists (select 1 from release_alerts_sent sent where sent.release_id = releases.id and sent.alert_key = 'change:' || changes.id)
     order by changes.id
   `).all(`-${CHANGE_NEWS_DAYS} days`) as Array<{ changeId: number; releaseId: string; title: string; kind: DateChangeKind; fromText: string; toText: string }>;

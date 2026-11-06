@@ -21,6 +21,8 @@ export interface TrayMenuItem {
 
 export interface AppTray {
   setToolTip(text: string): void;
+  // A notification balloon from the tray icon (Windows), for when a system notification can't be shown.
+  showBalloon?(title: string, body: string, onClick: () => void): void;
   setContextMenu(items: TrayMenuItem[]): void;
   on(event: "click" | "double-click", listener: () => void): unknown;
   destroy(): void;

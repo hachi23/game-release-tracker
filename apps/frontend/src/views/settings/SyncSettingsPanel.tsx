@@ -2,10 +2,6 @@ import { ALL_PLATFORM_FAMILIES, PLATFORM_FAMILIES } from "../../../../../shared/
 import type { SyncSettingsWorkflow } from "../../useSyncSettingsWorkflow";
 import { useStartAtLogin } from "../../useStartAtLogin";
 
-// Linux has no "Windows"; the switch is named for the system it runs on.
-const loginLabel = typeof navigator !== "undefined" && /Linux/.test(navigator.userAgent)
-  ? "Start when I log in, in the tray"
-  : "Start with Windows, in the tray";
 
 export function SyncSettingsPanel({ workflow }: { workflow: SyncSettingsWorkflow }) {
   const { settings, searchText, results, notFound, actions } = workflow;
@@ -83,8 +79,8 @@ export function SyncSettingsPanel({ workflow }: { workflow: SyncSettingsWorkflow
         </label>
         {startAtLogin.supported && (
           <label className="sync-auto">
-            <input type="checkbox" className="check" aria-label="Start with Windows in the tray" checked={startAtLogin.enabled} onChange={event => void startAtLogin.setEnabled(event.target.checked)} />
-            {" "}{loginLabel}
+            <input type="checkbox" className="check" aria-label="Start at login, in the tray" checked={startAtLogin.enabled} onChange={event => void startAtLogin.setEnabled(event.target.checked)} />
+            {" "}{startAtLogin.platform === "linux" ? "Start when I log in, in the tray" : "Start with Windows, in the tray"}
           </label>
         )}
       </section>

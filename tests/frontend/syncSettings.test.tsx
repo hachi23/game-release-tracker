@@ -74,15 +74,15 @@ describe("Settings → Sync", () => {
 
   test("alerts save as they change; start with Windows shows only in the desktop app and asks it", async () => {
     let { container, api } = await openSyncSettings();
-    expect(container.querySelector('input[aria-label="Start with Windows in the tray"]')).toBeNull();
+    expect(container.querySelector('input[aria-label="Start at login, in the tray"]')).toBeNull();
 
     await click(container.querySelector('input[aria-label="Notify me about watched games"]') as HTMLInputElement);
     expect(api.updateSyncSettings).toHaveBeenLastCalledWith({ alerts: false });
     while (cleanups.length) await cleanups.pop()!();
 
-    const setStartAtLogin = vi.fn(async (on: boolean) => ({ supported: true, enabled: on }));
-    ({ container, api } = await openSyncSettings(newLibrary, {}, { getStartAtLogin: async () => ({ supported: true, enabled: false }), setStartAtLogin }));
-    const toggle = container.querySelector('input[aria-label="Start with Windows in the tray"]') as HTMLInputElement;
+    const setStartAtLogin = vi.fn(async (on: boolean) => ({ supported: true, platform: "windows" as const, enabled: on }));
+    ({ container, api } = await openSyncSettings(newLibrary, {}, { getStartAtLogin: async () => ({ supported: true, platform: "windows" as const, enabled: false }), setStartAtLogin }));
+    const toggle = container.querySelector('input[aria-label="Start at login, in the tray"]') as HTMLInputElement;
     expect(toggle.checked).toBe(false);
     await click(toggle);
     expect(setStartAtLogin).toHaveBeenCalledWith(true);

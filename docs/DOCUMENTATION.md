@@ -310,9 +310,9 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 
 ### Main process (`apps/desktop/src/main.ts`)
 - Single-instance lock; starting the app again brings the running window back, even from the tray
-- `releaseAlerts.ts`: release alerts as system notifications (Electron `Notification`, the app icon; on Windows under the app's AppUserModelID). It takes `POST /api/alerts/take` with the API token 15 s after startup and every 5 min; a click brings the window back and sends `open-release` to the page. Without notification support it does nothing
-- Background sync: the backend checks every 30 min while running and starts a sync when auto-sync is on and the last successful sync is over 12 hours old (`server.ts`). Coming back from the tray (the page becoming visible) reloads the list and sync status
-- `startAtLogin.ts`: Settings → Sync **Start with Windows, in the tray**. Windows (and macOS) keep it as a login item (`app.setLoginItemSettings` with `--hidden`); Linux as `~/.config/autostart/game-release-tracker.desktop`, whose `Exec` runs the AppImage (`$APPIMAGE`) or the executable with `--hidden`. A packaged app only, so development runs never register. IPC `start-at-login` / `set-start-at-login` (only the app's frame may change it). Started with `--hidden`, the window stays in the tray unless the tray could not be created
+- `releaseAlerts.ts`: release alerts as system notifications (Electron `Notification`, the app icon; on Windows under the app's AppUserModelID). It takes `POST /api/alerts/take` with the API token 15 s after startup and every 5 min; a click brings the window back and sends `open-release` to the page. Where Windows refuses a notification (the `failed` event: an app with no Start-menu shortcut, such as the zip build), the tray shows it as a balloon whose click does the same. Without notification support it does nothing
+- Background sync: `sync/autoSyncSchedule.ts` checks 3 s after the backend starts and then every 30 min while it runs, and starts a sync when auto-sync is on and the last successful sync is over 12 hours old (`shouldAutoSync`, which reads SQLite's UTC timestamps through `shared/sqliteTime.ts`). Coming back from the tray (the page becoming visible) reloads the list and sync status
+- `startAtLogin.ts`: Settings → Sync **Start with Windows, in the tray**. Windows keeps it as a login item (`app.setLoginItemSettings` with `--hidden`); Linux as `~/.config/autostart/game-release-tracker.desktop`, whose `Exec` runs the AppImage (`$APPIMAGE`) or the executable with `--hidden`. A packaged app only (installer, zip or AppImage), so development runs never register; it registers the program at its current path. The bridge also reports the platform, which names the switch. IPC `start-at-login` / `set-start-at-login` (only the app's frame may change it). Started with `--hidden`, the window stays in the tray unless the tray could not be created
 - `trayWindow.ts`: minimizing hides the window to a tray icon (the app icon: `build/icon.ico` on Windows, `build/icon.png` scaled to 32 px elsewhere, both shipped in the package). A click or **Open Game Release Tracker** in the tray menu shows, restores and focuses it; **Quit** quits. Closing the window still quits. If the tray cannot be created, minimize stays a normal minimize, so the window is never hidden without a way back
 - IPC handlers: `api-base-url`, diagnostics log path/open, wallpaper file dialog, `save-image` (Save as image)
 - Backend lifecycle: spawn on startup, graceful shutdown on quit (3s timeout). The hidden window is created while the backend boots, and the page loads once the backend reports its port
@@ -505,6 +505,7 @@ apps/
       settingsCredentialModule.ts  Credential status for Settings + credential test via the app's IGDB gateway
     steamgriddb/client.ts        SteamGridDB API client
     sync/
+      autoSyncSchedule.ts        When auto-sync runs: at startup, then every 30 min while the app is open
       igdbCandidateSource.ts     Discover games from IGDB by publisher
       overrides.ts               Override loading
       releaseMerge.ts            Merge state loading

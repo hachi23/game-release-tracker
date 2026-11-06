@@ -95,13 +95,14 @@ export function listDateChanges(db: TrackerDatabase, releaseId: string): Release
   return db.prepare(`select ${changeColumns} from release_date_changes where release_id = ? order by id desc`).all(releaseId) as ReleaseDateChange[];
 }
 
-// The newest change of each listed release, in one query (the list's "Delayed from" badge).
+// The newest delay or move up of each listed release, in one query (the list's "Delayed from" badge).
+// A date announced later doesn't replace it: "2027" delayed to "2028" is still a delay once the day is known.
 export function latestDateChanges(db: TrackerDatabase, idsJson: string): Map<string, ReleaseDateChange> {
   const rows = db.prepare(`
     select release_id releaseId, ${changeColumns} from release_date_changes
     where id in (
       select max(id) from release_date_changes
-      where release_id in (select value from json_each(?))
+      where release_id in (select value from json_each(?)) and kind != 'announced'
       group by release_id
     )
   `).all(idsJson) as Array<ReleaseDateChange & { releaseId: string }>;

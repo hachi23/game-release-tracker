@@ -152,7 +152,7 @@ export interface ReleaseListItem {
   hidden?: boolean;
   watched?: boolean;
   released?: boolean;
-  // The newest date change a sync recorded, if any.
+  // The newest delay or move up a sync recorded, if any (an announced date shows only in the detail).
   lastDateChange?: ReleaseDateChange | null;
 }
 

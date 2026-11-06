@@ -77,6 +77,16 @@ describe("release alerts", () => {
     expect(await takeAlerts(db)).toHaveLength(1);
   });
 
+  test("a date change from before you watched the game is history, not an alert", async () => {
+    const db = tempDb();
+    await runSync(db, [game(2, "Slipping", "2027-04-01")], undefined, noArtwork);
+    await runSync(db, [game(2, "Slipping", "2027-09-01")], undefined, noArtwork);
+    db.prepare("update release_date_changes set changed_at = datetime('now', '-2 days')").run();
+    watch(db, "igdb-2");
+
+    expect(await takeAlerts(db)).toEqual([]);
+  });
+
   test("a date change older than a week is history, not an alert", async () => {
     const db = tempDb();
     await runSync(db, [game(2, "Slipping", "2027-04-01")], undefined, noArtwork);

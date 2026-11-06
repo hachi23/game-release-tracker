@@ -90,6 +90,18 @@ describe("date history from sync", () => {
     expect(getRelease(db, item.id)!.dateChanges!.map(change => change.kind)).toEqual(["earlier", "delayed"]);
   });
 
+  test("the list shows the newest delay or move up; a date announced later doesn't hide it", async () => {
+    const db = tempDb();
+    const vague = (human: string, day: string): IgdbGameLike => ({ ...game(day), release_dates: [{ human, date: Date.parse(`${day}T00:00:00Z`) / 1000 }] });
+    await runSync(db, [vague("2027", "2027-12-31")], undefined, noArtwork);
+    await runSync(db, [vague("2028", "2028-12-31")], undefined, noArtwork);
+    await runSync(db, [game("2028-05-05")], undefined, noArtwork);
+
+    const [item] = listReleases(db, {}).items;
+    expect(getRelease(db, item.id)!.dateChanges!.map(change => change.kind)).toEqual(["announced", "delayed"]);
+    expect(item.lastDateChange).toMatchObject({ kind: "delayed", fromText: "2027" });
+  });
+
   test("a date the user set by hand is kept, so sync records nothing", async () => {
     const db = tempDb();
     await runSync(db, [game("2027-03-14")], undefined, noArtwork);
@@ -112,6 +124,26 @@ describe("date history from sync", () => {
     await runSync(db, [game("2027-09-01")], undefined, noArtwork);
     expect(getRelease(db, item.id)).toMatchObject({ dateText: "2028", releaseDate: null, effectiveSortDate: "2028-01-01" });
     expect(getRelease(db, item.id)!.dateChanges).toEqual([]);
+  });
+
+  test("typing a vague date over an exact one, with the precision left as it was, takes the precision from the words", async () => {
+    const db = tempDb();
+    await runSync(db, [game("2027-03-14")], undefined, noArtwork);
+    const [item] = listReleases(db, {}).items;
+
+    await updateRelease(db, item.id, { dateText: "Q4 2027" });
+
+    expect(getRelease(db, item.id)).toMatchObject({ dateText: "Q4 2027", datePrecision: "Window", releaseDate: null, effectiveSortDate: "2027-10-01" });
+  });
+
+  test("retyping an exact date's words keeps its day", async () => {
+    const db = tempDb();
+    await runSync(db, [game("2027-03-14")], undefined, noArtwork);
+    const [item] = listReleases(db, {}).items;
+
+    await updateRelease(db, item.id, { dateText: "14 March 2027" });
+
+    expect(getRelease(db, item.id)).toMatchObject({ datePrecision: "Exact", releaseDate: "2027-03-14" });
   });
 
   test("deleting a release deletes its date history", async () => {

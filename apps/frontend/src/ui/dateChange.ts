@@ -1,3 +1,4 @@
+import { sqliteUtcMs } from "../../../../shared/sqliteTime";
 import type { ReleaseDateChange } from "../../../../shared/types";
 
 // Words for a date change a sync recorded. A delay or a move up is news on the list; a date being
@@ -15,6 +16,6 @@ export function listDateBadge(change: ReleaseDateChange | null | undefined) {
 
 // "2026-11-06 20:21:10" (SQLite, UTC) as "Nov 6, 2026".
 export function changeDay(changedAt: string) {
-  const date = new Date(`${changedAt.replace(" ", "T")}Z`);
+  const date = new Date(sqliteUtcMs(changedAt));
   return Number.isNaN(date.getTime()) ? changedAt : date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }

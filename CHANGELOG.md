@@ -11,11 +11,11 @@ What changed in each version, in plain language.
 - When a sync finds a game's date has moved, its row and the featured panel say **Delayed from Mar 14, 2027** (or **Moved up from …**). A game's page shows its full **Date history**, including when a vague date such as "2027" becomes a real day. The history starts with your first sync after updating.
 
 **Alerts for watched games**
-- A system notification tells you when a watched game comes out today, or when a sync finds it delayed, moved up or given a real date. Click it to open the game. Turn them off in **Settings → Sync**.
+- A system notification tells you when a watched game comes out today, or when a sync finds it delayed, moved up or given a real date (only changes made after you started watching). Click it to open the game. Where Windows won't show the app's notifications (the zip version), they appear as a tray balloon. Turn them off in **Settings → Sync**.
 - With **Sync automatically** on, the app also syncs every 12 hours while it stays open, so alerts reach you while it waits in the tray.
 
 **Start with Windows**
-- **Settings → Sync → Start with Windows, in the tray** starts the app when you log in, waiting in the tray so syncs and alerts keep coming. On Linux it's **Start when I log in** and works through the desktop's autostart folder.
+- **Settings → Sync → Start with Windows, in the tray** starts the app when you log in, waiting in the tray so syncs and alerts keep coming. On Linux it's **Start when I log in, in the tray** and works through the desktop's autostart folder.
 
 **Minimize to tray**
 - Minimizing the window now hides it to a Game Release Tracker icon in the system tray (the notification area on Windows). Click the icon, or choose **Open Game Release Tracker** from its menu, to bring the window back; **Quit** in the same menu closes the app. The close button still quits.
