@@ -165,6 +165,9 @@ No. Your data lives separately from the program, and a backup is made before any
 **Can I use it on a Mac or Linux?**
 Releases are built for Windows and for Linux (a `.deb` for Linux Mint, Ubuntu and Debian, and an AppImage for other distributions), and each is tested before release. There's no Mac build; the code runs on macOS from source, but it isn't tested there.
 
+**Where does the window go when I minimize it?**
+To the system tray: look for the app's icon in the notification area (on Windows, it may be under the **^** arrow by the clock). Click it, or right-click and choose **Open Game Release Tracker**, to bring the window back. Right-click → **Quit** closes the app; so does the window's close button. On Linux desktops that don't show tray icons, start the app again from the menu and the same window comes back.
+
 **Why does a game say "IGDB match needs review"?**
 The app wasn't sure it matched the right IGDB game. Check its cover and details, and use **Fix match** if they're wrong.
 

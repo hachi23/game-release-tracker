@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, session, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, protocol, safeStorage, session, shell, Tray } from "electron";
 import { APP_ORIGIN, handleAppProtocol, identifyAppToYouTube, registerAppScheme } from "./appProtocol";
 import { type BackendChild, startBackendProcess, stopBackendProcess } from "./backendProcess";
 import { handleStartupFailure, logBackendStoppedBeforeQuit, logDesktopFatalStartup, logDesktopProcessFailure, prepareDesktopRuntime } from "./desktopLifecycle";
@@ -9,9 +9,12 @@ import { registerSaveImageIpc } from "./saveImageIpc";
 import { registerAppDataIpc } from "./appDataIpc";
 import { decideNavigation, installWindowGuards } from "./windowGuards";
 import { loadCredentialDataKey } from "./credentialKey";
+import { type AppTray, bringWindowBack, installMinimizeToTray } from "./trayWindow";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
 
 let mainWindow: BrowserWindow | null = null;
+// Held for the app's lifetime: a tray icon that is garbage-collected disappears.
+let tray: AppTray | null = null;
 let backend: BackendChild | null = null;
 let apiBaseUrl = "";
 let logPath = "";
@@ -33,12 +36,9 @@ registerAppScheme(protocol);
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
-app.on("second-instance", () => {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-  }
-});
+// Starting the app again brings the running window back, even from the tray. This is also the way back
+// on Linux desktops that do not show tray icons.
+app.on("second-instance", () => bringWindowBack(mainWindow));
 
 // The packaged renderer reaches the backend through its own app:// origin; the development renderer
 // (the Vite server) calls the backend directly.
@@ -138,6 +138,13 @@ async function createWindow() {
       devTools: !app.isPackaged
     }
   });
+  const window = mainWindow;
+  tray = installMinimizeToTray({
+    window,
+    createTray: () => createAppTray(root),
+    quit: () => app.quit(),
+    log: message => diagnostics.log("desktop.tray_unavailable", { message })
+  });
   // Links open in the browser; the app window only ever shows the app.
   installWindowGuards(mainWindow.webContents, {
     appOrigin: rendererOrigin,
@@ -166,6 +173,21 @@ async function createWindow() {
     await mainWindow.loadURL(layout.frontendDevUrl);
   }
   mainWindow.show();
+}
+
+// The tray icon is the app icon: the multi-size .ico on Windows, the PNG scaled down elsewhere.
+function createAppTray(root: string): AppTray {
+  const image = process.platform === "win32"
+    ? nativeImage.createFromPath(join(root, "build", "icon.ico"))
+    : nativeImage.createFromPath(join(root, "build", "icon.png")).resize({ width: 32, height: 32, quality: "best" });
+  if (image.isEmpty()) throw new Error("tray icon image is missing");
+  const electronTray = new Tray(image);
+  return {
+    setToolTip: text => electronTray.setToolTip(text),
+    setContextMenu: items => electronTray.setContextMenu(Menu.buildFromTemplate(items)),
+    on: (event, listener) => (event === "click" ? electronTray.on("click", listener) : electronTray.on("double-click", listener)),
+    destroy: () => electronTray.destroy()
+  };
 }
 
 app.whenReady().then(() => {

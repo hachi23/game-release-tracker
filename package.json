@@ -65,6 +65,7 @@
       "dist/apps/backend/src/child.js",
       "dist/frontend/**",
       "data/**",
+      "build/icon.{ico,png}",
       "package.json",
       "!node_modules/**",
       "node_modules/{better-sqlite3,bindings,file-uri-to-path}/**",

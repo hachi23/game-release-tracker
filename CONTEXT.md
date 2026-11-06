@@ -15,7 +15,7 @@ The app is not a public storefront. It should feel like a personal game journal:
 
 ## Current Runtime Shape
 
-- Electron main process owns the desktop window, app lifecycle, and native file pickers.
+- Electron main process owns the desktop window, app lifecycle, the tray icon, and native file pickers. Minimizing hides the window to the tray; closing it quits the app.
 - The backend is a Fastify child process with SQLite storage through `better-sqlite3`.
 - The frontend is React/Vite. In packaged mode it loads from the fixed `app://renderer` origin, which the desktop app passes through to the backend, so localStorage and the V8 code cache survive restarts.
 - Shared request/response shapes live in `shared/types.ts`.

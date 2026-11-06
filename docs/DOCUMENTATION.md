@@ -42,7 +42,7 @@ A private desktop application for tracking upcoming video game releases, maintai
 ```
 
 ### Process model
-- **Electron main** (`apps/desktop/src/main.ts`): requests single-instance lock, starts backend child process, creates the browser window, registers IPC handlers for native file dialogs (wallpaper image), and reports process failures through the diagnostic log and a native error dialog.
+- **Electron main** (`apps/desktop/src/main.ts`): requests single-instance lock, starts backend child process, creates the browser window and its tray icon (minimize hides to the tray), registers IPC handlers for native file dialogs (wallpaper image), and reports process failures through the diagnostic log and a native error dialog.
 - **Backend child** (`apps/backend/src/child.ts`): spawned as a `tsx` process, opens a Fastify server on an ephemeral port, writes the port to stdout for the main process to read, and exits after logging uncaught failures so the desktop shell can report them.
 - **Frontend**: loaded from `http://127.0.0.1:5173` (dev) or `dist/frontend/index.html` (packaged). Communicates with backend via `fetch` to `http://127.0.0.1:PORT/api/*`.
 
@@ -306,7 +306,8 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 ## 6. Desktop (Electron)
 
 ### Main process (`apps/desktop/src/main.ts`)
-- Single-instance lock
+- Single-instance lock; starting the app again brings the running window back, even from the tray
+- `trayWindow.ts`: minimizing hides the window to a tray icon (the app icon: `build/icon.ico` on Windows, `build/icon.png` scaled to 32 px elsewhere, both shipped in the package). A click or **Open Game Release Tracker** in the tray menu shows, restores and focuses it; **Quit** quits. Closing the window still quits. If the tray cannot be created, minimize stays a normal minimize, so the window is never hidden without a way back
 - IPC handlers: `api-base-url`, diagnostics log path/open, wallpaper file dialog, `save-image` (Save as image)
 - Backend lifecycle: spawn on startup, graceful shutdown on quit (3s timeout). The hidden window is created while the backend boots, and the page loads once the backend reports its port
 - Unexpected main-process and backend-child failures are logged before a native error dialog/quit path
@@ -511,6 +512,7 @@ apps/
     appProtocol.ts               app://renderer origin, passed through to the backend
     appDataIpc.ts                Open log folder; delete all app data
     saveImageIpc.ts              Save as image (save-image IPC)
+    trayWindow.ts                Minimize to tray: tray icon, its menu, bringing the window back
   frontend/src/
     main.tsx                     React entry point
     ErrorBoundary.tsx            Renderer failure recovery and diagnostics reporting
