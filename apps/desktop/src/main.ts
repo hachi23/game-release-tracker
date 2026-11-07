@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, session, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, protocol, safeStorage, session, shell, Tray } from "electron";
 import { APP_ORIGIN, handleAppProtocol, identifyAppToYouTube, registerAppScheme } from "./appProtocol";
 import { type BackendChild, startBackendProcess, stopBackendProcess } from "./backendProcess";
 import { handleStartupFailure, logBackendStoppedBeforeQuit, logDesktopFatalStartup, logDesktopProcessFailure, prepareDesktopRuntime } from "./desktopLifecycle";
@@ -9,9 +9,16 @@ import { registerSaveImageIpc } from "./saveImageIpc";
 import { registerAppDataIpc } from "./appDataIpc";
 import { decideNavigation, installWindowGuards } from "./windowGuards";
 import { loadCredentialDataKey } from "./credentialKey";
+import { type AppTray, bringWindowBack, installMinimizeToTray } from "./trayWindow";
+import { createSystemNotifier, startReleaseAlerts } from "./releaseAlerts";
+import { createStartAtLogin, registerStartAtLoginIpc, startsHidden } from "./startAtLogin";
+import type { ReleaseAlert } from "../../../shared/types";
+import { API_TOKEN_HEADER } from "../../../shared/constants";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
 
 let mainWindow: BrowserWindow | null = null;
+// Held for the app's lifetime: a tray icon that is garbage-collected disappears.
+let tray: AppTray | null = null;
 let backend: BackendChild | null = null;
 let apiBaseUrl = "";
 let logPath = "";
@@ -27,18 +34,17 @@ const apiToken = randomBytes(32).toString("hex");
 // The data folder is named after the app (on Windows %APPDATA%\Game Release Tracker), not after the npm
 // package, so the app never shares a folder with another build of the same package. Set before anything
 // reads userData. An explicit --user-data-dir (a test profile) still wins.
+// Windows shows notifications under this id (the installer's shortcut carries the same one).
+if (process.platform === "win32") app.setAppUserModelId("io.github.hachi23.game-release-tracker");
 if (!app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", join(app.getPath("appData"), "Game Release Tracker"));
 registerAppScheme(protocol);
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
-app.on("second-instance", () => {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-  }
-});
+// Starting the app again brings the running window back, even from the tray. This is also the way back
+// on Linux desktops that do not show tray icons.
+app.on("second-instance", () => bringWindowBack(mainWindow));
 
 // The packaged renderer reaches the backend through its own app:// origin; the development renderer
 // (the Vite server) calls the backend directly.
@@ -90,6 +96,18 @@ registerAppDataIpc({
     }
   }
 });
+registerStartAtLoginIpc({
+  ipcMain,
+  isAppFrame,
+  startAtLogin: createStartAtLogin({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    launchPath: process.env.APPIMAGE || process.execPath,
+    autostartDir: join(app.getPath("appData"), "autostart"),
+    getLoginItemSettings: options => app.getLoginItemSettings(options),
+    setLoginItemSettings: settings => app.setLoginItemSettings(settings)
+  })
+});
 registerWallpaperIpc({
   ipcMain,
   dialog,
@@ -138,6 +156,13 @@ async function createWindow() {
       devTools: !app.isPackaged
     }
   });
+  const window = mainWindow;
+  tray = installMinimizeToTray({
+    window,
+    createTray: () => createAppTray(root),
+    quit: () => app.quit(),
+    log: message => diagnostics.log("desktop.tray_unavailable", { message })
+  });
   // Links open in the browser; the app window only ever shows the app.
   installWindowGuards(mainWindow.webContents, {
     appOrigin: rendererOrigin,
@@ -165,7 +190,53 @@ async function createWindow() {
   } else {
     await mainWindow.loadURL(layout.frontendDevUrl);
   }
-  mainWindow.show();
+  // Started at login: wait in the tray. Without a tray there would be no way back, so show the window.
+  if (!(startsHidden(process.argv) && tray)) mainWindow.show();
+  startReleaseAlerts({
+    takeAlerts: takeBackendAlerts,
+    notifier: createSystemNotifier({
+      isSupported: () => Notification.isSupported(),
+      create: alert => new Notification({ title: alert.title, body: alert.body, icon: appIconImage(root) }),
+      fallback: (alert, onClick) => tray?.showBalloon?.(alert.title, alert.body, onClick)
+    }),
+    openRelease: releaseId => {
+      bringWindowBack(mainWindow);
+      mainWindow?.webContents.send("open-release", releaseId);
+    },
+    log: message => diagnostics.log("desktop.release_alerts", { message })
+  });
+}
+
+async function takeBackendAlerts(): Promise<ReleaseAlert[]> {
+  const response = await fetch(`${apiBaseUrl}/api/alerts/take`, { method: "POST", headers: { [API_TOKEN_HEADER]: apiToken } });
+  if (!response.ok) throw new Error(`backend answered ${response.status}`);
+  return ((await response.json()) as { items: ReleaseAlert[] }).items;
+}
+
+// The app icon for the tray and notifications: the multi-size .ico on Windows, the PNG scaled down elsewhere.
+function appIconImage(root: string) {
+  return process.platform === "win32"
+    ? nativeImage.createFromPath(join(root, "build", "icon.ico"))
+    : nativeImage.createFromPath(join(root, "build", "icon.png")).resize({ width: 32, height: 32, quality: "best" });
+}
+
+function createAppTray(root: string): AppTray {
+  const image = appIconImage(root);
+  if (image.isEmpty()) throw new Error("tray icon image is missing");
+  const electronTray = new Tray(image);
+  return {
+    setToolTip: text => electronTray.setToolTip(text),
+    setContextMenu: items => electronTray.setContextMenu(Menu.buildFromTemplate(items)),
+    on: (event, listener) => (event === "click" ? electronTray.on("click", listener) : electronTray.on("double-click", listener)),
+    showBalloon: process.platform === "win32"
+      ? (title, body, onClick) => {
+          electronTray.removeAllListeners("balloon-click");
+          electronTray.once("balloon-click", onClick);
+          electronTray.displayBalloon({ title, content: body, icon: image });
+        }
+      : undefined,
+    destroy: () => electronTray.destroy()
+  };
 }
 
 app.whenReady().then(() => {

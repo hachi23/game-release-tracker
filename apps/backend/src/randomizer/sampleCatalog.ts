@@ -1,5 +1,4 @@
 import type { IgdbGameLike, RandomizerFilters, RandomizerOptions } from "../../../../shared/types";
-import sample from "../demo/randomizerSample.json";
 import type { DrawIo } from "./draw";
 
 // The Randomizer's stand-in for IGDB while the sample library is loaded and no IGDB keys are saved:
@@ -8,9 +7,25 @@ import type { DrawIo } from "./draw";
 type Ref = { id?: number; name?: string };
 // IGDB returns ids with every genre, theme and mode; the sample keeps them for filtering.
 type SampleGame = IgdbGameLike & { genres?: Ref[]; themes?: Ref[]; game_modes?: Ref[] };
-const games = sample.games as SampleGame[];
 
-export const SAMPLE_OPTIONS = { ...sample.options, perspectives: [], tags: [], sample: true } as RandomizerOptions;
+export interface SampleCatalog {
+  options: RandomizerOptions;
+  drawIo(filters: RandomizerFilters): DrawIo;
+}
+
+// The catalogue (about 280 KB) loads on the first sample spin or filter list, not every time the
+// backend starts.
+let catalog: Promise<SampleCatalog> | null = null;
+export function loadSampleCatalog(): Promise<SampleCatalog> {
+  catalog ??= import("../demo/randomizerSample.json").then(({ default: sample }) => {
+    const games = sample.games as SampleGame[];
+    return {
+      options: { ...sample.options, perspectives: [], tags: [], sample: true } as RandomizerOptions,
+      drawIo: filters => sampleDrawIo(games, filters)
+    };
+  });
+  return catalog;
+}
 
 // Filters that search IGDB for more than the sample holds (tags, series, similar games, studios, camera).
 export function sampleUnsupportedReason(filters: RandomizerFilters) {
@@ -19,7 +34,7 @@ export function sampleUnsupportedReason(filters: RandomizerFilters) {
   return needsIgdb ? "The sample Randomizer spins among 267 games. Tags, quick picks, series, similar games, Made in Japan and camera view search all of IGDB, so they need your own IGDB keys (Settings → API keys)." : null;
 }
 
-export function sampleDrawIo(filters: RandomizerFilters): DrawIo {
+function sampleDrawIo(games: SampleGame[], filters: RandomizerFilters): DrawIo {
   const matching = games.filter(game => matches(game, filters));
   const without = (excludedIds: number[]) => {
     const excluded = new Set(excludedIds);

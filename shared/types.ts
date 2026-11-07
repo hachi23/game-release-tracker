@@ -9,6 +9,24 @@ export type ReleaseCategory =
   | "Port";
 
 export type DatePrecision = "Exact" | "Month" | "Window" | "Year" | "TBA";
+
+// How a sync changed a release's date: pushed later, set more exactly within the old period, or moved up.
+export type DateChangeKind = "delayed" | "announced" | "earlier";
+
+// A system notification about a watched game, handed to the desktop app once.
+export interface ReleaseAlert {
+  releaseId: string;
+  kind: "out" | DateChangeKind;
+  title: string;
+  body: string;
+}
+
+export interface ReleaseDateChange {
+  kind: DateChangeKind;
+  fromText: string;
+  toText: string;
+  changedAt: string;
+}
 export type SyncRunStatus = "idle" | "running" | "success" | "partial" | "failed";
 export type OverrideSourceType = "igdb" | "seeded" | "user";
 
@@ -134,9 +152,13 @@ export interface ReleaseListItem {
   hidden?: boolean;
   watched?: boolean;
   released?: boolean;
+  // The newest delay or move up a sync recorded, if any (an announced date shows only in the detail).
+  lastDateChange?: ReleaseDateChange | null;
 }
 
 export interface ReleaseDetail extends ReleaseListItem {
+  // Every recorded date change, newest first.
+  dateChanges?: ReleaseDateChange[];
   igdbUrl?: string | null;
   sources: Array<{ sourceName: string; sourceUrl: string; field?: string | null }>;
   eligibilityReason?: string | null;
@@ -194,9 +216,11 @@ export interface SyncSettings {
   platforms: PlatformFamily[];
   trackFrom: string;
   autoSync: boolean;
+  // Desktop notifications about watched games (on unless turned off).
+  alerts: boolean;
 }
 
-export type SyncSettingsPatch = Partial<Pick<SyncSettings, "platforms" | "trackFrom" | "autoSync">>;
+export type SyncSettingsPatch = Partial<Pick<SyncSettings, "platforms" | "trackFrom" | "autoSync" | "alerts">>;
 
 export interface SettingsStatus {
   credentialStatus: { status: string; message?: string };

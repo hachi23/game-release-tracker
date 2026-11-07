@@ -1,6 +1,8 @@
 import { artworkSrc, cachedCoverSrc } from "../artwork";
 import { CoverScene } from "../ui/CoverScene";
 import { FramedPanel } from "../ui/FramedPanel";
+import { WatchButton } from "../ui/WatchButton";
+import { changeDay, dateChangeLabel } from "../ui/dateChange";
 import type { ReleaseDetailWorkflow } from "../useReleaseDetailWorkflow";
 import { ReleaseFieldsPanel, ReleaseTitleEditor } from "./ReleaseDetailEditors";
 import { ReleaseMediaGallery } from "./ReleaseMediaGallery";
@@ -37,9 +39,18 @@ export function DetailView({ apiBaseUrl, workflow, onBack }: { apiBaseUrl: strin
           <div className="detail-fields__scroll">
             <button type="button" className="secondary inline" onClick={onBack}>← Back</button>
             <ReleaseTitleEditor detail={detail} onRename={onRename} />
-            <p className="journal-date-subtitle">{detail.category} · {detail.dateText}</p>
+            <div className="detail-title-actions">
+              <p className="journal-date-subtitle">{detail.category} · {detail.dateText}</p>
+              <WatchButton small watched={Boolean(detail.watched)} onChange={watched => void actions.setWatched(watched)} />
+            </div>
             <hr className="entry-divider" />
             <ReleaseFieldsPanel detail={detail} onEditDetails={onEditDetails} />
+            {detail.dateChanges && detail.dateChanges.length > 0 && (
+              <section className="date-history" aria-label="Date history">
+                <h3>Date history</h3>
+                <ul>{detail.dateChanges.map((change, index) => <li key={index} className={`date-badge--${change.kind}`}><span>{dateChangeLabel(change)} to {change.toText}</span><small>{changeDay(change.changedAt)}</small></li>)}</ul>
+              </section>
+            )}
             {detail.igdbUrl && <a className="external" href={detail.igdbUrl}>Open IGDB →</a>}
             <div className="danger-actions">
               <button type="button" className="danger" onClick={onDelete}>Delete</button>

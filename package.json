@@ -1,6 +1,6 @@
 {
   "name": "game-release-tracker",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "A desktop app that tracks upcoming game releases and keeps a journal of the games you finish.",
   "author": "hachi23 (https://github.com/hachi23)",
   "homepage": "https://github.com/hachi23/game-release-tracker",
@@ -65,6 +65,7 @@
       "dist/apps/backend/src/child.js",
       "dist/frontend/**",
       "data/**",
+      "build/icon.{ico,png}",
       "package.json",
       "!node_modules/**",
       "node_modules/{better-sqlite3,bindings,file-uri-to-path}/**",

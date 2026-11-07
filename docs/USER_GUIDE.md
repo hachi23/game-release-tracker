@@ -42,7 +42,9 @@ Games coming out from the publishers you follow, grouped by month.
 
 - **Click** a game to feature it: its artwork fills the screen with a countdown ("Arrives in 5 days"). A game with only a month, quarter or year announced shows just that ("Dec 2026", "Q4 2026", "2027") instead of a countdown, and stays off the calendar until it has a day.
 - **Double-click** it, press **Enter**, or click **Open details** for its full page: artwork, screenshots, trailer, dates, platforms and publisher. Every detail page takes on the colours of the game's cover.
-- **Search** by title, publisher or keyword, and filter by **Genre**. **More filters** narrows by publisher, platform, category or date precision, and can show games you've hidden or marked as released.
+- **Search** by title, publisher or keyword, and filter by **Genre**. **More filters** narrows by publisher, platform, category or date precision, can show games you've hidden or marked as released, and can show only the games you watch.
+- **☆ Watch** (on the featured game or a game's page) adds a game to your watchlist; it then shows a ★ in the list. **More filters → Watched only** shows just your watched games. Click **★ Watching** to stop watching.
+- When a sync finds a new date for a game, its row says **Delayed from …** or **Moved up from …**. The game's page lists every change under **Date history**, including a vague date becoming exact ("Date announced").
 - **Add game** adds one by hand. You can search IGDB for it or type the details yourself.
 - Tick several games to delete them together.
 
@@ -129,7 +131,9 @@ Settings has four tabs. It opens on **API keys** while your keys need attention.
 - **Publishers**: search IGDB for a company and click **Add**, or click **Add suggested publishers** for a starter set. A game counts when a tracked company published or developed it. **×** stops tracking one.
 - **Platforms**: PC, Xbox, PlayStation and Nintendo Switch. At least one stays on.
 - **Track releases from**: the earliest release date to show. It starts at 1 January of the current year.
-- **Sync automatically when the app starts**: off by default. When on, the app syncs at startup if the last sync was over 12 hours ago.
+- **Sync automatically**: off by default. When on, the app syncs at startup if the last sync was over 12 hours ago, and again every 12 hours while it stays open (in the tray, for example).
+- **Notify me when a watched game comes out or its date changes**: on by default. The app shows a system notification on a watched game's release day, and when a sync finds a new date for one. Click the notification to open the game. Notifications only come while the app is running (it can wait in the tray), and only for date changes made after you started watching. On Windows, if the system won't show the app's notifications (for example the zip version), the tray icon shows them as a small balloon instead.
+- **Start with Windows, in the tray** (on Linux: **Start when I log in**): off by default. When on, the app starts when you log in and waits in the tray, so syncs and alerts keep coming without opening it. Shown in the app you download (installer, zip or AppImage), not when running from source code. It starts the app from where it is now: if you move the zip folder or the AppImage, turn the switch off and on again.
 
 **Diagnostics**: where the app's log file is, with buttons to open the log or its folder. **Delete all app data** removes your library, covers, wallpaper, saved keys, backups and logs from this computer and restarts the app as a new install. It asks you to confirm first.
 
@@ -164,6 +168,9 @@ No. Your data lives separately from the program, and a backup is made before any
 
 **Can I use it on a Mac or Linux?**
 Releases are built for Windows and for Linux (a `.deb` for Linux Mint, Ubuntu and Debian, and an AppImage for other distributions), and each is tested before release. There's no Mac build; the code runs on macOS from source, but it isn't tested there.
+
+**Where does the window go when I minimize it?**
+To the system tray: look for the app's icon in the notification area (on Windows, it may be under the **^** arrow by the clock). Click it, or right-click and choose **Open Game Release Tracker**, to bring the window back. Right-click → **Quit** closes the app; so does the window's close button. On Linux desktops that don't show tray icons, start the app again from the menu and the same window comes back.
 
 **Why does a game say "IGDB match needs review"?**
 The app wasn't sure it matched the right IGDB game. Check its cover and details, and use **Fix match** if they're wrong.

@@ -9,6 +9,7 @@ import { createSyncSettingsStore } from "./syncSettingsStore";
 import { planReleaseSync, prepareSyncCandidate, type SyncCandidate } from "./releaseSyncPlanner";
 import { getSyncStatus, trimSyncLog } from "./syncStatus";
 import { createReleaseStore } from "../database/releaseStore";
+import { readDateSnapshot, recordDateChange } from "../releaseDates/dateChanges";
 import { fetchSyncArtworkEnrichment, type SyncArtworkClient, type SyncArtworkEnrichment } from "./syncArtworkEnrichment";
 
 interface SyncOptions {
@@ -130,7 +131,10 @@ class SyncRun {
       log(this.db, syncRunId, plan.title, "reject", plan.reason);
       return;
     }
+    const dateBefore = existedBefore ? readDateSnapshot(this.db, releaseId) : null;
     releaseStore.save(plan.release);
+    const dateAfter = dateBefore ? readDateSnapshot(this.db, releaseId) : null;
+    if (dateBefore && dateAfter) recordDateChange(this.db, releaseId, dateBefore, dateAfter, syncRunId);
     log(this.db, syncRunId, plan.title, "accept", "matched sync rules");
     if (plan.outcome === "added") {
       counters.added++;

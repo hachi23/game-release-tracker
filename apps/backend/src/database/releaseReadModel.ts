@@ -3,6 +3,7 @@ import type { GameTrailer, ReleaseArtwork, ReleaseDetail, ReleaseListItem } from
 import type { TrackerDatabase } from "./db";
 import { normalizeText } from "../text/normalizeText";
 import { localArtworkUrl } from "../artwork/localArtworkStorage";
+import { latestDateChanges, listDateChanges } from "../releaseDates/dateChanges";
 
 export interface ReleaseFilters {
   search?: string;
@@ -12,6 +13,8 @@ export interface ReleaseFilters {
   datePrecision?: string;
   includeReleased?: boolean;
   includeHidden?: boolean;
+  // Only releases the user is watching.
+  watchedOnly?: boolean;
   // The earliest effective date to list (the user's "track from" setting).
   releasedFrom?: string;
 }
@@ -48,6 +51,7 @@ export function listReleases(db: TrackerDatabase, filters: ReleaseFilters) {
   }
   if (!filters.includeHidden) where.push("coalesce(state.hidden, 0) = 0");
   if (!filters.includeReleased) where.push("coalesce(state.released, 0) = 0");
+  if (filters.watchedOnly) where.push("coalesce(state.watched, 0) = 1");
 
   const rows = db.prepare(`
     select releases.*, coalesce(state.hidden, 0) hidden, coalesce(state.watched, 0) watched, coalesce(state.released, 0) released
@@ -76,7 +80,8 @@ export function getRelease(db: TrackerDatabase, id: string): ReleaseDetail | nul
     eligibilityReason: row.eligibility_reason ? String(row.eligibility_reason) : null,
     sources: db.prepare("select source_name sourceName, source_url sourceUrl, field from sources where release_id = ? order by created_at desc").all(id) as ReleaseDetail["sources"],
     screenshots: listScreenshots(db, id),
-    trailers: listTrailers(db, id)
+    trailers: listTrailers(db, id),
+    dateChanges: listDateChanges(db, id)
   };
 }
 
@@ -89,6 +94,7 @@ function hydrateListItems(db: TrackerDatabase, rows: Array<Record<string, unknow
   const platforms = groupValues(db, "release_platforms", "platform", ids);
   const genres = groupValues(db, "release_genres", "genre", ids);
   const artworks = groupArtworks(db, ids);
+  const dateChanges = latestDateChanges(db, ids);
   return rows.map(row => {
     const id = String(row.id);
     return {
@@ -109,7 +115,8 @@ function hydrateListItems(db: TrackerDatabase, rows: Array<Record<string, unknow
       eligible: Boolean(row.eligible),
       hidden: Boolean(row.hidden),
       watched: Boolean(row.watched),
-      released: Boolean(row.released)
+      released: Boolean(row.released),
+      lastDateChange: dateChanges.get(id) ?? null
     };
   });
 }

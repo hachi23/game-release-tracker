@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { extname, join } from "node:path";
 
 interface WallpaperStatus {
@@ -28,14 +28,6 @@ export function saveWallpaperFromFile(dataDir: string, sourcePath: string): Wall
   clearWallpaper(dataDir);
   mkdirSync(wallpaperDir(dataDir), { recursive: true });
   copyFileSync(sourcePath, wallpaperPath(dataDir, extension));
-  return { hasWallpaper: true, url: wallpaperUrl };
-}
-
-export function saveWallpaperFile(dataDir: string, bytes: Buffer, extension: string): WallpaperStatus {
-  const safeExtension = normalizeWallpaperExtension(extension);
-  clearWallpaper(dataDir);
-  mkdirSync(wallpaperDir(dataDir), { recursive: true });
-  writeFileSync(wallpaperPath(dataDir, safeExtension), bytes);
   return { hasWallpaper: true, url: wallpaperUrl };
 }
 

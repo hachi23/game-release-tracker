@@ -2,6 +2,32 @@
 
 What changed in each version, in plain language.
 
+## 0.7.0
+
+**Watchlist**
+- **☆ Watch** on the featured game or a game's page adds it to your watchlist. Watched games show a ★ in the Upcoming list, and **More filters → Watched only** lists just them.
+
+**Delays at a glance**
+- When a sync finds a game's date has moved, its row and the featured panel say **Delayed from Mar 14, 2027** (or **Moved up from …**). A game's page shows its full **Date history**, including when a vague date such as "2027" becomes a real day. The history starts with your first sync after updating.
+
+**Alerts for watched games**
+- A system notification tells you when a watched game comes out today, or when a sync finds it delayed, moved up or given a real date (only changes made after you started watching). Click it to open the game. Where Windows won't show the app's notifications (the zip version), they appear as a tray balloon. Turn them off in **Settings → Sync**.
+- With **Sync automatically** on, the app also syncs every 12 hours while it stays open, so alerts reach you while it waits in the tray.
+
+**Start with Windows**
+- **Settings → Sync → Start with Windows, in the tray** starts the app when you log in, waiting in the tray so syncs and alerts keep coming. On Linux it's **Start when I log in, in the tray** and works through the desktop's autostart folder.
+
+**Minimize to tray**
+- Minimizing the window now hides it to a Game Release Tracker icon in the system tray (the notification area on Windows). Click the icon, or choose **Open Game Release Tracker** from its menu, to bring the window back; **Quit** in the same menu closes the app. The close button still quits.
+- Starting the app again while it is in the tray brings the window back. On Linux desktops that don't show tray icons (GNOME without an AppIndicator extension), that is the way back.
+
+**Fixes**
+- Changing a game's date by hand to a vague one ("2028", "Q4 2027") without clearing its old day now drops that day, so the game sorts and counts down by the date you typed. Before, it kept using the old day until the next sync.
+- Automatic sync now waits the full 12 hours in every time zone. Before, it read the last sync's time as local time, so ahead of UTC it synced early and behind UTC it waited too long.
+
+**Your library**
+- The first start upgrades your library to keep date history and alerts (schema v21). A backup is made first, as with every upgrade; after it, older versions of the app can't open the library.
+
 ## 0.6.3
 
 **Fixes**

@@ -1,3 +1,4 @@
+import { sqliteUtcMs } from "../../../../shared/sqliteTime";
 import type { TrackerDatabase } from "../database/db";
 import type { SyncStatus } from "../../../../shared/types";
 import { createSyncSettingsStore } from "./syncSettingsStore";
@@ -34,5 +35,5 @@ export function shouldAutoSync(db: TrackerDatabase, staleHours = 12) {
   if (!createSyncSettingsStore(db).read().autoSync) return false;
   const row = db.prepare("select finished_at from sync_runs where status = 'success' order by id desc limit 1").get() as { finished_at?: string } | undefined;
   if (!row?.finished_at) return true;
-  return Date.now() - new Date(row.finished_at).getTime() > staleHours * 60 * 60 * 1000;
+  return Date.now() - sqliteUtcMs(row.finished_at) > staleHours * 60 * 60 * 1000;
 }

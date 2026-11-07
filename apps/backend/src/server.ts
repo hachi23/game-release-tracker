@@ -16,6 +16,8 @@ import { registerReleaseRoutes } from "./routes/releaseRoutes";
 import { registerSettingsRoutes } from "./routes/settingsRoutes";
 import { registerPreferencesRoutes } from "./routes/preferencesRoutes";
 import { registerSyncRoutes } from "./routes/syncRoutes";
+import { registerAlertRoutes } from "./routes/alertRoutes";
+import { scheduleAutoSync } from "./sync/autoSyncSchedule";
 import { registerWallpaperRoutes } from "./routes/wallpaperRoutes";
 import { registerFrontendRoutes } from "./routes/frontendRoutes";
 import { installRequestGuard } from "./requestGuard";
@@ -37,8 +39,6 @@ interface BackendOptions {
 
 const safeServerErrorMessage = "Something went wrong. Check the diagnostics log for details.";
 const SLOW_REQUEST_MS = 1000;
-// Give the renderer its first load before auto-sync competes for the backend.
-const AUTO_SYNC_DELAY_MS = 3000;
 
 const routeOf = (request: FastifyRequest) => request.routeOptions.url ?? request.url.split("?")[0];
 
@@ -88,6 +88,7 @@ export function createBackendApp({ db, autoSync = true, apiToken, logger = creat
   registerDemoRoutes(routeContext, { today });
   registerArtworkRoutes(routeContext, { fetchCover });
   registerSyncRoutes(routeContext);
+  registerAlertRoutes(routeContext, { today });
   registerSettingsRoutes(routeContext);
   registerPreferencesRoutes(routeContext);
   registerDiagnosticRoutes(routeContext);
@@ -96,8 +97,9 @@ export function createBackendApp({ db, autoSync = true, apiToken, logger = creat
   registerFrontendRoutes(routeContext);
 
   void runWrite(db, () => failInterruptedSyncRuns(db));
-  if (autoSync && shouldAutoSync(db)) {
-    setTimeout(() => void startSync(db, undefined, igdb), AUTO_SYNC_DELAY_MS);
+  if (autoSync) {
+    const stop = scheduleAutoSync({ isDue: () => shouldAutoSync(db), sync: () => void startSync(db, undefined, igdb) });
+    app.addHook("onClose", async () => stop());
   }
 
   return app;

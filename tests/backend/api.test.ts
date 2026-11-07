@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { openDatabase } from "../../apps/backend/src/database/db";
@@ -455,8 +455,10 @@ describe("release API", () => {
 
   test("wallpaper routes report, stream, and clear the saved wallpaper", async () => {
     const { app } = setup();
-    const { saveWallpaperFile } = await import("../../apps/runtime/src/wallpaperStorage");
-    saveWallpaperFile(process.env.GRT_DATA_DIR!, Buffer.from("wallpaper-bytes"), ".png");
+    const { saveWallpaperFromFile } = await import("../../apps/runtime/src/wallpaperStorage");
+    const picked = join(mkdtempSync(join(tmpdir(), "grt-picked-")), "wallpaper.png");
+    writeFileSync(picked, "wallpaper-bytes");
+    saveWallpaperFromFile(process.env.GRT_DATA_DIR!, picked);
 
     const status = await app.inject({ method: "GET", url: "/api/wallpaper" });
     expect(status.statusCode).toBe(200);

@@ -53,7 +53,8 @@ export function useSyncSettingsWorkflow({ api, loadOnOpen, onError }: { api: Api
         return update({ platforms: on ? settings.platforms.filter(item => item !== platform) : [...settings.platforms, platform] });
       },
       setTrackFrom: (trackFrom: string) => (trackFrom ? update({ trackFrom }) : undefined),
-      setAutoSync: (autoSync: boolean) => update({ autoSync })
+      setAutoSync: (autoSync: boolean) => update({ autoSync }),
+      setAlerts: (alerts: boolean) => update({ alerts })
     }
   };
 }

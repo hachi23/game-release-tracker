@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { TrackerDatabase } from "./db";
 import { getRelease, listReleases, type ReleaseFilters } from "./releaseReadModel";
 import type { DatePrecision, GameTrailer, NormalizedRelease, ReleaseArtwork, ReleaseCategory, ReleaseEligibility, ReleaseOverride } from "../../../../shared/types";
-import { computeSortDateAndEligibility } from "../sync/releasePolicy";
+import { computeSortDateAndEligibility, precisionOfDatedHuman } from "../sync/releasePolicy";
 import { mergeArtworks, type ExistingReleaseMergeState } from "../sync/releaseMerge";
 import { normalizeText } from "../text/normalizeText";
 
@@ -69,6 +69,19 @@ const dateColumns = {
 
 const dateFieldsSql = "date_text dateText, release_date releaseDate, date_precision datePrecision, release_window releaseWindow";
 
+// A user who changes a game's date to a vague one ("2028", "Q4 2027") without touching its day means the
+// old day no longer holds; kept, it would still decide the sort and the countdown. So the day is cleared
+// (and that is saved as their edit too, so sync keeps it cleared). When the edit names no precision (the
+// form leaves it as it was), the words decide it, the way sync reads IGDB's. An Exact date keeps its day.
+function withoutStaleDay(db: TrackerDatabase, releaseId: string, edit: ReleaseEdit): ReleaseEdit {
+  if (edit.releaseDate !== undefined || (edit.dateText === undefined && edit.datePrecision === undefined)) return edit;
+  const current = db.prepare("select date_precision datePrecision from releases where id = ?").get(releaseId) as { datePrecision: DatePrecision } | undefined;
+  const fromWords = edit.dateText !== undefined ? precisionOfDatedHuman(edit.dateText) : undefined;
+  const precision = edit.datePrecision ?? (fromWords && fromWords !== "Exact" ? fromWords : current?.datePrecision);
+  if (precision === "Exact") return edit;
+  return { ...edit, datePrecision: precision, releaseDate: null };
+}
+
 // The Release Store: the only module that writes the releases table family (lists, media, sources,
 // search index, user state, overrides, blocks). Callers work in releases, not tables.
 export function createReleaseStore(db: TrackerDatabase) {
@@ -134,7 +147,8 @@ export function createReleaseStore(db: TrackerDatabase) {
       db.prepare("update releases set date_text = ?, updated_at = current_timestamp where id = ?").run(patch.dateText, releaseId);
       recomputeEligibility(db, releaseId);
     },
-    edit(releaseId: string, edit: ReleaseEdit) {
+    edit(releaseId: string, requested: ReleaseEdit) {
+      const edit = withoutStaleDay(db, releaseId, requested);
       const apply = db.transaction(() => {
         if (edit.title !== undefined) {
           db.prepare("update releases set title = ?, normalized_title = ?, updated_at = current_timestamp where id = ?").run(edit.title, normalizeText(edit.title), releaseId);

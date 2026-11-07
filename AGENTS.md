@@ -47,7 +47,7 @@ If `electron-builder` fails under `dist\win-unpacked`, check whether a packaged 
 
 Do not commit `dist/`, `build/` outputs, packaged EXEs, logs, databases, or user data unless explicitly requested. The useful packaged artifact path after `npm run dist` is:
 
-`dist\Game Release Tracker-0.6.3-win.zip`
+`dist\Game Release Tracker-0.7.0-win.zip`
 
 ## Git Rules
 
@@ -93,7 +93,7 @@ Build IGDB image URLs only through `artwork.ts` (`artworkSrc`, `igdbCoverSrc`, `
 ## Package Footprint
 
 - Only native modules (`better-sqlite3`) are `dependencies`. Everything else is bundled (Vite for the renderer, esbuild for main, preload and the backend child), so it is a `devDependency` and must not ship in `app.asar`.
-- Keep large, rarely used backend modules off the boot path by loading them on first use.
+- Keep large, rarely used backend modules off the boot path by loading them on first use (the sample data JSON files are loaded with a cached `import()`).
 - See "Package footprint and boot cost" in `docs/DOCUMENTATION.md` before changing `build.files` or `electronLanguages`.
 
 ## Backend Shape
@@ -107,6 +107,8 @@ Important modules:
 - `apps/backend/src/completed/*`: completed-library identity, matching, ratings, stores
 - `apps/backend/src/sync/*`: upcoming IGDB sync planning, rules, enrichment
 - `apps/backend/src/randomizer/*`: Randomizer query text, pure draw, pick history (writes only `randomizer_picks`)
+- `apps/backend/src/releaseAlerts/*`: release alerts for watched games, handed to the desktop app once each (writes only `release_alerts_sent`)
+- `apps/backend/src/releaseDates/*`: release date history: names each date change (delayed, announced, earlier) and is the only writer of `release_date_changes`
 - `apps/backend/src/yearInReview/*`: Year in Review pure recap (`buildYearInReview`), thresholds, per-year settings (writes only `year_in_review_settings`)
 - `apps/runtime/src/*`: app-data file storage and runtime path resolution
 

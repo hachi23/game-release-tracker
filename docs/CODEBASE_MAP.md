@@ -65,7 +65,9 @@ The Fastify child process and the server-side application modules.
 - `completed/` — completed-library domain: identity, matching, metadata, personal fields and ratings, and stores.
 - `randomizer/` — IGDB Randomizer: filter validation and query text (`queryBuilder.ts`), the pure draw and cooldown shrink (`draw.ts`, IGDB I/O injected), and pick history (`pickHistoryStore.ts`). It never writes release or completed-library tables.
 - `yearInReview/` — Year in Review: the pure yearly recap (`buildYearInReview.ts`, the only interface of the recap logic; its tests go through it), every tunable number (`thresholds.ts`), and the per-year settings store (`yearInReviewSettingsStore.ts`, the only writer of `year_in_review_settings`). Completed games are read through `completedGameStore.yearInReviewRows`.
-- `sync/` — upcoming-release sync planning, normalization, merge rules, IGDB candidate discovery, status, and artwork enrichment.
+- `releaseAlerts/` — release alerts for watched games (`releaseAlerts.ts`): out today and recent date changes, each handed out once through `POST /api/alerts/take`; the only writer of `release_alerts_sent`. The desktop app turns them into notifications.
+- `releaseDates/` — a release's date history (`dateChanges.ts`): the pure rule that names a change (delayed, announced, moved up), and the only reader/writer of `release_date_changes`. Sync records a change after saving a game; the read model attaches the newest to list items and all of them to the detail.
+- `sync/` — upcoming-release sync planning, normalization, merge rules, IGDB candidate discovery, status, artwork enrichment, and the auto-sync schedule (`autoSyncSchedule.ts`: at startup, then every 30 minutes while running).
 - `artwork/` — local artwork paths, release-artwork workflows, and the cover cache (`coverCache.ts`: IGDB covers downloaded once into `<app data>/covers/`, served at `/api/covers/:imageId`).
 - `igdb/` and `steamgriddb/` — external provider adapters and credential/token handling. `igdb/gateway.ts` is the only IGDB entry point; tests pass a fake gateway to `createBackendApp({ igdb })`.
 - `settings/` — `settingsStore.ts` is the only reader/writer of the `settings` table (credential key list, saved-over-environment fallback, seed version); `settingsCredentialModule.ts` reports safe credential status and tests credentials through the app's IGDB gateway. Library tables are read only through their stores (the Randomizer asks each store for `ownedIgdbIds`; admin routes use the Release Store; the sync log comes from `sync/syncStatus.ts`).
@@ -74,7 +76,7 @@ The Fastify child process and the server-side application modules.
 
 ### `apps/desktop/src`
 
-The privileged Electron main process. It creates the window, starts/stops the backend child, owns lifecycle/crash handling, exposes the preload bridge, and implements native file-picker IPC for wallpapers, plus Year in Review's Save as image (`saveImageIpc.ts`). In packaged mode it serves the renderer from the fixed `app://renderer` origin (`appProtocol.ts`), passing each request through to the backend.
+The privileged Electron main process. It creates the window, starts/stops the backend child, owns lifecycle/crash handling, exposes the preload bridge, and implements native file-picker IPC for wallpapers, plus Year in Review's Save as image (`saveImageIpc.ts`). `startAtLogin.ts` registers the app to start at login in the tray (a Windows login item or a Linux autostart file). `releaseAlerts.ts` turns the backend's release alerts into system notifications. `trayWindow.ts` owns minimize to tray (the tray icon, its menu, and bringing the window back); `main.ts` only adapts Electron's `Tray` to it. In packaged mode it serves the renderer from the fixed `app://renderer` origin (`appProtocol.ts`), passing each request through to the backend.
 
 ### `apps/frontend/src`
 

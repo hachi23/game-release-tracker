@@ -1,8 +1,11 @@
 import { ALL_PLATFORM_FAMILIES, PLATFORM_FAMILIES } from "../../../../../shared/constants";
 import type { SyncSettingsWorkflow } from "../../useSyncSettingsWorkflow";
+import { useStartAtLogin } from "../../useStartAtLogin";
+
 
 export function SyncSettingsPanel({ workflow }: { workflow: SyncSettingsWorkflow }) {
   const { settings, searchText, results, notFound, actions } = workflow;
+  const startAtLogin = useStartAtLogin();
   if (!settings) return <p>Loading sync settings...</p>;
   const tracked = new Set(settings.publishers.map(publisher => publisher.id));
   return (
@@ -68,8 +71,18 @@ export function SyncSettingsPanel({ workflow }: { workflow: SyncSettingsWorkflow
         </label>
         <label className="sync-auto">
           <input type="checkbox" className="check" aria-label="Sync automatically when the app starts" checked={settings.autoSync} onChange={event => void actions.setAutoSync(event.target.checked)} />
-          {" "}Sync automatically when the app starts (at most every 12 hours)
+          {" "}Sync automatically when the app starts, and every 12 hours while it stays open
         </label>
+        <label className="sync-auto">
+          <input type="checkbox" className="check" aria-label="Notify me about watched games" checked={settings.alerts} onChange={event => void actions.setAlerts(event.target.checked)} />
+          {" "}Notify me when a watched game comes out or its date changes (desktop app)
+        </label>
+        {startAtLogin.supported && (
+          <label className="sync-auto">
+            <input type="checkbox" className="check" aria-label="Start at login, in the tray" checked={startAtLogin.enabled} onChange={event => void startAtLogin.setEnabled(event.target.checked)} />
+            {" "}{startAtLogin.platform === "linux" ? "Start when I log in, in the tray" : "Start with Windows, in the tray"}
+          </label>
+        )}
       </section>
     </>
   );

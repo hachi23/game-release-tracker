@@ -17,6 +17,7 @@ export function registerReleaseRoutes({ app, db, logger, igdb }: BackendRouteCon
       datePrecision: query.datePrecision,
       includeHidden: query.includeHidden === "true",
       includeReleased: query.includeReleased === "true",
+      watchedOnly: query.watchedOnly === "true",
       releasedFrom: createSyncSettingsStore(db).read().trackFrom
     });
   });

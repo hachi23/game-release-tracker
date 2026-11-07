@@ -98,7 +98,8 @@ export function chooseBestReleaseDate(game: IgdbGameLike, platforms: readonly Pl
 
 // IGDB dates a vague release at the end of its period ("2027" is Dec 31, 2027), so its human text, not its
 // timestamp, says how precise it is. Only a full day counts as Exact and gets a countdown.
-function precisionOfDatedHuman(human: string | undefined): DatePrecision {
+// How exact a date's words are: "2027" a Year, "Mar 2027" a Month, "Q4 2027" a Window, else Exact.
+export function precisionOfDatedHuman(human: string | undefined): DatePrecision {
   const text = human?.trim() ?? "";
   if (/^\d{4}$/.test(text)) return "Year";
   if (/^[A-Za-z]{3,9}\.? \d{4}$/.test(text) && !/^(spring|summer|fall|autumn|winter|early|late|mid)\b/i.test(text)) return "Month";

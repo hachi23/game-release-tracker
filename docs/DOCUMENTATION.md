@@ -4,7 +4,7 @@
 
 A private desktop application for tracking upcoming video game releases, maintaining a personal library of completed games, and picking a random game to play from IGDB (the Randomizer). Built as an Electron app with a separate Fastify backend process, SQLite database, IGDB API integration, and a React frontend styled with a "journal" aesthetic.
 
-- **Version**: 0.6.3
+- **Version**: 0.7.0
 - **Platform**: Windows (NSIS installer + zip) and Linux (`.deb` for Mint/Ubuntu/Debian + AppImage)
 - **License**: Private
 - **Repo**: `hachi23/game-release-tracker`
@@ -42,7 +42,7 @@ A private desktop application for tracking upcoming video game releases, maintai
 ```
 
 ### Process model
-- **Electron main** (`apps/desktop/src/main.ts`): requests single-instance lock, starts backend child process, creates the browser window, registers IPC handlers for native file dialogs (wallpaper image), and reports process failures through the diagnostic log and a native error dialog.
+- **Electron main** (`apps/desktop/src/main.ts`): requests single-instance lock, starts backend child process, creates the browser window and its tray icon (minimize hides to the tray), registers IPC handlers for native file dialogs (wallpaper image), and reports process failures through the diagnostic log and a native error dialog.
 - **Backend child** (`apps/backend/src/child.ts`): spawned as a `tsx` process, opens a Fastify server on an ephemeral port, writes the port to stdout for the main process to read, and exits after logging uncaught failures so the desktop shell can report them.
 - **Frontend**: loaded from `http://127.0.0.1:5173` (dev) or `dist/frontend/index.html` (packaged). Communicates with backend via `fetch` to `http://127.0.0.1:PORT/api/*`.
 
@@ -65,7 +65,7 @@ All cross-boundary TypeScript interfaces live here. Key types:
 
 ## 3. Database Schema
 
-SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations.ts` (version-tracked in `schema_version` table, currently at **schema v19**; startup runs only pending migrations, no per-launch data repair). Before upgrading an existing library, the database is copied with `VACUUM INTO` to `backups/<name>.v<old>.<time>.db` next to it; the three newest backups are kept. A library whose schema is newer than the app is refused unchanged, and the startup dialog shows that reason.
+SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations.ts` (version-tracked in `schema_version` table, currently at **schema v21**; startup runs only pending migrations, no per-launch data repair). Before upgrading an existing library, the database is copied with `VACUUM INTO` to `backups/<name>.v<old>.<time>.db` next to it; the three newest backups are kept. A library whose schema is newer than the app is refused unchanged, and the startup dialog shows that reason.
 
 ### Core tables
 
@@ -74,6 +74,8 @@ SQLite via `better-sqlite3`. Migrations in `apps/backend/src/database/migrations
 | `releases` | Upcoming releases | `id`, `title`, `normalized_title`, `date_text`, `release_date`, `date_precision`, `category`, `eligible`, `effective_sort_date`, `archived_at` |
 | `release_artworks` | Artwork per release | `release_id`, `image_id`, `source`, `sort_order` |
 | `user_release_state` | Per-user flags | `release_id`, `hidden`, `watched`, `released` |
+| `release_alerts_sent` | Release alerts already shown (v21), so each shows once; deleted with the release | `release_id`, `alert_key` (`out:<day>` or `change:<id>`), `sent_at` |
+| `release_date_changes` | Date history recorded by sync (v21); deleted with the release | `release_id`, `kind` (delayed, announced, earlier), `from_text`, `to_text`, `from_sort_date`, `to_sort_date`, `sync_run_id`, `changed_at` |
 | `manual_overrides` | User edits (title, lists, category, dates) and seeded date overrides that sync re-applies | `release_id`, `field`, `value`, `source_type`, `source_url` |
 | `sources` | Source URLs per release | `release_id`, `source_name`, `source_url`, `field` |
 | `blocked_releases` | Deleted+blocked games | `id`, `igdb_id`, `normalized_title`, `title`, `reason` |
@@ -132,7 +134,7 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 #### Releases
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/releases` | List releases (filters: search, publisher, category, platform, datePrecision, includeHidden, includeReleased) |
+| GET | `/api/releases` | List releases (filters: search, publisher, category, platform, datePrecision, includeHidden, includeReleased, watchedOnly) |
 | GET | `/api/releases/:id` | Get release detail |
 | POST | `/api/releases/manual` | Create manual release |
 | PATCH | `/api/releases/:id` | Update release (title, publishers, developers, platforms, category, dateText, releaseDate, datePrecision, releaseWindow, hidden, watched, released) |
@@ -181,7 +183,8 @@ Unexpected 5xx errors are logged with their stack and return only `{"error":"Som
 | POST | `/api/demo` | Loads the sample library → `{ loaded, releases, completedGames }`; 409 if already loaded |
 | DELETE | `/api/demo` | Removes exactly the sample rows → `{ loaded: false }` |
 | GET | `/api/sync/settings` | Sync settings: tracked publishers, platform families, track-from date, auto-sync |
-| PUT | `/api/sync/settings` | Body `{ platforms?, trackFrom?, autoSync? }` → the updated settings; 400 for no platforms, an unknown platform, a bad date or a non-boolean auto-sync |
+| PUT | `/api/sync/settings` | Body `{ platforms?, trackFrom?, autoSync?, alerts? }` → the updated settings; 400 for no platforms, an unknown platform, a bad date or a non-boolean auto-sync or alerts |
+| POST | `/api/alerts/take` | Release alerts not yet shown for watched games (`{ items: [{ releaseId, kind, title, body }] }`), each marked shown; empty while alerts are off. The desktop app shows them as notifications |
 | GET | `/api/sync/publishers/search?q=` | IGDB companies whose name contains the text (at least two letters), most published first; 409 without IGDB keys |
 | POST | `/api/sync/publishers` | Body `{ id, name }` tracks an IGDB company → the updated settings |
 | POST | `/api/sync/publishers/suggested` | Tracks the suggested publishers IGDB knows by exact name → the settings plus `notFound`; 409 without IGDB keys |
@@ -306,7 +309,11 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 ## 6. Desktop (Electron)
 
 ### Main process (`apps/desktop/src/main.ts`)
-- Single-instance lock
+- Single-instance lock; starting the app again brings the running window back, even from the tray
+- `releaseAlerts.ts`: release alerts as system notifications. `startReleaseAlerts` schedules the checks; `createSystemNotifier` is the adapter for Electron's `Notification` (the app icon; on Windows under the app's AppUserModelID), holding each one until clicked or closed, with a fallback for refused ones. It takes `POST /api/alerts/take` with the API token 15 s after startup and every 5 min; a click brings the window back and sends `open-release` to the page. Where Windows refuses a notification (the `failed` event: an app with no Start-menu shortcut, such as the zip build), the tray shows it as a balloon whose click does the same. Without notification support it does nothing
+- Background sync: `sync/autoSyncSchedule.ts` checks 3 s after the backend starts and then every 30 min while it runs, and starts a sync when auto-sync is on and the last successful sync is over 12 hours old (`shouldAutoSync`, which reads SQLite's UTC timestamps through `shared/sqliteTime.ts`). Coming back from the tray (the page becoming visible) reloads the list and sync status
+- `startAtLogin.ts`: Settings → Sync **Start with Windows, in the tray**. Windows keeps it as a login item (`app.setLoginItemSettings` with `--hidden`); Linux as `~/.config/autostart/game-release-tracker.desktop`, whose `Exec` runs the AppImage (`$APPIMAGE`) or the executable with `--hidden`. A packaged app only (installer, zip or AppImage), so development runs never register; it registers the program at its current path. The bridge also reports the platform, which names the switch. IPC `start-at-login` / `set-start-at-login` (only the app's frame may change it). Started with `--hidden`, the window stays in the tray unless the tray could not be created
+- `trayWindow.ts`: minimizing hides the window to a tray icon (the app icon: `build/icon.ico` on Windows, `build/icon.png` scaled to 32 px elsewhere, both shipped in the package). A click or **Open Game Release Tracker** in the tray menu shows, restores and focuses it; **Quit** quits. Closing the window still quits. If the tray cannot be created, minimize stays a normal minimize, so the window is never hidden without a way back
 - IPC handlers: `api-base-url`, diagnostics log path/open, wallpaper file dialog, `save-image` (Save as image)
 - Backend lifecycle: spawn on startup, graceful shutdown on quit (3s timeout). The hidden window is created while the backend boots, and the page loads once the backend reports its port
 - Unexpected main-process and backend-child failures are logged before a native error dialog/quit path
@@ -318,7 +325,7 @@ A pure reducer, `(state, event) → state`, with events `wheel`, `scrolled`, `se
 - `credentialKey.ts`: a random 256-bit data key, stored only as `credential-key.bin` encrypted with Electron `safeStorage` (DPAPI on Windows), is passed to the backend (`GRT_CREDENTIAL_KEY`); the backend encrypts API keys with it before they reach SQLite (`enc:v1:` values) and seals plain-text values from older versions at startup. A key file the OS can no longer decrypt is kept as `credential-key.bin.unreadable` (later ones get `.2`, `.3`, …; none is overwritten) and a new key is made; Settings shows the affected API keys as "can no longer be read - enter it again". If the key cannot be stored at all (for example a read-only data folder or a keychain error), the app still starts and values stay unencrypted. Without OS encryption (or in development) values stay as they are
 
 ### Preload (`apps/desktop/src/preload.ts`)
-Exposes a safe IPC bridge to the renderer for the API base URL and per-launch API token, diagnostics, wallpaper, and `saveImage(png, name)` operations.
+Exposes a safe IPC bridge to the renderer for the API base URL and per-launch API token, diagnostics, wallpaper, and `saveImage(png, name)` operations, `onOpenRelease(callback)`, which a clicked release alert uses to open that game, and `getStartAtLogin()` / `setStartAtLogin(on)`.
 
 ### IPC modules
 - `wallpaperIpc.ts` — native file dialog for wallpaper image selection
@@ -340,6 +347,7 @@ The desktop runtime discovers a backup beside the development root or through an
 - `dist/apps/frontend` (the `tsc` copy of the renderer) is excluded from the package; the renderer is served from `dist/frontend`.
 - The `build.files` globs drop the SQLite amalgamation source from `better-sqlite3`. Only `en-US` Chromium locale packs ship (`electronLanguages`).
 - `apps/frontend/src/fonts.css` declares Latin and Latin Extended woff2 faces only.
+- The sample data (`demo/demoLibrary.json`, about 100 KB, and `demo/randomizerSample.json`, about 280 KB) is loaded on first use with a cached `import()`, which esbuild turns into a lazily run wrapper inside `child.js`. The backend no longer evaluates it at every start (about 12 to 15 ms off backend startup on a fast machine; more on slow ones).
 
 
 
@@ -387,7 +395,7 @@ npm run smoke         # Packaged smoke test (after dist)
 ### Output
 - `dist/frontend/` — compiled React app (index.html + assets)
 - `dist/apps/` — compiled backend + desktop TypeScript; `scripts/bundle.mjs` then writes the three packaged entry points (`desktop/src/main.js`, `desktop/src/preload.js`, `backend/src/child.js`) as esbuild bundles over the tsc output
-- `dist/Game Release Tracker-0.6.3-win.zip` — zipped app, extract and run (no install)
+- `dist/Game Release Tracker-0.7.0-win.zip` — zipped app, extract and run (no install)
 - `dist/Game Release Tracker Setup 0.6.3.exe` — NSIS installer (~89 MB)
 - `dist/game-release-tracker_0.6.3_amd64.deb` — Linux package (~91 MB); installs to `/opt/Game Release Tracker`, adds a Games menu entry
 - `dist/Game Release Tracker-0.6.3.AppImage` — Linux, runs without installing (~117 MB)
@@ -488,12 +496,17 @@ apps/
       buildYearInReview.ts       Pure yearly recap (and the years list)
       thresholds.ts              Every tunable Year in Review number
       yearInReviewSettingsStore.ts  year_in_review_settings reads/writes
+    releaseAlerts/
+      releaseAlerts.ts           Release alerts for watched games (out today, date changes), each handed out once
+    releaseDates/
+      dateChanges.ts             Date history: names a change (delayed, announced, earlier); only writer of release_date_changes
     settings/
       settingsStore.ts             The settings table: credential keys (encrypted at rest), env fallback, seed version
       secretCipher.ts              AES-256-GCM sealing of credentials with the desktop app's data key
       settingsCredentialModule.ts  Credential status for Settings + credential test via the app's IGDB gateway
     steamgriddb/client.ts        SteamGridDB API client
     sync/
+      autoSyncSchedule.ts        When auto-sync runs: at startup, then every 30 min while the app is open
       igdbCandidateSource.ts     Discover games from IGDB by publisher
       overrides.ts               Override loading
       releaseMerge.ts            Merge state loading
@@ -511,6 +524,7 @@ apps/
     appProtocol.ts               app://renderer origin, passed through to the backend
     appDataIpc.ts                Open log folder; delete all app data
     saveImageIpc.ts              Save as image (save-image IPC)
+    trayWindow.ts                Minimize to tray: tray icon, its menu, bringing the window back
   frontend/src/
     main.tsx                     React entry point
     ErrorBoundary.tsx            Renderer failure recovery and diagnostics reporting
