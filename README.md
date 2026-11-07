@@ -6,7 +6,7 @@ Everything runs on your own computer. There is no account, no cloud and no track
 
 [![CI](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/hachi23/game-release-tracker)](https://github.com/hachi23/game-release-tracker/releases/latest)
-![Tests](https://img.shields.io/badge/tests-538%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-575%20passing-brightgreen)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-blue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
@@ -19,7 +19,7 @@ Everything runs on your own computer. There is no account, no cloud and no track
 | **What** | A local-first desktop app: syncs release data from a public API (IGDB) into a local database, keeps a personal journal, and turns it into a yearly analytics recap |
 | **My role** | Product owner and director: idea, every feature specification, data rules, design decisions, review and testing. Code written by AI coding agents from my specifications ([details below](#my-role-and-how-it-was-built)) |
 | **Built with** | Electron, React, TypeScript, Fastify, SQLite, Vitest, GitHub Actions |
-| **Quality** | 538 automated tests in 74 files; every change on GitHub runs the tests, builds the app, and starts the packaged app as a new user to open every screen |
+| **Quality** | 575 automated tests in 81 files; every change on GitHub runs the tests, builds the app, and starts the packaged app as a new user to open every screen |
 | **Shipped** | Public releases with a Windows installer, a Linux `.deb` and an AppImage |
 | **Design record** | [6 architecture decision records](docs/adr/) explaining the choices and what each one cost |
 
@@ -163,7 +163,7 @@ You need [Node.js](https://nodejs.org) 22.
 
 ```bash
 npm install
-npm test          # 538 automated tests
+npm test          # 575 automated tests
 npm run build     # compile everything
 npm run dist      # build the installer and packages for this platform into dist/
 npm run smoke     # start the packaged app as a new user and open every screen
