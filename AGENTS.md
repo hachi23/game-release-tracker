@@ -199,3 +199,7 @@ Default five labels: needs-triage, needs-info, ready-for-agent, ready-for-human,
 ### Domain docs
 
 Single-context: root `CONTEXT.md` plus `docs/adr/`. See `docs/agents/domain.md`.
+
+### Version plans and health pass
+
+Each upcoming version has a step-by-step plan in `docs/plans/<version>.md` (checkpoints, acceptance criteria, order). After a version's features are done and before its release PR, run the version health pass in `docs/agents/health-pass.md`.
