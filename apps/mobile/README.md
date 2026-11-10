@@ -44,8 +44,17 @@ sits higher, warm cream text (never pure white), lighter and softer inks so they
 paper, gilt ruled lines and a faint candle glow at the top of the page. Settings → Look picks Day Term,
 Night Study, or Match my phone. Every text colour meets WCAG AA (4.5:1) in both.
 
-Game pages and Year in Review are working pages for now; their final Academy designs come from concept
-artifacts.
+An upcoming game's page is the **Spellbook Entry**: the cover in an arched window, an illuminated capital,
+a ring of fourteen moons for the last two weeks, the trailer in a round "scrying glass" (mounted only after
+Play), and a wax seal to watch it.
+
+Year in Review is the **Yearbook**: an animated cover, then five chapters (Enrolment, Curriculum,
+Examinations, Timetable, Commencement). Each chapter change sweeps a ribbon-coloured wipe across the page,
+cards rise in, numbers count up and bars grow, with drifting particles per chapter. Months, subjects,
+campuses and grades open a shelf of their games; Commencement picks the Game of the Year and plays the
+theme song, which keeps playing across chapters. Cards with no data are left out, as on the desktop.
+
+A finished game's page is still a working page; its design (the Diary Entry concept) is being decided.
 
 ## Build
 
