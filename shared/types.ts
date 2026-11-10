@@ -266,6 +266,12 @@ export interface CompletedGameListItem {
 
 export interface CompletedGameDetail extends CompletedGameListItem {
   notes?: string | null;
+  // Diary fields: a one-line verdict, a favourite moment (an IGDB screenshot id plus a caption) and
+  // whether you'd play it again.
+  verdict?: string | null;
+  favouriteShot?: string | null;
+  favouriteCaption?: string | null;
+  replay?: "yes" | "maybe" | "no" | null;
   extra: Record<string, string>;
   igdbReleaseDate?: string | null;
   igdbDeveloper?: string | null;

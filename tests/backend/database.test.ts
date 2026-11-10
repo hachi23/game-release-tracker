@@ -32,7 +32,7 @@ describe("database migrations and FTS", () => {
   test("enables WAL, tracks schema version, and preserves user state", () => {
     const db = tempDb();
     expect(db.pragma("journal_mode", { simple: true })).toBe("wal");
-    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 21 });
+    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 22 });
     expect(db.prepare("select name from sqlite_master where type = 'table' and name = 'release_trailers'").get()).toEqual({ name: "release_trailers" });
 
     db.prepare("insert into releases (id, title, normalized_title, date_text, date_precision, category) values (?, ?, ?, ?, ?, ?)").run("r1", "Exodus", "exodus", "2027", "Year", "Main");
@@ -59,7 +59,7 @@ describe("database migrations and FTS", () => {
 
   test("v15 creates the randomizer pick history table", () => {
     const db = tempDb();
-    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 21 });
+    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 22 });
     expect(db.prepare("select name from sqlite_master where type = 'table' and name = 'randomizer_picks'").get()).toEqual({ name: "randomizer_picks" });
     db.prepare("insert into randomizer_picks (igdb_id, title) values (?, ?)").run(1942, "The Witcher 3");
     expect(db.prepare("select igdb_id igdbId, filters_json filtersJson from randomizer_picks").get()).toEqual({ igdbId: 1942, filtersJson: "{}" });
@@ -133,7 +133,7 @@ describe("database migrations and FTS", () => {
 
     runMigrations(db);
 
-    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 21 });
+    expect(db.prepare("select version from schema_version").get()).toEqual({ version: 22 });
     expect(db.prepare("select name from sqlite_master where type = 'table' and name in ('release_date_changes', 'release_alerts_sent') order by name").all())
       .toEqual([{ name: "release_alerts_sent" }, { name: "release_date_changes" }]);
     expect(db.prepare("select releases.title, state.watched from releases join user_release_state state on state.release_id = releases.id").all()).toEqual([{ title: "Kept", watched: 1 }]);

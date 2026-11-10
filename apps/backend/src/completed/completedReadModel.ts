@@ -161,6 +161,10 @@ function rowToDetail(row: Record<string, unknown>): CompletedGameDetail {
   return {
     ...rowToListItem(row),
     notes: nullable(row.notes),
+    verdict: nullable(row.verdict),
+    favouriteShot: nullable(row.favourite_shot),
+    favouriteCaption: nullable(row.favourite_caption),
+    replay: (nullable(row.replay) as CompletedGameDetail["replay"]) ?? null,
     extra: parseJson(row.extra_json, {}),
     igdbReleaseDate: nullable(row.igdb_release_date),
     igdbDeveloper: nullable(row.igdb_developer),

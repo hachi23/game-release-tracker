@@ -26,7 +26,8 @@ const migrations: Array<(db: TrackerDatabase) => void> = [
   migrateToV18,
   migrateToV19,
   migrateToV20,
-  migrateToV21
+  migrateToV21,
+  migrateToV22
 ];
 
 const LATEST_SCHEMA_VERSION = migrations.length;
@@ -619,4 +620,16 @@ function migrateToV21(db: TrackerDatabase) {
       primary key (release_id, alert_key)
     );
   `);
+}
+
+// v22: a finished game's diary fields: a one-line verdict, a favourite moment (one of its IGDB
+// screenshots, with a caption) and whether you'd play it again (yes, maybe or no).
+function migrateToV22(db: TrackerDatabase) {
+  const tx = db.transaction(() => {
+    if (!hasColumn(db, "completed_games", "verdict")) db.exec("alter table completed_games add column verdict text");
+    if (!hasColumn(db, "completed_games", "favourite_shot")) db.exec("alter table completed_games add column favourite_shot text");
+    if (!hasColumn(db, "completed_games", "favourite_caption")) db.exec("alter table completed_games add column favourite_caption text");
+    if (!hasColumn(db, "completed_games", "replay")) db.exec("alter table completed_games add column replay text");
+  });
+  tx();
 }

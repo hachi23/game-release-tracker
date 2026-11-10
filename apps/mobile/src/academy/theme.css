@@ -19,6 +19,12 @@
   --gold: #d3b26a;
   --gold-strong: #b8934a;
   --gold-deep: #8c6a1e;
+  --cork: #b98c5c;
+  --cork-dot: rgba(90, 55, 25, 0.28);
+  --cork-frame: #5a3720;
+  --pin-off: #d7cfbd;
+  --string: #b03c34;
+  --sticky2: #cfe6d3;
   --page: #f5efdf;
   --page-glow: transparent;
   --sheet: #fffdf6;
@@ -60,6 +66,12 @@
   --gold: #e2c27e;
   --gold-strong: #e8cc8e;
   --gold-deep: #e2c27e;
+  --cork: #4a3626;
+  --cork-dot: rgba(0, 0, 0, 0.35);
+  --cork-frame: #2a1c14;
+  --pin-off: #4a4860;
+  --string: #f08a7a;
+  --sticky2: #2f4637;
   --page: #211f2e;
   --page-glow: rgba(226, 194, 126, 0.09);
   --sheet: #2a2839;
@@ -595,3 +607,60 @@ textarea.input { border-radius: 14px; padding: 10px 14px; min-height: 90px; resi
 @media (prefers-reduced-motion: reduce) {
   .yb-wipe, .yb-particles { display: none; }
 }
+
+/* ---------- Dorm Corkboard (a finished game's page) ---------- */
+
+.corkboard-page { display: flex; flex-direction: column; gap: 12px; }
+.corkboard {
+  position: relative;
+  margin: 0 -8px;
+  padding: 24px 16px 28px;
+  background-color: var(--cork);
+  background-image: radial-gradient(var(--cork-dot) 1.2px, transparent 1.4px), radial-gradient(var(--cork-dot) 1px, transparent 1.2px);
+  background-size: 9px 9px, 13px 13px;
+  background-position: 0 0, 4px 6px;
+  box-shadow: inset 0 0 0 10px var(--cork-frame), inset 0 0 0 12px var(--gold), 0 18px 36px var(--shadow);
+  display: flex; flex-direction: column; gap: 22px;
+}
+.cork-top { display: flex; gap: 14px; align-items: flex-start; }
+.cork-photo { position: relative; margin: 0; flex: none; width: min(168px, 46%); background: var(--polaroid); padding: 7px 7px 34px; box-shadow: 0 8px 16px var(--shadow); }
+.cork-photo.wide { width: auto; margin: 0 6px; padding-bottom: 32px; }
+.cork-photo img, .cork-photo .blank { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--chip); }
+.cork-photo.wide img, .cork-photo.wide .blank { aspect-ratio: 16 / 9; }
+.cork-empty { display: grid !important; place-items: center; color: var(--ink-muted); font: 700 18px "Caveat", cursive; text-align: center; padding: 10px; }
+.cork-photo figcaption { position: absolute; left: 10px; right: 10px; bottom: 5px; font: 700 18px/1 "Caveat", cursive; color: #1f3b66; }
+.cork-photo figcaption input { width: 100%; border: 0; background: none; color: #1f3b66; font: 700 18px "Caveat", cursive; }
+.term-night .cork-photo figcaption, :root[data-term="night"] .cork-photo figcaption, :root[data-term="night"] .cork-photo figcaption input { color: #2a2416; }
+.pushpin { position: absolute; top: -6px; left: 50%; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff9a8a, #b03c34 70%); box-shadow: 0 3px 4px rgba(0, 0, 0, 0.4); }
+.pushpin.blue { left: 22px; background: radial-gradient(circle at 35% 30%, #a8c4ff, #1f4e8c 70%); }
+.cork-card { display: block; padding: 10px 12px; background: var(--sheet); color: var(--ink); box-shadow: 0 5px 10px var(--shadow); }
+.cork-card h1 { margin: 0; font: 800 21px/1.05 "Fraunces Variable", serif; overflow-wrap: anywhere; }
+.cork-card.small { font-size: 12px; line-height: 1.6; }
+.cork-card.lined textarea { width: 100%; min-height: 112px; border: 0; color: var(--blue-ink); font: 700 20px/28px "Caveat", cursive; resize: vertical; background: repeating-linear-gradient(180deg, transparent 0 27px, var(--rule) 27px 28px); }
+.cork-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.grade-tag { padding: 10px 12px 12px; background: var(--red); color: #fff7ee; box-shadow: 0 5px 10px var(--shadow); text-align: center; }
+:root[data-term="night"] .grade-tag { background: #a8352d; }
+.grade-tag-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+.grade-tag-value { font: 800 38px/1 "Fraunces Variable", serif; }
+.grade-tag-note { font-size: 11px; }
+.pin-row { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); margin-top: 4px; }
+.pin-row button { height: 44px; padding: 0; border: 0; background: none; display: grid; place-items: center; cursor: pointer; }
+.pin { width: 18px; height: 18px; border-radius: 50%; background: var(--pin-off); box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35); }
+.pin.full { background: radial-gradient(circle at 35% 30%, #ff9a8a, #b03c34 70%); }
+.pin.half { background: linear-gradient(90deg, #b03c34 50%, var(--pin-off) 50%); }
+.cork-sticky { display: block; padding: 14px 14px 18px; background: var(--sticky); color: var(--sticky-ink); box-shadow: 0 6px 12px var(--shadow); }
+.cork-sticky input { width: 100%; min-height: 40px; border: 0; border-bottom: 1.5px dashed currentColor; background: none; color: var(--sticky-ink); font: 700 23px "Caveat", cursive; }
+.cork-sticky.small { padding: 6px 10px; font: 700 19px/1.15 "Caveat", cursive; }
+.cork-thumbs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.cork-thumbs button { width: 84px; padding: 3px; border: 0; background: var(--polaroid); box-shadow: 0 4px 8px var(--shadow); cursor: pointer; }
+.cork-thumbs button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--red), 0 4px 8px var(--shadow); }
+.cork-thumbs img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.cork-replay { gap: 10px; }
+.cork-replay .cork-sticky.small { background: var(--sticky2); }
+.cork-replay button { min-height: 44px; padding: 0 16px 0 22px; border: 0; background: var(--sheet); color: var(--ink); font-weight: 700; font-size: 14px; box-shadow: 0 4px 8px var(--shadow); clip-path: polygon(12% 0, 100% 0, 100% 100%, 12% 100%, 0 50%); cursor: pointer; }
+.cork-replay button[aria-pressed="true"] { background: var(--red); color: #fff7ee; }
+.cork-string svg { display: block; width: 100%; height: 40px; margin-bottom: -8px; }
+.cork-neighbours { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.neighbour { padding: 6px 6px 8px; border: 0; text-align: center; font-size: 11px; line-height: 1.2; cursor: pointer; }
+.neighbour img, .neighbour .blank { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; margin-bottom: 4px; background: var(--chip); }
+.cork-remove { align-self: flex-start; border: 0; background: var(--sheet); color: var(--red); }

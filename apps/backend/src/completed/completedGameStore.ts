@@ -25,6 +25,10 @@ const personalColumns: Record<string, string> = {
   completionYear: "completion_year",
   completionPrecision: "completion_precision",
   notes: "notes",
+  verdict: "verdict",
+  favouriteShot: "favourite_shot",
+  favouriteCaption: "favourite_caption",
+  replay: "replay",
   developer: "developer",
   publisher: "publisher"
 };

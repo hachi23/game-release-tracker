@@ -54,7 +54,11 @@ cards rise in, numbers count up and bars grow, with drifting particles per chapt
 campuses and grades open a shelf of their games; Commencement picks the Game of the Year and plays the
 theme song, which keeps playing across chapters. Cards with no data are left out, as on the desktop.
 
-A finished game's page is still a working page; its design (the Diary Entry concept) is being decided.
+A finished game's page is the **Dorm Corkboard**: the cover pinned up with a red grade tag, ten pushpins to
+grade it (tap again for the half point), sticky notes for a one-line verdict and notes, a favourite moment
+pinned from the game's screenshots with a caption, "Play it again?" tags, and red string to the games finished
+just before and after it, with its finish number and rank for the year. Taps save at once; typed text saves
+when you leave the field. The verdict, favourite moment and replay answer are the diary fields (schema v22).
 
 ## Build
 

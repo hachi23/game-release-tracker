@@ -130,6 +130,23 @@ describe("completed library API", () => {
     expect((await app.inject({ method: "GET", url: "/api/completed-games" })).json().items).toEqual([]);
   });
 
+  test("saves the diary fields, clears them when blank, and refuses values that aren't valid", async () => {
+    withoutIgdbEnv();
+    const { app } = setup();
+    await app.inject({ method: "POST", url: "/api/completed-games/manual", payload: { title: "Persona 4 Golden", userPlatform: "PC", ratingRaw: "9", completionDate: "2026-01-07" } });
+    const url = "/api/completed-games/completed-persona-4-golden-pc";
+
+    const saved = await app.inject({ method: "PATCH", url, payload: { verdict: "  A perfect school year.  ", favouriteShot: "sc13pnd", favouriteCaption: "The festival", replay: "Maybe" } });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().item).toMatchObject({ verdict: "A perfect school year.", favouriteShot: "sc13pnd", favouriteCaption: "The festival", replay: "maybe", notes: null });
+
+    const refused = await app.inject({ method: "PATCH", url, payload: { favouriteShot: "../../etc", replay: "sometimes" } });
+    expect(refused.json().item).toMatchObject({ favouriteShot: "sc13pnd", replay: "maybe" });
+
+    const cleared = await app.inject({ method: "PATCH", url, payload: { verdict: "", favouriteShot: null, favouriteCaption: " ", replay: "" } });
+    expect(cleared.json().item).toMatchObject({ verdict: null, favouriteShot: null, favouriteCaption: null, replay: null });
+  });
+
   test("deletes a completed game", async () => {
     withoutIgdbEnv();
     const { app } = setup();

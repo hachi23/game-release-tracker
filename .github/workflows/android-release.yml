@@ -75,10 +75,10 @@ jobs:
           **What's in it**
           - Every screen: Upcoming, Calendar, Completed Library, Randomizer, Year in Review and Settings, with IGDB sync and search (add your IGDB keys in Settings), editing, and notifications for watched games.
           - The Magic Academy look, with Day Term and Night Study (a candlelit dark mode). Settings → Look picks one or follows your phone.
-          - Upcoming game pages are the Spellbook Entry; Year in Review is the animated Yearbook.
+          - Upcoming game pages are the Spellbook Entry, finished games the Dorm Corkboard, and Year in Review the animated Yearbook.
           - The desktop app's own backend runs inside the app; your library is one file in the app's private storage.
 
-          **Not yet:** custom artwork uploads, wallpaper, syncing while the app is closed, and the final design for finished-game pages.
+          **Not yet:** custom artwork uploads, wallpaper, and syncing while the app is closed.
           EOF
       - uses: softprops/action-gh-release@v2
         if: env.RELEASE_TAG != ''
