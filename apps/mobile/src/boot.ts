@@ -1,15 +1,26 @@
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import { createLibrarySaver, defaultLibraryStore } from "./libraryFile";
+import { createLibrarySaver, defaultLibraryStore, exportLibraryCopy } from "./libraryFile";
+import { prepareLibraryImport, type PreparedLibrary } from "./libraryImport";
 import { createMobileApiClient, prepareMobileDatabase, type MobileApiClient } from "./mobileApiClient";
 import { asTrackerDatabase, openWasmDatabase } from "./wasmDatabase";
 
 // Starts the Android app's backend: opens the saved library, saves it after writes and when the app
 // leaves the screen, syncs when a sync is due, and turns release alerts into Android notifications.
 
+export interface LibraryTransfer {
+  // Checks and upgrades a picked file; changes nothing yet.
+  inspect(file: Uint8Array): Promise<PreparedLibrary>;
+  // Replaces this phone's library with an inspected one, then restarts the app on it.
+  replaceWith(prepared: PreparedLibrary): Promise<void>;
+  // Saves a copy of this phone's library; returns where it went.
+  exportCopy(): Promise<string>;
+}
+
 export interface MobileApp {
   api: MobileApiClient;
+  library: LibraryTransfer;
   // Set by the UI: opens a release's page when its notification is tapped.
   onOpenRelease: (releaseId: string) => void;
 }
@@ -23,7 +34,17 @@ export async function bootMobileApp(): Promise<MobileApp> {
   const db = asTrackerDatabase(wasm);
   prepareMobileDatabase(db);
   const api = createMobileApiClient(db);
-  const app: MobileApp = { api, onOpenRelease: () => undefined };
+  const library: LibraryTransfer = {
+    inspect: prepareLibraryImport,
+    async replaceWith(prepared) {
+      await saver?.flush();
+      saver?.stop();
+      await store.save(prepared.bytes);
+      window.location.reload();
+    },
+    exportCopy: () => exportLibraryCopy(wasm.export())
+  };
+  const app: MobileApp = { api, library, onOpenRelease: () => undefined };
 
   const flush = () => void saver?.flush();
   document.addEventListener("visibilitychange", () => {

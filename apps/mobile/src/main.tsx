@@ -23,6 +23,7 @@ async function main() {
   createRoot(document.getElementById("root")!).render(
     <AcademyApp
       api={app.api}
+      library={app.library}
       registerOpenRelease={open => { app.onOpenRelease = open; }}
       onBackButton={handler => { handleBack = handler; }}
     />

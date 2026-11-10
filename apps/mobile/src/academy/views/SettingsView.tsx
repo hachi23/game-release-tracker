@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { PreparedLibrary } from "../../libraryImport";
 import type { PlatformFamily, SettingsStatus, SyncSettings, TrackedPublisher } from "../../../../../shared/types";
 import type { AcademyContext } from "../AcademyApp";
 import type { TermChoice } from "../term";
@@ -19,7 +20,23 @@ const PLATFORMS: Array<{ id: PlatformFamily; label: string }> = [
 ];
 
 export function SettingsView({ context }: { context: AcademyContext }) {
-  const { api, term, setTerm, fail, notify } = context;
+  const { api, library, term, setTerm, fail, notify } = context;
+  const picker = useRef<HTMLInputElement>(null);
+  const [incoming, setIncoming] = useState<PreparedLibrary | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const pickFile = async (file: File | undefined) => {
+    if (!file || !library) return;
+    setBusy(true);
+    try {
+      setIncoming(await library.inspect(new Uint8Array(await file.arrayBuffer())));
+    } catch (error) {
+      fail(error);
+    } finally {
+      setBusy(false);
+      if (picker.current) picker.current.value = "";
+    }
+  };
   const [status, setStatus] = useState<SettingsStatus | null>(null);
   const [sync, setSync] = useState<SyncSettings | null>(null);
   const [keys, setKeys] = useState({ IGDB_CLIENT_ID: "", IGDB_CLIENT_SECRET: "" });
@@ -110,6 +127,33 @@ export function SettingsView({ context }: { context: AcademyContext }) {
                 {publisherResults.map(publisher => <button key={publisher.id} type="button" className="chip" onClick={() => void run(() => api.trackPublisher(publisher), next => { setSync(next); setPublisherResults([]); setPublisherQuery(""); })}>+ {publisher.name}</button>)}
               </div>
             ) : null}
+          </>
+        ) : null}
+
+        {library ? (
+          <>
+            <h2 className="display" style={{ margin: "8px 0 0", fontSize: 20 }}>Your library</h2>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              Bring your library over from the desktop app: close the desktop app, copy <b>game-release-tracker.db</b> to this phone, then pick it here.
+              On Windows it's in <b>%APPDATA%\Game Release Tracker</b>; on Linux in <b>~/.config/Game Release Tracker</b>.
+            </p>
+            <input ref={picker} type="file" accept=".db,application/x-sqlite3,application/vnd.sqlite3,application/octet-stream" className="sr-only" onChange={event => void pickFile(event.target.files?.[0])} />
+            {incoming ? (
+              <div className="sticky stack" style={{ gap: 8, fontFamily: "inherit", fontWeight: 400, fontSize: 15 }}>
+                <b>Replace this phone's library?</b>
+                <span>The file has {incoming.upcoming} upcoming games and {incoming.completed} finished games. Everything on this phone now is replaced; save a copy first if you want to keep it.</span>
+                {incoming.keysNeedReentering ? <span>Your IGDB keys are locked to the desktop, so enter them again here afterwards.</span> : null}
+                <div className="row">
+                  <button type="button" className="btn solid" disabled={busy} onClick={() => { setBusy(true); void library.replaceWith(incoming).catch(error => { setBusy(false); fail(error); }); }}>Replace and restart</button>
+                  <button type="button" className="btn" onClick={() => setIncoming(null)}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="row">
+                <button type="button" className="btn solid" disabled={busy} onClick={() => picker.current?.click()}>{busy ? "Checking…" : "Import from the desktop app"}</button>
+                <button type="button" className="btn" onClick={() => void library.exportCopy().then(where => notify(`Saved a copy to ${where}.`)).catch(fail)}>Save a copy</button>
+              </div>
+            )}
           </>
         ) : null}
 

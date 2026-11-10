@@ -14,7 +14,7 @@ export interface LibraryStore {
 const FILE = "tracker.db";
 const TEMP = "tracker.db.saving";
 
-function toBase64(bytes: Uint8Array) {
+export function toBase64(bytes: Uint8Array) {
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(binary);
@@ -79,11 +79,12 @@ export function createLibrarySaver(store: LibraryStore, exportBytes: () => Uint8
   let timer: ReturnType<typeof setTimeout> | null = null;
   let dirty = false;
   let saving: Promise<void> = Promise.resolve();
+  let stopped = false;
 
   const flush = () => {
     if (timer) clearTimeout(timer);
     timer = null;
-    if (!dirty) return saving;
+    if (!dirty || stopped) return saving;
     dirty = false;
     const bytes = exportBytes();
     saving = saving.then(() => store.save(bytes)).catch(onError);
@@ -92,10 +93,34 @@ export function createLibrarySaver(store: LibraryStore, exportBytes: () => Uint8
 
   return {
     changed() {
+      if (stopped) return;
       dirty = true;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void flush(), delayMs);
     },
-    flush
+    flush,
+    // After an import has saved a new library: the open one must never be saved over it again.
+    stop() {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      timer = null;
+    }
   };
+}
+
+// A copy of the library for backup or for the desktop app: on Android it goes to Documents, in a
+// browser it downloads. Returns where it went.
+export async function exportLibraryCopy(bytes: Uint8Array, today = new Date()): Promise<string> {
+  const name = `game-release-tracker-${today.toISOString().slice(0, 10)}.db`;
+  if (Capacitor.isNativePlatform()) {
+    await Filesystem.writeFile({ path: name, directory: Directory.Documents, data: toBase64(bytes) });
+    return `Documents/${name}`;
+  }
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/x-sqlite3" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return name;
 }

@@ -76,6 +76,7 @@ jobs:
           - Every screen: Upcoming, Calendar, Completed Library, Randomizer, Year in Review and Settings, with IGDB sync and search (add your IGDB keys in Settings), editing, and notifications for watched games.
           - The Magic Academy look, with Day Term and Night Study (a candlelit dark mode). Settings → Look picks one or follows your phone.
           - Upcoming game pages are the Spellbook Entry, finished games the Dorm Corkboard, and Year in Review the animated Yearbook.
+          - **Bring your desktop library over:** Settings → Your library → Import from the desktop app. Close the desktop app, copy `game-release-tracker.db` (Windows: `%APPDATA%\Game Release Tracker`; Linux: `~/.config/Game Release Tracker`) to your phone, and pick it. IGDB keys need entering again on the phone.
           - The desktop app's own backend runs inside the app; your library is one file in the app's private storage.
 
           **Not yet:** custom artwork uploads, wallpaper, and syncing while the app is closed.

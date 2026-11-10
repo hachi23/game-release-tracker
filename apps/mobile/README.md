@@ -20,6 +20,10 @@ Android:  Academy UI ──ApiClient──► in-app router (same route modules)
 - `src/libraryFile.ts`: the library is one file, `tracker.db`, in the app's private data folder. It is
   saved shortly after writes settle and when the app leaves the screen (written beside the old copy, then
   renamed over it). In a desktop browser it goes to IndexedDB instead.
+- `src/libraryImport.ts`: **Settings → Your library → Import from the desktop app** takes the desktop's
+  `game-release-tracker.db` (WAL header switched for the in-memory copy), checks it is a library, upgrades it
+  to the current schema in a scratch database, shows its counts, then replaces the phone's library and
+  restarts. Keys the desktop sealed show as needing re-entry. **Save a copy** writes the library to Documents.
 - `src/boot.ts`: opens the library, syncs on start and on return when a sync is due, and turns release
   alerts for watched games into Android notifications.
 - `src/academy/*`: the Magic Academy UI. `theme.css` holds both looks as tokens; `term.ts` picks one.

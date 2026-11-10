@@ -35,11 +35,22 @@ export async function openWasmDatabase(bytes?: Uint8Array, onCommit: () => void 
   const s = await loadSqlite();
   const db = new s.oo1.DB(":memory:");
   if (bytes?.byteLength) {
-    const pointer = s.wasm.allocFromTypedArray(bytes);
+    const pointer = s.wasm.allocFromTypedArray(rollbackJournalHeader(bytes));
     const flags = s.capi.SQLITE_DESERIALIZE_FREEONCLOSE | s.capi.SQLITE_DESERIALIZE_RESIZEABLE;
     db.checkRc(s.capi.sqlite3_deserialize(db.pointer!, "main", pointer, bytes.byteLength, bytes.byteLength, flags));
   }
   return wrapDatabase(s, db, onCommit);
+}
+
+// The desktop database runs in WAL mode (header bytes 18 and 19 are 2). An in-memory copy can't use WAL,
+// so a copy of such a file is opened in the default rollback-journal mode (1) instead. The content is
+// unchanged; only the copy's header differs. (Changes still in a separate -wal file are not in the .db.)
+export function rollbackJournalHeader(bytes: Uint8Array) {
+  if (bytes.length < 20 || (bytes[18] !== 2 && bytes[19] !== 2)) return bytes;
+  const copy = bytes.slice();
+  copy[18] = 1;
+  copy[19] = 1;
+  return copy;
 }
 
 // Converts better-sqlite3 arguments to a sqlite-wasm binding. better-sqlite3 takes positional values

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MobileApiClient } from "../mobileApiClient";
+import type { LibraryTransfer } from "../boot";
 import { todayLabel } from "./format";
 import { Crest, Icon } from "./ui";
 import { useTerm, type TermChoice } from "./term";
@@ -20,6 +21,7 @@ type Screen = { tab: Tab } | { tab: Tab; release: string } | { tab: Tab; complet
 
 export interface AcademyContext {
   api: MobileApiClient;
+  library?: LibraryTransfer;
   today: Date;
   wide: boolean;
   term: TermChoice;
@@ -53,8 +55,9 @@ function useWide() {
   return wide;
 }
 
-export function AcademyApp({ api, registerOpenRelease, onBackButton }: {
+export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: {
   api: MobileApiClient;
+  library?: LibraryTransfer;
   registerOpenRelease?: (open: (id: string) => void) => void;
   onBackButton?: (handler: () => boolean) => void;
 }) {
@@ -94,8 +97,8 @@ export function AcademyApp({ api, registerOpenRelease, onBackButton }: {
   }, [screen]);
 
   const context = useMemo<AcademyContext>(
-    () => ({ api, today, wide, term, setTerm, notify, fail, openRelease, openCompleted, goTo, back }),
-    [api, today, wide, term, setTerm, notify, fail, openRelease, openCompleted, goTo, back]
+    () => ({ api, library, today, wide, term, setTerm, notify, fail, openRelease, openCompleted, goTo, back }),
+    [api, library, today, wide, term, setTerm, notify, fail, openRelease, openCompleted, goTo, back]
   );
 
   const spread = wide && !("release" in screen) && !("completed" in screen) && screen.tab !== "calendar" && screen.tab !== "completed";
