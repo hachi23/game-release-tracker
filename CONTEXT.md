@@ -77,6 +77,14 @@ Key modules:
 
 The separate tab for completed games. It is separate from the upcoming release list. It has its own tables, filters, selection, detail page, and manual-add flow.
 
+### Diary Fields
+
+Three personal fields a finished game keeps besides its grade and notes (schema v22, `completed_games`): a one-line **verdict**, a **favourite moment** (one of the game's IGDB screenshot ids in `favourite_shot`, with a `favourite_caption`) and **replay**, whether you'd play it again (`yes`, `maybe` or `no`). They are personal fields like notes: blank text clears them, and a screenshot id or replay answer that isn't valid is refused. The Android app's finished-game page (the Dorm Corkboard) edits them; the desktop keeps them through the same API.
+
+### Android App
+
+`apps/mobile`: the same backend route modules running inside a Capacitor WebView on SQLite WASM, with its own Magic Academy UI (Day Term and Night Study). Upcoming game pages are the Spellbook Entry, finished games the Dorm Corkboard, and Year in Review the Yearbook. See `apps/mobile/README.md`.
+
 ### Identity Key
 
 The stable merge key for completed games. It is built from normalized title plus normalized user platform; adding a game whose key already exists updates that game. The Completed Library module (`completedGameStore.ts`) owns this key: renaming a game or changing its platform rebuilds the key and moves its match override, and a change that would collide with another game is refused (409). Game ids are fixed at creation and never follow renames.

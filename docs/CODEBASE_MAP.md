@@ -10,12 +10,14 @@ This is the navigation guide for the Game Release Tracker codebase. It explains 
 │   ├── backend/       Fastify child process and application modules
 │   ├── desktop/       Electron main process and native IPC adapters
 │   ├── frontend/      React renderer, workflows, API client, and views
+│   ├── mobile/        Android app: Magic Academy UI over the backend's routes, in a Capacitor WebView
 │   └── runtime/       App-data paths and filesystem storage
 ├── shared/            Types and constants shared across process seams
 ├── tests/
 │   ├── backend/       Backend, persistence, sync, and route tests
 │   ├── desktop/       Electron lifecycle and IPC tests
-│   └── frontend/      Renderer, workflow, and view tests
+│   ├── frontend/      Renderer, workflow, and view tests
+│   └── mobile/        Android: in-app backend parity with Fastify, WASM SQLite, library file
 ├── docs/              Product, architecture, beginner, and planning docs
 │   └── adr/           Decision records: why the app is shaped the way it is
 ├── scripts/           Build helpers (bundle, afterPack) and the packaged smoke test
