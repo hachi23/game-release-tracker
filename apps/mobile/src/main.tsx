@@ -1,24 +1,34 @@
-import "../../frontend/src/fonts.css";
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/work-sans";
+import "@fontsource/caveat/700.css";
+import "./academy/theme.css";
+import "./academy/term";
+import { App as NativeApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import { createRoot } from "react-dom/client";
-import { AppShell } from "../../frontend/src/App";
-import { ErrorBoundary } from "../../frontend/src/ErrorBoundary";
 import { installImageFallback } from "../../frontend/src/ui/imageFallback";
-import { createMobileApiClient, prepareMobileDatabase } from "./mobileApiClient";
-import { asTrackerDatabase, openWasmDatabase } from "./wasmDatabase";
+import { AcademyApp } from "./academy/AcademyApp";
+import { bootMobileApp } from "./boot";
 
-// The Android entry: the desktop renderer, with the backend running in the page instead of a child process.
+// The Android app: the in-app backend (boot.ts) under the Magic Academy UI.
 async function main() {
   installImageFallback(document);
-  const db = asTrackerDatabase(await openWasmDatabase("local"));
-  prepareMobileDatabase(db);
-  const api = createMobileApiClient(db);
-  // The preview has no IGDB sync yet, so a new install starts with the sample library.
-  if (!(await api.getDemo()).loaded && (await api.listReleases()).items.length === 0) await api.loadDemo();
+  const app = await bootMobileApp();
+  let handleBack: () => boolean = () => false;
+  if (Capacitor.isNativePlatform()) {
+    void NativeApp.addListener("backButton", () => {
+      if (!handleBack()) void NativeApp.minimizeApp();
+    });
+  }
   createRoot(document.getElementById("root")!).render(
-    <ErrorBoundary api={api}>
-      <AppShell apiBaseUrl="" api={api} />
-    </ErrorBoundary>
+    <AcademyApp
+      api={app.api}
+      registerOpenRelease={open => { app.onOpenRelease = open; }}
+      onBackButton={handler => { handleBack = handler; }}
+    />
   );
 }
 
-void main();
+void main().catch(error => {
+  document.getElementById("root")!.textContent = `The app couldn't open its library: ${error instanceof Error ? error.message : String(error)}`;
+});

@@ -86,14 +86,15 @@ function withQuery(path: string, params: Record<string, string | number | boolea
 }
 
 // apiToken is the desktop app's per-launch secret; the backend refuses /api calls without it.
-export function createApiClient(baseUrl: string, apiToken?: string): ApiClient {
+// fetcher defaults to the browser's fetch; the Android app passes its in-app backend instead.
+export function createApiClient(baseUrl: string, apiToken?: string, fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init)): ApiClient {
   const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
     const headers = {
       ...(init?.body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(apiToken ? { [API_TOKEN_HEADER]: apiToken } : {}),
       ...init?.headers as Record<string, string> | undefined
     };
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetcher(`${baseUrl}${path}`, {
       ...init,
       headers: Object.keys(headers).length ? headers : undefined
     });

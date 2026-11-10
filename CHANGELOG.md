@@ -4,8 +4,9 @@ What changed in each version, in plain language.
 
 ## Unreleased
 
-**Android preview (proof of concept)**
-- `apps/mobile` builds an Android APK (`npm run android:apk`) that opens the Upcoming list, game pages and the Completed Library with the sample library. The backend's own stores run inside the app on SQLite compiled to WebAssembly; there is no IGDB sync, editing or phone layout yet. The desktop app is unchanged.
+**Android app (preview)**
+- `npm run android:apk` builds an Android app with every screen: Upcoming, Calendar, Completed Library, Randomizer, Year in Review and Settings, with IGDB sync and search, editing, and notifications for watched games. It runs the desktop app's own backend inside the app and keeps the library in one file on the phone.
+- It has its own look, the **Magic Academy** notebook, with **Day Term** and **Night Study** (a candlelit dark mode). Game pages and Year in Review are working pages until their designs are chosen. The desktop app is unchanged.
 
 ## 0.7.0
 

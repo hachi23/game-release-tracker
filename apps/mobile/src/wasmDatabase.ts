@@ -3,7 +3,8 @@ import type { TrackerDatabase } from "../../backend/src/database/db";
 
 // The part of better-sqlite3's interface the backend uses, on top of the official SQLite WASM build
 // (which, unlike sql.js, includes FTS5). Statements run synchronously, as they do on the desktop, so
-// backend stores and actions run unchanged.
+// backend stores and actions run unchanged. The database lives in memory; libraryFile.ts saves its
+// bytes (export()) after each committed write and loads them at start.
 
 type Params = unknown[];
 
@@ -15,6 +16,7 @@ export interface WasmDatabase {
   prepare(sql: string): WasmStatement;
   pragma(source: string, options?: { simple?: boolean }): unknown;
   transaction<F extends (...args: never[]) => unknown>(fn: F): F;
+  export(): Uint8Array;
   close(): void;
 }
 
@@ -27,12 +29,17 @@ interface WasmStatement {
 let sqlite3: Promise<Sqlite3Static> | null = null;
 export const loadSqlite = () => (sqlite3 ??= sqlite3InitModule());
 
-// "local" keeps the library in the WebView's localStorage (kvvfs), which survives restarts; ":memory:" is for tests.
-export async function openWasmDatabase(storage: "local" | ":memory:"): Promise<WasmDatabase> {
+// Opens an in-memory database, from a saved library's bytes when given. onCommit runs after every write
+// that is committed (a statement outside a transaction, or the outermost transaction's commit).
+export async function openWasmDatabase(bytes?: Uint8Array, onCommit: () => void = () => undefined): Promise<WasmDatabase> {
   const s = await loadSqlite();
-  const JsStorageDb = (s.oo1 as { JsStorageDb?: new (name: string) => WasmDb }).JsStorageDb;
-  const db = storage === "local" && JsStorageDb ? new JsStorageDb("local") : new s.oo1.DB(":memory:");
-  return wrapDatabase(s, db, storage === "local" && Boolean(JsStorageDb));
+  const db = new s.oo1.DB(":memory:");
+  if (bytes?.byteLength) {
+    const pointer = s.wasm.allocFromTypedArray(bytes);
+    const flags = s.capi.SQLITE_DESERIALIZE_FREEONCLOSE | s.capi.SQLITE_DESERIALIZE_RESIZEABLE;
+    db.checkRc(s.capi.sqlite3_deserialize(db.pointer!, "main", pointer, bytes.byteLength, bytes.byteLength, flags));
+  }
+  return wrapDatabase(s, db, onCommit);
 }
 
 // Converts better-sqlite3 arguments to a sqlite-wasm binding. better-sqlite3 takes positional values
@@ -62,7 +69,7 @@ function bindValue(value: unknown) {
   return value;
 }
 
-function wrapDatabase(s: Sqlite3Static, db: WasmDb, persistent: boolean): WasmDatabase {
+function wrapDatabase(s: Sqlite3Static, db: WasmDb, onCommit: () => void): WasmDatabase {
   let depth = 0;
 
   const withStatement = <T>(sql: string, params: Params, use: (stmt: ReturnType<WasmDb["prepare"]>) => T): T => {
@@ -77,13 +84,15 @@ function wrapDatabase(s: Sqlite3Static, db: WasmDb, persistent: boolean): WasmDa
   };
 
   const wrapped: WasmDatabase = {
-    name: persistent ? "local" : "",
-    memory: !persistent,
+    // No file name: migrations skip the desktop's on-disk backup copy.
+    name: "",
+    memory: true,
     get inTransaction() {
       return depth > 0;
     },
     exec(sql) {
       db.exec(sql);
+      if (depth === 0) onCommit();
       return wrapped;
     },
     prepare(sql) {
@@ -96,6 +105,7 @@ function wrapDatabase(s: Sqlite3Static, db: WasmDb, persistent: boolean): WasmDa
         }),
         run: (...params) => withStatement(sql, params, stmt => {
           stmt.step();
+          if (depth === 0) onCommit();
           return {
             changes: db.changes(),
             lastInsertRowid: Number(s.capi.sqlite3_last_insert_rowid(db))
@@ -119,6 +129,7 @@ function wrapDatabase(s: Sqlite3Static, db: WasmDb, persistent: boolean): WasmDa
           const result = fn(...args);
           depth -= 1;
           db.exec(depth === 0 ? "commit" : `release ${savepoint}`);
+          if (depth === 0) onCommit();
           return result;
         } catch (error) {
           depth -= 1;
@@ -126,6 +137,9 @@ function wrapDatabase(s: Sqlite3Static, db: WasmDb, persistent: boolean): WasmDa
           throw error;
         }
       }) as typeof fn;
+    },
+    export() {
+      return s.capi.sqlite3_js_db_export(db);
     },
     close() {
       db.close();

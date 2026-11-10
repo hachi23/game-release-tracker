@@ -1,0 +1,419 @@
+/* The Magic Academy look for the Android app: a navy uniform backdrop with gold trim, the app drawn as an
+   open notebook (parchment, ruled lines, a red margin), handwritten notes in Caveat, taped polaroid
+   covers, and coloured bookmark ribbons for navigation.
+
+   Two terms share one set of tokens:
+   - Day Term: parchment in daylight.
+   - Night Study: the same notebook by candlelight. Surfaces are tinted midnight indigo (never pure
+     black), raised paper gets lighter rather than shadowed, text is warm cream (never pure white), and
+     the inks are lighter, softer versions of the day inks so they don't vibrate on dark paper. */
+
+:root,
+:root[data-term="day"] {
+  color-scheme: light;
+  --uniform: #141d33;
+  --uniform-weave: rgba(255, 255, 255, 0.025);
+  --uniform-raised: #233257;
+  --uniform-text: #ede6d3;
+  --uniform-muted: #c7cedf;
+  --gold: #d3b26a;
+  --gold-strong: #b8934a;
+  --page: #f5efdf;
+  --page-glow: transparent;
+  --sheet: #fffdf6;
+  --sheet-raised: #ffffff;
+  --ink: #1e2433;
+  --ink-muted: #4a5164;
+  --ink-faint: #61677a;
+  --blue: #1f4e8c;
+  --blue-ink: #1f3b66;
+  --red: #b03c34;
+  --red-soft: rgba(176, 60, 52, 0.12);
+  --rule: rgba(31, 78, 140, 0.22);
+  --margin: rgba(176, 60, 52, 0.45);
+  --chip: #e3e9f4;
+  --chip-ink: #1f3b66;
+  --sticky: #fff6c9;
+  --sticky-ink: #3a3320;
+  --tape: rgba(214, 196, 140, 0.75);
+  --polaroid: #ffffff;
+  --spine: rgba(60, 45, 20, 0.22);
+  --shadow: rgba(0, 0, 0, 0.22);
+  --button-ink: #f5efdf;
+  --ribbon-1: #2c4f86;
+  --ribbon-2: #2e6b57;
+  --ribbon-3: #8c6a1e;
+  --ribbon-4: #25707a;
+  --ribbon-5: #9a3b30;
+  --ribbon-6: #4d5a70;
+  --ribbon-text: #ffffff;
+}
+
+:root[data-term="night"] {
+  color-scheme: dark;
+  --uniform: #0b1020;
+  --uniform-weave: rgba(211, 178, 106, 0.035);
+  --uniform-raised: #18223f;
+  --uniform-text: #ece3cc;
+  --uniform-muted: #a9b2c9;
+  --gold: #e2c27e;
+  --gold-strong: #e8cc8e;
+  --page: #211f2e;
+  --page-glow: rgba(226, 194, 126, 0.09);
+  --sheet: #2a2839;
+  --sheet-raised: #343247;
+  --ink: #ede4cf;
+  --ink-muted: #bab3a2;
+  --ink-faint: #9c968a;
+  --blue: #9db8ee;
+  --blue-ink: #b2c7f2;
+  --red: #f08a7a;
+  --red-soft: rgba(240, 138, 122, 0.14);
+  --rule: rgba(211, 178, 106, 0.15);
+  --margin: rgba(240, 138, 122, 0.32);
+  --chip: #2e3754;
+  --chip-ink: #c9d6f5;
+  --sticky: #3b3322;
+  --sticky-ink: #f1e2a6;
+  --tape: rgba(211, 178, 106, 0.32);
+  --polaroid: #cfc5ae;
+  --spine: rgba(0, 0, 0, 0.35);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --button-ink: #1b1a26;
+  --ribbon-1: #4a6ba6;
+  --ribbon-2: #357561;
+  --ribbon-3: #82672b;
+  --ribbon-4: #2e7680;
+  --ribbon-5: #b0574b;
+  --ribbon-6: #5c6882;
+  --ribbon-text: #fbf6ea;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--uniform);
+  color: var(--ink);
+  font: 15px/1.45 "Work Sans Variable", "Work Sans", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-image: repeating-linear-gradient(45deg, var(--uniform-weave) 0 2px, transparent 2px 14px);
+  background-attachment: fixed;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+img { display: block; max-width: 100%; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.hand { font-family: "Caveat", cursive; font-weight: 700; }
+.display { font-family: "Fraunces Variable", "Fraunces", Georgia, serif; }
+
+/* ---------- shell ---------- */
+
+.academy {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+}
+
+.crest-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  color: var(--uniform-text);
+  padding: 0 4px 8px;
+}
+.crest-bar .name { font: 700 19px/1.1 "Fraunces Variable", serif; }
+.crest-bar .edition { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+.crest-bar .date { margin-left: auto; font: 700 18px "Caveat", cursive; color: var(--uniform-muted); white-space: nowrap; }
+
+.book {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  background: var(--page);
+  background-image: radial-gradient(circle at 12% 0%, var(--page-glow), transparent 55%);
+  border-radius: 6px 10px 0 0;
+  box-shadow: 0 0 0 6px var(--uniform-raised), 0 0 0 8px var(--gold), 0 24px 50px var(--shadow);
+  margin: 8px 8px 0;
+}
+
+.page {
+  flex: 1;
+  min-width: 0;
+  padding: 18px 16px calc(120px + env(safe-area-inset-bottom));
+}
+
+/* ---------- ribbons (navigation) ---------- */
+
+.ribbons {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  padding: 0 max(10px, env(safe-area-inset-left)) env(safe-area-inset-bottom) max(10px, env(safe-area-inset-right));
+  background: linear-gradient(transparent, var(--uniform) 35%);
+  pointer-events: none;
+}
+.ribbon {
+  pointer-events: auto;
+  min-height: 64px;
+  border: 0;
+  padding: 10px 2px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  background: var(--ribbon-color);
+  color: var(--ribbon-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
+  box-shadow: 0 -2px 6px var(--shadow);
+  transform: translateY(8px);
+  transition: transform 0.18s ease;
+  cursor: pointer;
+}
+.ribbon svg { width: 20px; height: 20px; }
+.ribbon[aria-current="page"] {
+  background: var(--page);
+  color: var(--ink);
+  transform: translateY(-6px);
+  font-weight: 700;
+}
+
+/* A tablet or a phone on its side: the open book, ribbons down the right edge. */
+@media (min-width: 900px) {
+  .academy { padding: 14px 72px 24px 32px; }
+  .book { border-radius: 6px 10px 10px 6px; margin: 8px 8px 0; }
+  .book.spread::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    margin-left: -30px;
+    background: linear-gradient(90deg, transparent, var(--spine) 48%, var(--spine) 52%, transparent);
+    pointer-events: none;
+  }
+  .page { padding: 28px 36px 36px; }
+  .ribbons {
+    position: absolute;
+    left: auto;
+    right: -64px;
+    top: 24px;
+    bottom: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0;
+    background: none;
+  }
+  .ribbon {
+    width: 54px;
+    min-height: 100px;
+    writing-mode: vertical-rl;
+    flex-direction: row;
+    padding: 12px 0;
+    font-size: 13px;
+    clip-path: none;
+    border-radius: 0 8px 8px 0;
+    transform: none;
+  }
+  .ribbon svg { display: none; }
+  .ribbon[aria-current="page"] { width: 64px; margin-left: -10px; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---------- type and page furniture ---------- */
+
+.page-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.page-head h1 { margin: 0 auto 0 0; font: 800 30px/1.05 "Fraunces Variable", serif; }
+.page-note { font: 700 19px/1.2 "Caveat", cursive; color: var(--blue); }
+
+.btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 22px;
+  border: 1.5px solid var(--ink);
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.btn.solid { background: var(--ink); color: var(--page); border-color: var(--ink); }
+.btn.ribbon-blue { background: var(--blue); color: var(--button-ink); border-color: var(--blue); }
+.btn.danger { border-color: var(--red); color: var(--red); }
+.btn.small { min-height: 36px; padding: 0 14px; font-size: 13px; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.icon-btn { min-width: 44px; padding: 0; }
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field > span { font-size: 12px; font-weight: 700; color: var(--ink-muted); letter-spacing: 0.04em; }
+.input {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 22px;
+  background: var(--sheet);
+  color: var(--ink);
+  width: 100%;
+}
+textarea.input { border-radius: 14px; padding: 10px 14px; min-height: 90px; resize: vertical; }
+.search { display: flex; align-items: center; gap: 8px; }
+.search .input { flex: 1; }
+
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.check input { width: 20px; height: 20px; accent-color: var(--blue); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 17px;
+  border: 1.5px solid var(--rule);
+  background: var(--chip);
+  color: var(--chip-ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--button-ink); }
+.tag { display: inline-block; padding: 3px 10px; border-radius: 12px; background: var(--chip); color: var(--chip-ink); font-size: 12px; font-weight: 700; }
+
+/* Ruled notebook paper with a red margin line. */
+.ruled {
+  position: relative;
+  padding-left: 30px;
+  background-image: repeating-linear-gradient(180deg, transparent 0 43px, var(--rule) 43px 44px);
+}
+.ruled::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--margin);
+}
+.ruled h2 { margin: 0; height: 44px; line-height: 52px; font: 700 24px "Caveat", cursive; color: var(--blue); }
+.line-row {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 0 4px 7px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.line-row .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.line-row[aria-selected="true"] .title { font-weight: 700; }
+.line-row .when { font: 700 19px/1 "Caveat", cursive; color: var(--blue-ink); white-space: nowrap; }
+.line-row .when.soon { color: var(--red); }
+.line-row .star { color: var(--gold-strong); font-size: 14px; }
+
+/* Taped polaroid. */
+.polaroid {
+  position: relative;
+  background: var(--polaroid);
+  padding: 6px 6px 22px;
+  box-shadow: 0 6px 14px var(--shadow);
+}
+.polaroid img, .polaroid .blank { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--chip); }
+.polaroid.wide img, .polaroid.wide .blank { aspect-ratio: 16 / 9; }
+.polaroid .caption { position: absolute; left: 8px; right: 8px; bottom: 2px; font: 700 15px/1.1 "Caveat", cursive; color: var(--blue-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tape { position: absolute; top: -10px; left: 50%; width: 68px; height: 22px; margin-left: -34px; background: var(--tape); transform: rotate(3deg); }
+.grade {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--red);
+  color: var(--button-ink);
+  display: grid;
+  place-items: center;
+  font: 700 19px "Caveat", cursive;
+}
+
+.sticky {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--sticky);
+  color: var(--sticky-ink);
+  font: 700 20px/1.25 "Caveat", cursive;
+  box-shadow: 0 4px 10px var(--shadow);
+  transform: rotate(0.6deg);
+}
+
+.circled { position: relative; display: inline-grid; place-items: center; min-width: 120px; height: 80px; padding: 0 18px; }
+.circled svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.circled span { position: relative; font: 700 32px/1 "Caveat", cursive; color: var(--red); }
+
+.sheet { background: var(--sheet); border-radius: 10px; padding: 14px; box-shadow: 0 2px 0 var(--rule); }
+.stat { padding: 10px 12px; border: 1.5px solid var(--ink); border-radius: 8px; }
+.stat b { display: block; font: 800 30px/1 "Fraunces Variable", serif; }
+.stat span { color: var(--ink-muted); font-size: 13px; }
+
+.notice {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: max(12px, env(safe-area-inset-top));
+  z-index: 40;
+  margin: 0 auto;
+  max-width: 520px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.notice .sticky { flex: 1; transform: rotate(-0.8deg); }
+
+.muted { color: var(--ink-muted); }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grid-covers { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 22px 16px; }
+.grid-covers > button { border: 0; padding: 0; background: none; text-align: left; color: inherit; cursor: pointer; }
+.two-pages { display: grid; gap: 24px; }
+@media (min-width: 900px) {
+  .two-pages { grid-template-columns: 1fr 1fr; gap: 60px; }
+}
+.scroller { display: flex; gap: 14px; overflow-x: auto; padding: 14px 4px 10px; scroll-snap-type: x mandatory; }
+.scroller > * { flex: none; scroll-snap-align: start; }
+.back { min-height: 44px; border: 0; background: none; color: var(--blue); font: 700 20px "Caveat", cursive; padding: 0; cursor: pointer; }
+.empty { padding: 28px 8px; text-align: center; }
+.empty p { font: 700 22px/1.25 "Caveat", cursive; color: var(--blue); margin: 0 0 14px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Grid and flex children shrink to the page instead of growing to fit their content (a long title, the
+   screenshot strip), so nothing pushes the page wider than the phone. */
+.two-pages > *, .stack, .book, .page { min-width: 0; }
+.page { overflow-x: clip; }
+.scroller { max-width: 100%; }
