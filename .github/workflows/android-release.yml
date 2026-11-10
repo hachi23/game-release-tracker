@@ -1,9 +1,20 @@
 name: Android release
 
-# Pushing a tag like android-v0.7.0-preview.1 builds the Android app (apps/mobile) and publishes the APK
-# as a GitHub pre-release. Running it by hand with a tag does the same from the chosen branch; without a
-# tag it only builds and uploads the APK as a workflow artifact. Desktop releases use release.yml (v* tags).
+# Builds the Android app (apps/mobile) and publishes the APK as a GitHub pre-release:
+# - a pull request that touches the app publishes android-v<version>-preview.pr<number>, updated on every push;
+# - pushing a tag like android-v0.7.0-preview.1 publishes that release;
+# - running it by hand with a tag does the same from the chosen branch; without a tag it only uploads the
+#   APK as a workflow artifact.
+# Desktop releases use release.yml (v* tags).
 on:
+  pull_request:
+    paths:
+      - "apps/**"
+      - "shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.ts"
+      - ".github/workflows/android-release.yml"
   push:
     tags: ["android-v*"]
   workflow_dispatch:
@@ -18,6 +29,7 @@ permissions:
 
 env:
   RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
+  RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   apk:
@@ -29,6 +41,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Release tag for a pull request
+        if: github.event_name == 'pull_request'
+        run: echo "RELEASE_TAG=android-v$(node -p "require('./package.json').version")-preview.pr${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
@@ -69,7 +84,7 @@ jobs:
         if: env.RELEASE_TAG != ''
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ env.RELEASE_SHA }}
           name: Game Release Tracker for Android ${{ env.RELEASE_TAG }}
           body_path: release-notes.md
           prerelease: true
