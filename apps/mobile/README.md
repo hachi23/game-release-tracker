@@ -58,6 +58,10 @@ cards rise in, numbers count up and bars grow, with drifting particles per chapt
 campuses and grades open a shelf of their games; Commencement picks the Game of the Year and plays the
 theme song, which keeps playing across chapters. Cards with no data are left out, as on the desktop.
 
+The Completed page pins the finished games up as graded polaroids under a heading for the month they were
+finished, newest first and undated games last. It uses the desktop's own grouping
+(`apps/frontend/src/completedGroups.ts`), so both apps sort the same way.
+
 A finished game's page is the **Dorm Corkboard**: the cover pinned up with a red grade tag, ten pushpins to
 grade it (tap again for the half point), sticky notes for a one-line verdict and notes, a favourite moment
 pinned from the game's screenshots with a caption, "Play it again?" tags, and red string to the games finished

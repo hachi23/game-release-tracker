@@ -8,6 +8,7 @@ What changed in each version, in plain language.
 - `npm run android:apk` builds an Android app with every screen: Upcoming, Calendar, Completed Library, Randomizer, Year in Review and Settings, with IGDB sync and search, editing, and notifications for watched games. It runs the desktop app's own backend inside the app and keeps the library in one file on the phone.
 - It has its own look, the **Magic Academy** notebook, with **Day Term** and **Night Study** (a candlelit dark mode). An upcoming game's page is the Spellbook Entry, and Year in Review is the animated Yearbook (five chapters with page-turn wipes, tap-to-open shelves and a Game of the Year finale). Finished-game pages are the Dorm Corkboard: pin your grade, a one-line verdict, a favourite moment from the game's screenshots, "Play it again?", and string to the games you finished just before and after.
 - **Settings → Your library → Import from the desktop app** brings your desktop library onto the phone (close the desktop app, copy `game-release-tracker.db` over, pick it). **Save a copy** backs the phone's library up to Documents.
+- The Completed page groups finished games by the month you finished them, newest month first, with undated games at the end, the same as the desktop's Completed Library.
 - Finished games keep three new diary fields, shared with the desktop: a one-line verdict, a favourite moment and whether you'd play it again. The desktop app is unchanged.
 
 ## 0.7.0

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CompletedGameListItem } from "../../../../../shared/types";
 import { igdbCoverSrc } from "../../../../frontend/src/artwork";
+import { groupCompletedGames } from "../../../../frontend/src/completedGroups";
 import type { AcademyContext } from "../AcademyApp";
 import { ratingLabel } from "../format";
 import { Empty, Icon, Polaroid } from "../ui";
 
-// Completed: the finished games pinned up as graded polaroids, newest first, filterable by year.
+// Completed: the finished games pinned up as graded polaroids under a heading for the month they were
+// finished, newest month first and undated games last (the desktop's grouping), filterable by year.
 
 const TILTS = [-2, 1.5, -1, 2, -1.5, 1, -2, 1.5];
 
@@ -34,6 +36,7 @@ export function CompletedView({ context }: { context: AcademyContext }) {
     const thisYear = today.getFullYear();
     return [thisYear, thisYear - 1, thisYear - 2].map(String);
   }, [today]);
+  const groups = useMemo(() => groupCompletedGames(items ?? []), [items]);
   const thisYearCount = items?.filter(item => item.completionYear === today.getFullYear()).length ?? 0;
 
   const add = async () => {
@@ -73,14 +76,19 @@ export function CompletedView({ context }: { context: AcademyContext }) {
         {years.map(value => <button key={value} type="button" className="chip" aria-pressed={year === value} onClick={() => setYear(value)}>{value}</button>)}
       </div>
       {items?.length === 0 ? <Empty>No finished games here yet.</Empty> : null}
-      <div className="grid-covers" style={{ paddingTop: 8 }}>
-        {items?.map((item, index) => (
-          <button key={item.id} type="button" onClick={() => openCompleted(item.id)} aria-label={`${item.title}, rated ${ratingLabel(item.ratingScore, item.ratingRaw)}`}>
-            <Polaroid src={item.coverImageId ? igdbCoverSrc(item.coverImageId, "big") : null} tilt={TILTS[index % TILTS.length]} grade={ratingLabel(item.ratingScore, item.ratingRaw)} />
-            <span style={{ display: "block", marginTop: 8, fontWeight: 600, fontSize: 13, lineHeight: 1.2 }}>{item.title}</span>
-          </button>
-        ))}
-      </div>
+      {groups.map(group => (
+        <section key={group.key} className="completed-month" aria-label={group.heading}>
+          <h2>{group.heading}</h2>
+          <div className="grid-covers">
+            {group.items.map((item, index) => (
+              <button key={item.id} type="button" onClick={() => openCompleted(item.id)} aria-label={`${item.title}, rated ${ratingLabel(item.ratingScore, item.ratingRaw)}`}>
+                <Polaroid src={item.coverImageId ? igdbCoverSrc(item.coverImageId, "big") : null} tilt={TILTS[index % TILTS.length]} grade={ratingLabel(item.ratingScore, item.ratingRaw)} />
+                <span style={{ display: "block", marginTop: 8, fontWeight: 600, fontSize: 13, lineHeight: 1.2 }}>{item.title}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
     </section>
   );
 }
