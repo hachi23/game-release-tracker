@@ -1,8 +1,10 @@
 # Game Release Tracker
 
-**A desktop app for people who play a lot of games.** It keeps track of the upcoming games from the publishers you follow, keeps a journal of the games you finish, picks something new to play when you can't decide, and turns your year of gaming into a visual recap.
+**A local-first data product for people who play a lot of games.** It turns a public games database into answers its user acts on: what's coming out from the publishers they follow, which watched games just got delayed, what to play next, and what their year of playing looked like.
 
-Everything runs on your own computer. There is no account, no cloud and no tracking.
+People who follow releases closely tend to track them in spreadsheets, wishlists and bookmarks, and those don't notice when a date moves. This app syncs release data, notices every date change, alerts the user about the games they watch, and keeps a journal of what they finish that becomes a shareable yearly recap.
+
+Everything runs on your own computer. There is no account, no cloud and no tracking, and that is a deliberate product decision ([why](docs/adr/0001-local-first-desktop-app.md)).
 
 [![CI](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/hachi23/game-release-tracker/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/hachi23/game-release-tracker)](https://github.com/hachi23/game-release-tracker/releases/latest)
@@ -16,8 +18,10 @@ Everything runs on your own computer. There is no account, no cloud and no track
 
 | | |
 |---|---|
-| **What** | A local-first desktop app: syncs release data from a public API (IGDB) into a local database, keeps a personal journal, and turns it into a yearly analytics recap |
-| **My role** | Product owner and director: idea, every feature specification, data rules, design decisions, review and testing. Code written by AI coding agents from my specifications ([details below](#my-role-and-how-it-was-built)) |
+| **Problem** | Release dates move all the time, and the tools people use to follow them (spreadsheets, store wishlists) don't say when, or by how much |
+| **Product** | A local-first desktop app: syncs release data from a public API (IGDB) into a local database, tracks every date change, alerts on watched games, keeps a personal journal, and turns it into a yearly analytics recap |
+| **My role** | Product owner and director: problem, every feature specification, data rules, design decisions, release gates, review and testing. Code written by AI coding agents from my specifications ([details below](#my-role-and-how-it-was-built)) |
+| **Product thinking** | [Product brief](docs/PRODUCT_BRIEF.md): users, alternatives, positioning, success measures, roadmap. [Case study](docs/CASE_STUDY.md): how one data problem became a feature |
 | **Built with** | Electron, React, TypeScript, Fastify, SQLite, Vitest, GitHub Actions |
 | **Quality** | 575 automated tests in 81 files; every change on GitHub runs the tests, builds the app, and starts the packaged app as a new user to open every screen |
 | **Shipped** | Public releases with a Windows installer, a Linux `.deb` and an AppImage |
@@ -150,6 +154,8 @@ flowchart LR
 |---|---|
 | Anyone using the app | [User Guide](docs/USER_GUIDE.md) |
 | Anyone curious how it works, no coding needed | [How it works](docs/HOW_IT_WORKS.md) |
+| Who it's for, what it competes with, how success is measured | [Product brief](docs/PRODUCT_BRIEF.md) |
+| One product problem from bug report to shipped feature | [Case study](docs/CASE_STUDY.md) |
 | What changed in each version | [Changelog](CHANGELOG.md) |
 | Why it is built the way it is | [Decision records](docs/adr/) |
 | Developers: a guided tour of the code | [Review Guide](docs/REVIEW_GUIDE.md) |
