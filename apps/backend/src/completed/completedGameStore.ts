@@ -1,10 +1,10 @@
 import type { TrackerDatabase } from "../database/db";
 import type { CompletedGameFilters } from "../../../../shared/types";
+import { createCloudSyncStore, recordCompletedTombstone } from "../cloudSync/cloudSyncStore";
 import { normalizeText } from "../text/normalizeText";
 import { completedGameId, completedIdentityKey } from "./completedIdentity";
 import type { CompletedMetadataPatch } from "./completedIgdbMatcher";
-import { normalizeCompletedPersonalPatch, normalizeManualCompletion, type ManualCompletedGamePayload } from "./completedPersonalFields";
-import { parseRating } from "./completedRating";
+import { normalizeCompletedPersonalPatch, normalizeManualCompletion, resolveManualRatings, type ManualCompletedGamePayload } from "./completedPersonalFields";
 import { createCompletedReadModel } from "./completedReadModel";
 
 type CompletedEditResult = { ok: true } | { ok: false; reason: "not-found" | "conflict" };
@@ -20,11 +20,19 @@ interface IdentityRow {
 const personalColumns: Record<string, string> = {
   ratingRaw: "rating_raw",
   ratingScore: "rating_score",
+  ratingStory: "rating_story",
+  ratingCombat: "rating_combat",
+  ratingArt: "rating_art",
+  ratingPacing: "rating_pacing",
   completionDate: "completion_date",
   completionMonth: "completion_month",
   completionYear: "completion_year",
   completionPrecision: "completion_precision",
   notes: "notes",
+  verdict: "verdict",
+  favouriteShot: "favourite_shot",
+  favouriteCaption: "favourite_caption",
+  replay: "replay",
   developer: "developer",
   publisher: "publisher"
 };
@@ -116,7 +124,8 @@ export function createCompletedGameStore(db: TrackerDatabase) {
     for (const [key, column] of Object.entries(personalColumns)) {
       if (normalizedPatch[key] === undefined) continue;
       sets.push(`${column} = ?`);
-      params.push(normalizedPatch[key] === null ? null : String(normalizedPatch[key]));
+      const value = normalizedPatch[key];
+      params.push(value === null ? null : typeof value === "number" ? value : String(value));
     }
     if (normalizedPatch.genres !== undefined) {
       sets.push("genres_json = ?");
@@ -139,15 +148,21 @@ export function createCompletedGameStore(db: TrackerDatabase) {
       const identityKey = completedIdentityKey(title, userPlatform);
       const id = findByIdentity(identityKey)?.id ?? allocateId(title, userPlatform);
       const completion = normalizeManualCompletion(payload);
+      const ratings = resolveManualRatings(payload);
       db.prepare(`
         insert into completed_games (
-          id, title, normalized_title, user_platform, identity_key, platforms_json, rating_raw, rating_score,
+          id, title, normalized_title, user_platform, identity_key, platforms_json,
+          rating_raw, rating_score, rating_story, rating_combat, rating_art, rating_pacing,
           completion_date, completion_month, completion_year, completion_precision, notes, source_type, source_row_hash
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', '')
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', '')
         on conflict(identity_key) do update set
           title = excluded.title,
           rating_raw = coalesce(excluded.rating_raw, completed_games.rating_raw),
           rating_score = coalesce(excluded.rating_score, completed_games.rating_score),
+          rating_story = coalesce(excluded.rating_story, completed_games.rating_story),
+          rating_combat = coalesce(excluded.rating_combat, completed_games.rating_combat),
+          rating_art = coalesce(excluded.rating_art, completed_games.rating_art),
+          rating_pacing = coalesce(excluded.rating_pacing, completed_games.rating_pacing),
           completion_date = coalesce(excluded.completion_date, completed_games.completion_date),
           completion_month = coalesce(excluded.completion_month, completed_games.completion_month),
           completion_year = coalesce(excluded.completion_year, completed_games.completion_year),
@@ -161,14 +176,19 @@ export function createCompletedGameStore(db: TrackerDatabase) {
         userPlatform,
         identityKey,
         JSON.stringify(userPlatform ? [userPlatform] : []),
-        payload.ratingRaw ?? null,
-        parseRating(payload.ratingRaw),
+        ratings.ratingRaw,
+        ratings.ratingScore,
+        ratings.ratingStory,
+        ratings.ratingCombat,
+        ratings.ratingArt,
+        ratings.ratingPacing,
         completion.completionDate,
         completion.completionMonth,
         completion.completionYear,
         completion.completionPrecision,
         payload.notes ?? null
       );
+      createCloudSyncStore(db).clearCompletedDeletion(identityKey);
       return readModel.getByIdentity(identityKey)!;
     },
 
@@ -207,6 +227,7 @@ export function createCompletedGameStore(db: TrackerDatabase) {
       db.transaction(() => {
         db.prepare("delete from completed_match_overrides where identity_key = ?").run(row.identityKey);
         db.prepare("delete from completed_games where id = ?").run(id);
+        if (!id.startsWith("demo-")) recordCompletedTombstone(db, row.identityKey);
       })();
       return true;
     },

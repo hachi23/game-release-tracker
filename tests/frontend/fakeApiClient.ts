@@ -54,7 +54,11 @@ export function fakeApiClient(overrides: Partial<ApiClient> = {}): ApiClient & R
     getPreferences: async () => ({ palette: null, themeAutoplay: false }),
     savePalette: async palette => ({ palette }),
     saveThemeAutoplay: async themeAutoplay => ({ themeAutoplay }),
-    logEvent: async () => ({ ok: true })
+    logEvent: async () => ({ ok: true }),
+    getCloudSyncStatus: async () => ({ configured: false, gistId: null, autoSync: true, lastSyncedAt: null, lastStatus: "idle", lastSummary: null, lastError: null }),
+    saveCloudSyncConfig: async () => ({ configured: true, gistId: null, autoSync: true, lastSyncedAt: null, lastStatus: "idle", lastSummary: null, lastError: null }),
+    clearCloudSyncConfig: async () => ({ configured: false, gistId: null, autoSync: true, lastSyncedAt: null, lastStatus: "idle", lastSummary: null, lastError: null }),
+    runCloudSync: async () => ({ ok: true, status: { configured: true, gistId: "gist-1", autoSync: true, lastSyncedAt: "2026-11-25T12:00:00.000Z", lastStatus: "success", lastSummary: null, lastError: null } })
   };
   const merged = { ...defaults, ...overrides } as ApiClient;
   return Object.fromEntries(Object.entries(merged).map(([key, fn]) => [key, vi.fn(fn as (...args: unknown[]) => unknown)])) as never;

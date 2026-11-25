@@ -1,0 +1,348 @@
+import { useEffect, useRef, useState } from "react";
+import type { PreparedLibrary } from "../../libraryImport";
+import type { CloudSyncStatus, PlatformFamily, SettingsStatus, SyncSettings, TrackedPublisher } from "../../../../../shared/types";
+import type { AcademyContext } from "../AcademyApp";
+import type { DetailBgTint } from "../coverPalette";
+import { invalidateAllListCaches, invalidateUpcomingCache } from "../listCache";
+import type { TermChoice } from "../term";
+
+// Settings: Look (Day Term / Night Study, game cover tint, custom desk wallpaper), IGDB keys,
+// sync preferences, desktop library import/export, and sample library.
+
+const TERMS: Array<{ id: TermChoice; label: string; note: string }> = [
+  { id: "day", label: "Day Term", note: "Translucent parchment in daylight" },
+  { id: "night", label: "Night Study", note: "Midnight indigo glass by candlelight" },
+  { id: "system", label: "Match my phone", note: "Follows Android's dark theme" }
+];
+
+const TINTS: Array<{ id: DetailBgTint; label: string }> = [
+  { id: "40", label: "40% · Subtle" },
+  { id: "60", label: "60% · Medium" },
+  { id: "70", label: "70% · Rich" }
+];
+
+const PLATFORMS: Array<{ id: PlatformFamily; label: string }> = [
+  { id: "pc", label: "PC" },
+  { id: "xbox", label: "Xbox" },
+  { id: "playstation", label: "PlayStation" },
+  { id: "switch", label: "Nintendo" }
+];
+
+export function SettingsView({ context }: { context: AcademyContext }) {
+  const { api, library, term, setTerm, detailTint, setDetailTint, wallpaper, setWallpaperFromFile, clearWallpaper, fail, notify } = context;
+  const picker = useRef<HTMLInputElement>(null);
+  const wallpaperPicker = useRef<HTMLInputElement>(null);
+  const [incoming, setIncoming] = useState<PreparedLibrary | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const pickFile = async (file: File | undefined) => {
+    if (!file || !library) return;
+    setBusy(true);
+    try {
+      setIncoming(await library.inspect(new Uint8Array(await file.arrayBuffer())));
+    } catch (error) {
+      fail(error);
+    } finally {
+      setBusy(false);
+      if (picker.current) picker.current.value = "";
+    }
+  };
+
+  const pickWallpaper = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      await setWallpaperFromFile(file);
+      notify("Desk wallpaper updated.");
+    } catch (error) {
+      fail(error);
+    } finally {
+      if (wallpaperPicker.current) wallpaperPicker.current.value = "";
+    }
+  };
+
+  const [status, setStatus] = useState<SettingsStatus | null>(null);
+  const [sync, setSync] = useState<SyncSettings | null>(null);
+  const [cloud, setCloud] = useState<CloudSyncStatus | null>(null);
+  const [cloudToken, setCloudToken] = useState("");
+  const [cloudGistId, setCloudGistId] = useState("");
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [keys, setKeys] = useState({ IGDB_CLIENT_ID: "", IGDB_CLIENT_SECRET: "" });
+  const [publisherQuery, setPublisherQuery] = useState("");
+  const [publisherResults, setPublisherResults] = useState<TrackedPublisher[]>([]);
+  const [sample, setSample] = useState(false);
+
+  useEffect(() => {
+    api.getSettings().then(setStatus).catch(fail);
+    api.getSyncSettings().then(setSync).catch(fail);
+    api.getCloudSyncStatus().then(next => { setCloud(next); setCloudGistId(next.gistId ?? ""); }).catch(() => undefined);
+    api.getDemo().then(answer => setSample(answer.loaded)).catch(() => undefined);
+  }, [api, fail]);
+
+  const saveCloudConfig = async () => {
+    setCloudBusy(true);
+    try {
+      const next = await api.saveCloudSyncConfig({
+        ...(cloudToken.trim() ? { token: cloudToken.trim() } : {}),
+        gistId: cloudGistId.trim()
+      });
+      setCloud(next);
+      setCloudToken("");
+      setCloudGistId(next.gistId ?? "");
+      notify("Cloud sync settings saved.");
+    } catch (error) {
+      fail(error);
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const runCloudSyncNow = async () => {
+    if (cloudBusy) return;
+    setCloudBusy(true);
+    try {
+      if (cloudToken.trim() || cloudGistId.trim() !== (cloud?.gistId ?? "")) {
+        const saved = await api.saveCloudSyncConfig({
+          ...(cloudToken.trim() ? { token: cloudToken.trim() } : {}),
+          gistId: cloudGistId.trim()
+        });
+        setCloud(saved);
+        setCloudToken("");
+      }
+      const result = await api.runCloudSync();
+      setCloud(result.status);
+      if (result.status.gistId) setCloudGistId(result.status.gistId);
+      if (result.ok) {
+        invalidateAllListCaches();
+        window.dispatchEvent(new CustomEvent("grt:cloud-synced"));
+        const s = result.summary;
+        const pulled = (s?.pulledCompleted ?? 0) + (s?.pulledReleases ?? 0) + (s?.pulledWatchlist ?? 0) + (s?.pulledPublishers ?? 0);
+        const pushed = (s?.pushedCompleted ?? 0) + (s?.pushedReleases ?? 0);
+        notify(`Synced with GitHub Gist (${pulled} pulled, ${pushed} pushed).`);
+        api.getSyncSettings().then(setSync).catch(() => undefined);
+      } else {
+        fail(new Error(result.error ?? "Cloud sync failed."));
+      }
+    } catch (error) {
+      fail(error);
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const run = async <T,>(work: () => Promise<T>, done?: (value: T) => void) => {
+    try {
+      const value = await work();
+      done?.(value);
+    } catch (error) {
+      fail(error);
+    }
+  };
+
+  const saveKeys = () => run(() => api.patchSettings(Object.fromEntries(Object.entries(keys).filter(([, value]) => value.trim()))), answer => {
+    setStatus(answer.settings);
+    setKeys({ IGDB_CLIENT_ID: "", IGDB_CLIENT_SECRET: "" });
+    notify("IGDB keys saved.");
+  });
+  const updateSync = (patch: Parameters<typeof api.updateSyncSettings>[0]) => run(
+    () => api.updateSyncSettings(patch),
+    next => {
+      invalidateUpcomingCache();
+      setSync(next);
+    }
+  );
+  const togglePlatform = (id: PlatformFamily) => {
+    if (!sync) return;
+    const next = sync.platforms.includes(id) ? sync.platforms.filter(value => value !== id) : [...sync.platforms, id];
+    if (next.length) void updateSync({ platforms: next });
+  };
+
+  return (
+    <div className="two-pages">
+      <section className="stack">
+        <div className="page-head"><h1>Settings</h1></div>
+
+        <h2 className="display" style={{ margin: 0, fontSize: 20 }}>Look & Glass</h2>
+        <div className="stack" role="radiogroup" aria-label="Look" style={{ gap: 8 }}>
+          {TERMS.map(option => (
+            <label key={option.id} className="check sheet" style={{ padding: "9px 14px" }}>
+              <input type="radio" name="term" checked={term === option.id} onChange={() => setTerm(option.id)} />
+              <span><b>{option.label}</b><br /><span className="muted" style={{ fontSize: 12.5 }}>{option.note}</span></span>
+            </label>
+          ))}
+        </div>
+
+        <div className="sheet stack" style={{ gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Game page cover tint</span>
+          <span className="muted" style={{ fontSize: 12.5 }}>
+            Opened game pages subtly pull colours from their cover art over frosted glass.
+          </span>
+          <div className="chips">
+            {TINTS.map(option => (
+              <button
+                key={option.id}
+                type="button"
+                className="chip"
+                aria-pressed={detailTint === option.id}
+                onClick={() => setDetailTint(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="sheet stack" style={{ gap: 8 }}>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Desk wallpaper</span>
+          <span className="muted" style={{ fontSize: 12.5 }}>
+            Shows crisp and unblurred behind the translucent notebook, like on desktop.
+          </span>
+          <input ref={wallpaperPicker} type="file" accept="image/*" className="sr-only" onChange={event => void pickWallpaper(event.target.files?.[0])} />
+          <div className="row">
+            <button type="button" className="btn small solid" onClick={() => wallpaperPicker.current?.click()}>
+              {wallpaper ? "Change wallpaper" : "Choose wallpaper"}
+            </button>
+            {wallpaper ? (
+              <button type="button" className="btn small" onClick={() => { clearWallpaper(); notify("Wallpaper removed."); }}>
+                Remove
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <h2 className="display" style={{ margin: "6px 0 0", fontSize: 20 }}>IGDB keys</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+          {status?.credentialStatus.status === "ready" ? "Keys saved." : "Add a Twitch app's client ID and secret (dev.twitch.tv) to sync releases and search IGDB."}
+          {" "}Keys stay in this app's private storage on your phone.
+        </p>
+        <label className="field"><span>Client ID</span><input className="input" autoComplete="off" value={keys.IGDB_CLIENT_ID} placeholder={status?.credentials.IGDB_CLIENT_ID.saved ? "Saved" : ""} onChange={event => setKeys({ ...keys, IGDB_CLIENT_ID: event.target.value })} /></label>
+        <label className="field"><span>Client secret</span><input className="input" type="password" autoComplete="off" value={keys.IGDB_CLIENT_SECRET} placeholder={status?.credentials.IGDB_CLIENT_SECRET.saved ? "Saved" : ""} onChange={event => setKeys({ ...keys, IGDB_CLIENT_SECRET: event.target.value })} /></label>
+        <div className="row">
+          <button type="button" className="btn solid small" disabled={!keys.IGDB_CLIENT_ID.trim() && !keys.IGDB_CLIENT_SECRET.trim()} onClick={() => void saveKeys()}>Save keys</button>
+          <button type="button" className="btn small" onClick={() => void run(() => api.testCredentials(), answer => notify(answer.credentialStatus.status === "ready" ? "IGDB answered. Your keys work." : answer.credentialStatus.message ?? "IGDB didn't accept the keys."))}>Test</button>
+          <button type="button" className="btn small danger" onClick={() => void run(() => api.clearCredentials(), answer => setStatus(answer.settings))}>Clear</button>
+        </div>
+      </section>
+
+      <section className="stack">
+        <h2 className="display" style={{ margin: 0, fontSize: 20 }}>Desktop ↔ Android sync</h2>
+        <div className="sheet stack" style={{ gap: 8 }}>
+          <span className="muted" style={{ fontSize: 12.5 }}>
+            Two-way sync via a private GitHub Gist (completed games, ratings, notes, watchlist, custom releases, and tracked publishers). Paste the same GitHub token (with <b>gist</b> permission) on Desktop and Android.
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: cloud?.lastStatus === "error" ? "var(--red)" : cloud?.configured ? "var(--green, #2E6B57)" : "var(--muted)" }}>
+            {cloud?.configured
+              ? `Connected${cloud.gistId ? ` · Gist ${cloud.gistId}` : ""}${cloud.lastSyncedAt ? ` · Last synced ${new Date(cloud.lastSyncedAt).toLocaleString()}` : ""}`
+              : "Not connected yet"}
+          </span>
+          {cloud?.lastStatus === "error" && cloud.lastError ? (
+            <span style={{ fontSize: 12.5, color: "var(--red)" }}>{cloud.lastError}</span>
+          ) : null}
+          <label className="field">
+            <span>GitHub token (gist scope)</span>
+            <input
+              className="input"
+              type="password"
+              autoComplete="off"
+              placeholder={cloud?.configured ? "Saved — paste to replace" : "ghp_... or github_pat_..."}
+              value={cloudToken}
+              onChange={event => setCloudToken(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Gist ID (optional — auto-detected)</span>
+            <input
+              className="input"
+              autoComplete="off"
+              placeholder="Auto-created or found from your token"
+              value={cloudGistId}
+              onChange={event => setCloudGistId(event.target.value)}
+            />
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={cloud?.autoSync ?? true}
+              onChange={event => void run(() => api.saveCloudSyncConfig({ autoSync: event.target.checked }), setCloud)}
+            />
+            Sync with GitHub when I open the app
+          </label>
+          <div className="row">
+            <button type="button" className="btn solid small" disabled={cloudBusy} onClick={() => void runCloudSyncNow()}>
+              {cloudBusy ? "Syncing…" : "Sync with GitHub"}
+            </button>
+            <button type="button" className="btn small" disabled={cloudBusy || (!cloudToken.trim() && cloudGistId.trim() === (cloud?.gistId ?? ""))} onClick={() => void saveCloudConfig()}>
+              Save
+            </button>
+            {cloud?.configured ? (
+              <button type="button" className="btn small danger" disabled={cloudBusy} onClick={() => void run(() => api.clearCloudSyncConfig(), next => { setCloud(next); setCloudToken(""); setCloudGistId(""); notify("Cloud sync disconnected."); })}>
+                Disconnect
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <h2 className="display" style={{ margin: "6px 0 0", fontSize: 20 }}>Sync</h2>
+        {sync ? (
+          <>
+            <div className="chips">
+              {PLATFORMS.map(platform => <button key={platform.id} type="button" className="chip" aria-pressed={sync.platforms.includes(platform.id)} onClick={() => togglePlatform(platform.id)}>{platform.label}</button>)}
+            </div>
+            <label className="field"><span>Track releases from</span><input className="input" type="date" value={sync.trackFrom} onChange={event => event.target.value && void updateSync({ trackFrom: event.target.value })} /></label>
+            <label className="check"><input type="checkbox" checked={sync.autoSync} onChange={event => void updateSync({ autoSync: event.target.checked })} /> Sync when I open the app (every 12 hours)</label>
+            <label className="check"><input type="checkbox" checked={sync.alerts} onChange={event => void updateSync({ alerts: event.target.checked })} /> Notify me about watched games</label>
+            <h3 className="hand" style={{ margin: 0, fontSize: 19, color: "var(--blue)" }}>Publishers I follow</h3>
+            {sync.publishers.length ? (
+              <div className="chips">
+                {sync.publishers.map(publisher => <button key={publisher.id} type="button" className="chip" aria-label={`Stop following ${publisher.name}`} onClick={() => void run(() => api.untrackPublisher(publisher.id), next => { invalidateUpcomingCache(); setSync(next); })}>{publisher.name} ✕</button>)}
+              </div>
+            ) : (
+              <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => void run(() => api.trackSuggestedPublishers(), answer => { invalidateUpcomingCache(); setSync(answer); })}>Follow the suggested publishers</button>
+            )}
+            <form className="search" onSubmit={event => { event.preventDefault(); void run(() => api.searchPublishers(publisherQuery), answer => setPublisherResults(answer.items)); }}>
+              <label className="sr-only" htmlFor="publisher-search">Find a publisher</label>
+              <input id="publisher-search" className="input" placeholder="Find a publisher…" value={publisherQuery} onChange={event => setPublisherQuery(event.target.value)} />
+              <button type="submit" className="btn small">Find</button>
+            </form>
+            {publisherResults.length ? (
+              <div className="chips">
+                {publisherResults.map(publisher => <button key={publisher.id} type="button" className="chip" onClick={() => void run(() => api.trackPublisher(publisher), next => { invalidateUpcomingCache(); setSync(next); setPublisherResults([]); setPublisherQuery(""); notify(`Following ${publisher.name}. Tap Sync now on Upcoming to fetch their games.`); })}>+ {publisher.name}</button>)}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {library ? (
+          <>
+            <h2 className="display" style={{ margin: "6px 0 0", fontSize: 20 }}>Your library</h2>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              Bring your library over from the desktop app (including 4-category ratings): close the desktop app, copy <b>game-release-tracker.db</b> to this phone, then pick it here.
+            </p>
+            <input ref={picker} type="file" accept=".db,application/x-sqlite3,application/vnd.sqlite3,application/octet-stream" className="sr-only" onChange={event => void pickFile(event.target.files?.[0])} />
+            {incoming ? (
+              <div className="sticky stack" style={{ gap: 8, fontFamily: "inherit", fontWeight: 400, fontSize: 14.5 }}>
+                <b>Replace this phone's library?</b>
+                <span>The file has {incoming.upcoming} upcoming games and {incoming.completed} finished games. Everything on this phone now is replaced; save a copy first if you want to keep it.</span>
+                {incoming.keysNeedReentering ? <span>Your IGDB keys are locked to the desktop, so enter them again here afterwards.</span> : null}
+                <div className="row">
+                  <button type="button" className="btn small solid" disabled={busy} onClick={() => { setBusy(true); void library.replaceWith(incoming).catch(error => { setBusy(false); fail(error); }); }}>Replace and restart</button>
+                  <button type="button" className="btn small" onClick={() => setIncoming(null)}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="row">
+                <button type="button" className="btn small solid" disabled={busy} onClick={() => picker.current?.click()}>{busy ? "Checking…" : "Import from desktop"}</button>
+                <button type="button" className="btn small" onClick={() => void library.exportCopy().then(where => notify(`Saved a copy to ${where}.`)).catch(fail)}>Save a copy</button>
+              </div>
+            )}
+          </>
+        ) : null}
+
+        <h2 className="display" style={{ margin: "6px 0 0", fontSize: 20 }}>Sample library</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Real games with made-up grades and finish dates, to try the app without IGDB keys.</p>
+        <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => void run(() => (sample ? api.removeDemo() : api.loadDemo()), answer => { invalidateAllListCaches(); setSample(answer.loaded); })}>
+          {sample ? "Remove sample data" : "Load the sample library"}
+        </button>
+      </section>
+    </div>
+  );
+}

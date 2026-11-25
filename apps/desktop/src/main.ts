@@ -1,25 +1,48 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, protocol, safeStorage, session, shell, Tray } from "electron";
-import { APP_ORIGIN, handleAppProtocol, identifyAppToYouTube, registerAppScheme } from "./appProtocol";
-import { type BackendChild, startBackendProcess, stopBackendProcess } from "./backendProcess";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, protocol, safeStorage, session, shell, Tray } from "electron";
+import { APP_ORIGIN, handleInProcessAppProtocol, identifyAppToYouTube, registerAppScheme } from "./appProtocol";
+import { startInProcessBackend, type InProcessBackend } from "./inProcessBackend";
 import { handleStartupFailure, logBackendStoppedBeforeQuit, logDesktopFatalStartup, logDesktopProcessFailure, prepareDesktopRuntime } from "./desktopLifecycle";
 import { registerWallpaperIpc } from "./wallpaperIpc";
 import { registerSaveImageIpc } from "./saveImageIpc";
 import { registerAppDataIpc } from "./appDataIpc";
 import { decideNavigation, installWindowGuards } from "./windowGuards";
 import { loadCredentialDataKey } from "./credentialKey";
-import { type AppTray, bringWindowBack, installMinimizeToTray } from "./trayWindow";
+import { type AppTray, bringWindowBack, setupAppTray } from "./trayWindow";
 import { createSystemNotifier, startReleaseAlerts } from "./releaseAlerts";
 import { createStartAtLogin, registerStartAtLoginIpc, startsHidden } from "./startAtLogin";
-import type { ReleaseAlert } from "../../../shared/types";
-import { API_TOKEN_HEADER } from "../../../shared/constants";
+import { readLowMemoryMode, registerLowMemoryModeIpc } from "./lowMemoryMode";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
+import type { resolveDesktopRuntimeLayout } from "../../runtime/src/layout";
+
+// The data folder is named after the app (on Windows %APPDATA%\Game Release Tracker), not after the npm
+// package, so the app never shares a folder with another build of the same package. Set before anything
+// reads userData. An explicit --user-data-dir (a test profile) still wins.
+// Windows shows notifications under this id (the installer's shortcut carries the same one).
+if (process.platform === "win32") app.setAppUserModelId("io.github.hachi23.game-release-tracker");
+if (!app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", join(app.getPath("appData"), "Game Release Tracker"));
+
+// Low-memory mode (enabled by default, configurable in Settings → Appearance):
+// disabling GPU hardware acceleration drops ~110 MB of Chromium GPU compositor memory,
+// --in-process-gpu avoids a separate GPU OS process, and heap/cache caps stop idle bloat.
+const lowMemoryModeActive = readLowMemoryMode(app.getPath("userData"));
+if (lowMemoryModeActive) {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch("in-process-gpu");
+}
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=96");
+app.commandLine.appendSwitch("disk-cache-size", String(16 * 1024 * 1024));
+app.commandLine.appendSwitch("disable-features", "CalculateNativeWinOcclusion,MediaRouter,OptimizationHints,Translate");
 
 let mainWindow: BrowserWindow | null = null;
+let openingWindow: Promise<BrowserWindow> | null = null;
+// True only when the window was intentionally destroyed to minimize/start into the system tray.
+let hiddenInTray = false;
 // Held for the app's lifetime: a tray icon that is garbage-collected disappears.
 let tray: AppTray | null = null;
-let backend: BackendChild | null = null;
+let backend: InProcessBackend | null = null;
+let runtimeLayout: ReturnType<typeof resolveDesktopRuntimeLayout> | null = null;
 let apiBaseUrl = "";
 let logPath = "";
 let diagnosticsLogPath = "";
@@ -31,20 +54,13 @@ let fatalDialogShown = false;
 // programs cannot use the local API. Only this app's renderer receives it, through the preload.
 const apiToken = randomBytes(32).toString("hex");
 
-// The data folder is named after the app (on Windows %APPDATA%\Game Release Tracker), not after the npm
-// package, so the app never shares a folder with another build of the same package. Set before anything
-// reads userData. An explicit --user-data-dir (a test profile) still wins.
-// Windows shows notifications under this id (the installer's shortcut carries the same one).
-if (process.platform === "win32") app.setAppUserModelId("io.github.hachi23.game-release-tracker");
-if (!app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", join(app.getPath("appData"), "Game Release Tracker"));
 registerAppScheme(protocol);
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 
-// Starting the app again brings the running window back, even from the tray. This is also the way back
-// on Linux desktops that do not show tray icons.
-app.on("second-instance", () => bringWindowBack(mainWindow));
+// Starting the app again brings the running window back, even from the tray (recreating it if destroyed).
+app.on("second-instance", () => void openMainWindow());
 
 // The packaged renderer reaches the backend through its own app:// origin; the development renderer
 // (the Vite server) calls the backend directly.
@@ -87,7 +103,7 @@ registerAppDataIpc({
       backendShutdownStarted = true;
       const running = backend;
       backend = null;
-      await stopBackendProcess(running, 3000);
+      await running?.stop();
     },
     clearBrowserStorage: () => session.defaultSession.clearStorageData(),
     relaunch: () => {
@@ -107,6 +123,21 @@ registerStartAtLoginIpc({
     getLoginItemSettings: options => app.getLoginItemSettings(options),
     setLoginItemSettings: settings => app.setLoginItemSettings(settings)
   })
+});
+registerLowMemoryModeIpc({
+  ipcMain,
+  isAppFrame,
+  getUserDataDir: () => app.getPath("userData"),
+  active: lowMemoryModeActive,
+  relaunch: async () => {
+    hiddenInTray = false;
+    backendShutdownStarted = true;
+    const running = backend;
+    backend = null;
+    await running?.stop();
+    app.relaunch();
+    app.exit(0);
+  }
 });
 registerWallpaperIpc({
   ipcMain,
@@ -128,89 +159,129 @@ function handleDesktopProcessFailure(event: string, error: unknown) {
 process.on("uncaughtException", error => handleDesktopProcessFailure("process.uncaught_exception", error));
 process.on("unhandledRejection", reason => handleDesktopProcessFailure("process.unhandled_rejection", reason));
 
-async function createWindow() {
+async function openMainWindow(releaseId?: string): Promise<BrowserWindow> {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    hiddenInTray = false;
+    bringWindowBack(mainWindow);
+    if (releaseId) mainWindow.webContents.send("open-release", releaseId);
+    return mainWindow;
+  }
+  if (openingWindow) {
+    const win = await openingWindow;
+    if (releaseId && !win.isDestroyed()) win.webContents.send("open-release", releaseId);
+    return win;
+  }
+  if (!runtimeLayout) throw new Error("Desktop runtime is not initialized yet");
+  const layout = runtimeLayout;
+  hiddenInTray = false;
+
+  const promise = (async () => {
+    const win = new BrowserWindow({
+      width: 1280,
+      height: 820,
+      minWidth: 920,
+      minHeight: 620,
+      show: false,
+      webPreferences: {
+        preload: layout.preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+        spellcheck: false,
+        backgroundThrottling: true,
+        // Year in Review's theme music may start without a click once the user turns autoplay on in Settings;
+        // until then it waits for one.
+        autoplayPolicy: "no-user-gesture-required",
+        devTools: !app.isPackaged
+      }
+    });
+    mainWindow = win;
+    // Links open in the browser; the app window only ever shows the app.
+    installWindowGuards(win.webContents, {
+      appOrigin: rendererOrigin,
+      openExternal: url => shell.openExternal(url)
+    });
+    // Minimizing to the tray destroys the BrowserWindow so the renderer process & decoded images
+    // free their RAM immediately; clicking the tray icon recreates the window on demand.
+    win.on("minimize", () => {
+      if (!tray || win.isDestroyed()) return;
+      hiddenInTray = true;
+      if (mainWindow === win) mainWindow = null;
+      win.destroy();
+    });
+    win.on("closed", () => {
+      if (mainWindow === win) mainWindow = null;
+    });
+
+    await win.loadURL(app.isPackaged ? `${APP_ORIGIN}/` : layout.frontendDevUrl);
+    if (!win.isDestroyed()) {
+      win.show();
+      win.focus();
+      if (releaseId) win.webContents.send("open-release", releaseId);
+    }
+    return win;
+  })();
+
+  openingWindow = promise;
+  try {
+    return await promise;
+  } finally {
+    if (openingWindow === promise) openingWindow = null;
+  }
+}
+
+async function startDesktopApp() {
   const { root, layout, logPath: startupLogPath } = prepareDesktopRuntime(app);
+  runtimeLayout = layout;
   logPath = startupLogPath;
   diagnosticsLogPath = layout.diagnosticLogPath;
   dataDir = layout.backendDataDir;
   frontendDevUrl = layout.frontendDevUrl;
-  // Start the backend first, then build the hidden window while it boots so the renderer
-  // process spin-up overlaps backend startup instead of waiting behind it.
+
   const diagnostics = createFileDiagnosticLogger(layout.logDir);
   const credentialKey = loadCredentialDataKey({ dir: layout.backendDataDir, safeStorage, log: (event, details) => diagnostics.log(event, details) });
-  const backendStarting = startBackendProcess(root, { logPath, dataDir: layout.backendDataDir, apiToken, credentialKey, packaged: app.isPackaged });
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 920,
-    minHeight: 620,
-    show: false,
-    webPreferences: {
-      preload: layout.preloadPath,
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      // Year in Review's theme music may start without a click once the user turns autoplay on in Settings;
-      // until then it waits for one.
-      autoplayPolicy: "no-user-gesture-required",
-      devTools: !app.isPackaged
-    }
+  backend = await startInProcessBackend({
+    layout,
+    apiToken,
+    credentialKey,
+    packaged: app.isPackaged
   });
-  const window = mainWindow;
-  tray = installMinimizeToTray({
-    window,
+  apiBaseUrl = backend.apiBaseUrl;
+
+  if (app.isPackaged) {
+    const runningBackend = backend;
+    handleInProcessAppProtocol(protocol, request => runningBackend.handleAppRequest(request));
+    identifyAppToYouTube(session.defaultSession);
+  }
+
+  tray = setupAppTray({
     createTray: () => createAppTray(root),
-    quit: () => app.quit(),
+    onOpen: () => void openMainWindow(),
+    quit: () => {
+      hiddenInTray = false;
+      app.quit();
+    },
     log: message => diagnostics.log("desktop.tray_unavailable", { message })
   });
-  // Links open in the browser; the app window only ever shows the app.
-  installWindowGuards(mainWindow.webContents, {
-    appOrigin: rendererOrigin,
-    openExternal: url => shell.openExternal(url)
-  });
-  const backendReady = await backendStarting;
-  backend = backendReady.child;
-  const runningBackend = backend;
-  runningBackend.once?.("exit", code => {
-    if (backend !== runningBackend || backendShutdownStarted) return;
-    backend = null;
-    handleDesktopProcessFailure("backend.child_exit", new Error(`Backend exited unexpectedly${code === undefined ? "" : ` with code ${String(code)}`}`));
-  });
-  runningBackend.once?.("error", error => {
-    if (backend !== runningBackend || backendShutdownStarted) return;
-    backend = null;
-    handleDesktopProcessFailure("backend.child_error", error);
-  });
-  const port = backendReady.port;
-  apiBaseUrl = `http://127.0.0.1:${port}`;
-  if (app.isPackaged) {
-    handleAppProtocol(protocol, net, () => apiBaseUrl);
-    identifyAppToYouTube(session.defaultSession);
-    await mainWindow.loadURL(`${APP_ORIGIN}/`);
+
+  // Started at login with --hidden: stay resident in the tray without creating a BrowserWindow
+  // (keeps idle background RAM down to the main process + SQLite only).
+  if (startsHidden(process.argv) && tray) {
+    hiddenInTray = true;
   } else {
-    await mainWindow.loadURL(layout.frontendDevUrl);
+    await openMainWindow();
   }
-  // Started at login: wait in the tray. Without a tray there would be no way back, so show the window.
-  if (!(startsHidden(process.argv) && tray)) mainWindow.show();
+
   startReleaseAlerts({
-    takeAlerts: takeBackendAlerts,
+    takeAlerts: () => (backend ? backend.takeAlerts() : Promise.resolve([])),
     notifier: createSystemNotifier({
       isSupported: () => Notification.isSupported(),
       create: alert => new Notification({ title: alert.title, body: alert.body, icon: appIconImage(root) }),
       fallback: (alert, onClick) => tray?.showBalloon?.(alert.title, alert.body, onClick)
     }),
-    openRelease: releaseId => {
-      bringWindowBack(mainWindow);
-      mainWindow?.webContents.send("open-release", releaseId);
-    },
+    openRelease: releaseId => void openMainWindow(releaseId),
     log: message => diagnostics.log("desktop.release_alerts", { message })
   });
-}
-
-async function takeBackendAlerts(): Promise<ReleaseAlert[]> {
-  const response = await fetch(`${apiBaseUrl}/api/alerts/take`, { method: "POST", headers: { [API_TOKEN_HEADER]: apiToken } });
-  if (!response.ok) throw new Error(`backend answered ${response.status}`);
-  return ((await response.json()) as { items: ReleaseAlert[] }).items;
 }
 
 // The app icon for the tray and notifications: the multi-size .ico on Windows, the PNG scaled down elsewhere.
@@ -242,29 +313,32 @@ function createAppTray(root: string): AppTray {
 app.whenReady().then(() => {
   // Camera, microphone, notifications, location and the rest are refused; trailers may go fullscreen.
   session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => callback(permission === "fullscreen"));
-}).then(() => void createWindow().catch(error => handleStartupFailure(error, {
+}).then(() => void startDesktopApp().catch(error => handleStartupFailure(error, {
   logFatal: startupError => logDesktopFatalStartup(app, startupError),
   showError: message => dialog.showErrorBox("Game Release Tracker startup failed", message),
   stopBackend: async () => {
     backendShutdownStarted = true;
     const running = backend;
     backend = null;
-    await stopBackendProcess(running, 3000);
+    await running?.stop();
   },
   quit: () => app.quit()
 })));
 
 app.on("before-quit", event => {
-  if (!backend || backend.killed || backendShutdownStarted) return;
+  hiddenInTray = false;
+  if (!backend || backendShutdownStarted) return;
   event.preventDefault();
   backendShutdownStarted = true;
-  void stopBackendProcess(backend, 3000).finally(() => {
+  const running = backend;
+  backend = null;
+  void running.stop().finally(() => {
     logBackendStoppedBeforeQuit(app, logPath);
-    backend = null;
     app.quit();
   });
 });
 
 app.on("window-all-closed", () => {
+  if (hiddenInTray) return;
   if (process.platform !== "darwin") app.quit();
 });

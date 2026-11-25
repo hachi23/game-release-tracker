@@ -90,6 +90,12 @@ Keep list/card payloads light. Fetch heavy fields like summary, screenshots, and
 
 Build IGDB image URLs only through `artwork.ts` (`artworkSrc`, `igdbCoverSrc`, `cachedCoverSrc`, `screenshotSrc`). Detail pages use `cachedCoverSrc` (the backend cover cache, same-origin) so `ui/CoverScene.tsx` can read the cover's colour; an IGDB URL would taint the canvas.
 
+## Android App
+
+- `apps/mobile` is the Android app (see `apps/mobile/README.md`). It reuses the backend's route modules through `apps/mobile/src/backend/inAppServer.ts`; add backend behaviour in the backend, not in the mobile app.
+- Its UI is the Magic Academy UI in `apps/mobile/src/academy/`, separate from the desktop renderer. Theme colours are tokens in `academy/theme.css` for both Day Term and Night Study; keep every text pair at WCAG AA in both.
+- `tests/mobile` checks the in-app backend answers like the Fastify backend. Run `npm run android:apk` after mobile changes when an APK is the deliverable.
+
 ## Package Footprint
 
 - Only native modules (`better-sqlite3`) are `dependencies`. Everything else is bundled (Vite for the renderer, esbuild for main, preload and the backend child), so it is a `devDependency` and must not ship in `app.asar`.

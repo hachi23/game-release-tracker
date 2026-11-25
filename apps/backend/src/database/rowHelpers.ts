@@ -7,8 +7,11 @@ export function nullable(value: unknown): string | null {
 }
 
 export function parseJson<T>(value: unknown, fallback: T): T {
+  if (typeof value !== "string" || value.length === 0) return fallback;
+  if (value === "[]" && Array.isArray(fallback)) return [] as unknown as T;
+  if (value === "{}" && fallback !== null && typeof fallback === "object" && !Array.isArray(fallback)) return {} as unknown as T;
   try {
-    return value ? JSON.parse(String(value)) as T : fallback;
+    return JSON.parse(value) as T;
   } catch {
     return fallback;
   }

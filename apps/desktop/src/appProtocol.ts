@@ -40,6 +40,11 @@ export function handleAppProtocol(protocol: Pick<Protocol, "handle">, net: Pick<
   });
 }
 
+// Serves app://renderer directly from an in-process handler (zero loopback socket or child process).
+export function handleInProcessAppProtocol(protocol: Pick<Protocol, "handle">, handler: (request: Request) => Promise<Response>) {
+  protocol.handle(APP_SCHEME, request => handler(request));
+}
+
 // YouTube refuses to play an embed that does not say which site or app it is on (player error 153), and
 // Chromium sends no Referer from an app:// page. YouTube asks apps without a web origin to identify
 // themselves with an https://<app id> Referer, so embed page loads carry this app's id.

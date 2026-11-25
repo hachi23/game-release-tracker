@@ -1,5 +1,8 @@
 import { API_TOKEN_HEADER } from "../../../../shared/constants";
 import type {
+  CloudSyncConfigPatch,
+  CloudSyncRunResult,
+  CloudSyncStatus,
   CompletedGameDetail,
   CompletedGameFilters,
   CompletedGameListResponse,
@@ -73,6 +76,10 @@ export interface ApiClient {
   getPreferences(): Promise<{ palette: string | null; themeAutoplay: boolean }>;
   savePalette(palette: string): Promise<{ palette: string }>;
   saveThemeAutoplay(themeAutoplay: boolean): Promise<{ themeAutoplay: boolean }>;
+  getCloudSyncStatus(): Promise<CloudSyncStatus>;
+  saveCloudSyncConfig(patch: CloudSyncConfigPatch): Promise<CloudSyncStatus>;
+  clearCloudSyncConfig(): Promise<CloudSyncStatus>;
+  runCloudSync(): Promise<CloudSyncRunResult>;
 }
 
 // Appends the non-empty params as a query string; undefined and "" mean "not filtered".
@@ -86,14 +93,15 @@ function withQuery(path: string, params: Record<string, string | number | boolea
 }
 
 // apiToken is the desktop app's per-launch secret; the backend refuses /api calls without it.
-export function createApiClient(baseUrl: string, apiToken?: string): ApiClient {
+// fetcher defaults to the browser's fetch; the Android app passes its in-app backend instead.
+export function createApiClient(baseUrl: string, apiToken?: string, fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init)): ApiClient {
   const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
     const headers = {
       ...(init?.body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(apiToken ? { [API_TOKEN_HEADER]: apiToken } : {}),
       ...init?.headers as Record<string, string> | undefined
     };
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetcher(`${baseUrl}${path}`, {
       ...init,
       headers: Object.keys(headers).length ? headers : undefined
     });
@@ -245,6 +253,18 @@ export function createApiClient(baseUrl: string, apiToken?: string): ApiClient {
     },
     logEvent(event, details = {}) {
       return request("/api/diagnostics/log", { method: "POST", body: JSON.stringify({ event, details }) });
+    },
+    getCloudSyncStatus() {
+      return request<CloudSyncStatus>("/api/cloud-sync/status");
+    },
+    saveCloudSyncConfig(patch) {
+      return request<CloudSyncStatus>("/api/cloud-sync/config", { method: "PUT", body: JSON.stringify(patch) });
+    },
+    clearCloudSyncConfig() {
+      return request<CloudSyncStatus>("/api/cloud-sync/config", { method: "DELETE" });
+    },
+    runCloudSync() {
+      return request<CloudSyncRunResult>("/api/cloud-sync/sync", { method: "POST", body: "{}" });
     }
   };
 }

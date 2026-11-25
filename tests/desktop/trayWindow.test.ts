@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { type AppTray, type TrayMenuItem, type TrayableWindow, bringWindowBack, installMinimizeToTray } from "../../apps/desktop/src/trayWindow";
+import { type AppTray, type TrayMenuItem, type TrayableWindow, bringWindowBack, installMinimizeToTray, setupAppTray } from "../../apps/desktop/src/trayWindow";
 
 function fakeWindow() {
   const state = { visible: true, minimized: false, destroyed: false, focused: false };
@@ -79,5 +79,19 @@ describe("minimize to tray", () => {
     state.visible = false;
     bringWindowBack(window);
     expect(state.visible).toBe(false);
+  });
+
+  test("setupAppTray invokes onOpen on click/menu even before a window exists, and quits cleanly", () => {
+    const { tray, listeners, menu } = fakeTray();
+    const onOpen = vi.fn();
+    const quit = vi.fn();
+
+    expect(setupAppTray({ createTray: () => tray, onOpen, quit })).toBe(tray);
+    listeners.click();
+    menu().find(entry => entry.label === "Open Game Release Tracker")!.click!();
+    expect(onOpen).toHaveBeenCalledTimes(2);
+
+    menu().find(entry => entry.label === "Quit")!.click!();
+    expect(quit).toHaveBeenCalledOnce();
   });
 });

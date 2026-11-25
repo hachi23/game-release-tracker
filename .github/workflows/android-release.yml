@@ -1,0 +1,93 @@
+name: Android release
+
+# Builds the Android app (apps/mobile) and publishes the APK as a GitHub pre-release:
+# - a pull request that touches the app publishes android-v<version>-preview.pr<number>, updated on every push;
+# - pushing a tag like android-v0.7.0-preview.1 publishes that release;
+# - running it by hand with a tag does the same from the chosen branch; without a tag it only uploads the
+#   APK as a workflow artifact.
+# Desktop releases use release.yml (v* tags).
+on:
+  pull_request:
+    paths:
+      - "apps/**"
+      - "shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.ts"
+      - ".github/workflows/android-release.yml"
+  push:
+    tags: ["android-v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create or update, for example android-v0.7.0-preview.2. Leave empty to only build."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
+  RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Release tag for a pull request
+        if: github.event_name == 'pull_request'
+        run: echo "RELEASE_TAG=android-v$(node -p "require('./package.json').version")-preview.pr${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # Capacitor 8 builds with JDK 21 and Android SDK platform 36.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Android SDK platform 36
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - run: npm run android:apk
+      - name: Name the APK after the release
+        run: |
+          name="game-release-tracker-${RELEASE_TAG:-android-build}.apk"
+          cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk "$name"
+          echo "APK_NAME=$name" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ env.APK_NAME }}
+      - name: Release notes
+        if: env.RELEASE_TAG != ''
+        run: |
+          cat > release-notes.md <<'EOF'
+          The Android version of Game Release Tracker, as a preview.
+
+          **Install:** download the `.apk` below on your phone and open it. Android asks you to allow installs from your browser or file manager the first time. This is a debug-signed preview build, so to update from an earlier preview, uninstall the old one first (your library is kept only on the phone, so load or sync it again afterwards).
+
+          **What's in it**
+          - **Phone-first Magic Academy redesign:** translucent frosted-glass notebook (Day Term & Night Study) with Klee One handwriting, optional custom desk wallpaper (Settings → Look & Glass), and floating bottom navigation dock.
+          - **Completed 9-Pocket Collector's Binder + Certified Graded Slab:** 3×3 binder grid with folio pagination, Masterpiece 9.5+ gold frame, tap-to-open Graded Slab bottom sheet (side-by-side spread on tablets/landscape), and a Binder/List toggle.
+          - **4-Category Ratings (schema v23):** score `Story & World`, `Combat & Feel`, `Art & Music`, and `Pacing` inline from the Graded Slab, Add Completed Game sheet, or Completed Detail — auto-averaged into the overall score while preserving single-score games.
+          - **Cover-tinted detail pages:** opened Upcoming and Completed game pages subtly pull colours from each game's cover art (`40% / 60% / 70%` tint switcher) with harmonized frosted cards, rectangular covers, full-width 16:9 trailer & screenshot galleries, and fullscreen lightbox.
+          - **Bring your desktop library over:** Settings → Your library → Import from desktop. Close the desktop app, copy `game-release-tracker.db` (Windows: `%APPDATA%\Game Release Tracker`; Linux: `~/.config/Game Release Tracker`) to your phone, and pick it. Fully compatible with desktop schema v23 (including 4-category ratings).
+          - The desktop app's own backend runs inside the app; your library is one file in the app's private storage.
+
+          **Not yet:** custom artwork uploads and syncing while the app is closed.
+          EOF
+      - uses: softprops/action-gh-release@v2
+        if: env.RELEASE_TAG != ''
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ env.RELEASE_SHA }}
+          name: Game Release Tracker for Android ${{ env.RELEASE_TAG }}
+          body_path: release-notes.md
+          prerelease: true
+          files: ${{ env.APK_NAME }}

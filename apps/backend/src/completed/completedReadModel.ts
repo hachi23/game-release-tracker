@@ -1,8 +1,19 @@
-import type { CompletedGameDetail, CompletedGameFilters, CompletedGameListItem, ReleaseArtwork } from "../../../../shared/types";
+import type { CompletedGameDetail, CompletedGameFilters, CompletedGameListItem, CompletedRatingBreakdown, ReleaseArtwork } from "../../../../shared/types";
 import { completedGenres } from "../../../../shared/completedGenres";
+import { hasAnyCategoryRating } from "../../../../shared/completedRatings";
 import type { TrackerDatabase } from "../database/db";
 import { nullable, parseJson, toNumberOrNull } from "../database/rowHelpers";
 import { normalizeText } from "../text/normalizeText";
+
+// Lean column list for Completed list reads: skips large detail-only columns (summary,
+// screenshots_json, extra_json, themes/modes) so listing hundreds of games stays fast and light.
+const LIST_COLUMNS = `
+  id, title, normalized_title, user_platform,
+  rating_raw, rating_score, rating_story, rating_combat, rating_art, rating_pacing,
+  notes, completion_date, completion_month, completion_year, completion_precision,
+  developer, publisher, genres_json, igdb_genres_json, platforms_json,
+  cover_image_id, igdb_id, match_status
+`;
 
 export function createCompletedReadModel(db: TrackerDatabase) {
   return {
@@ -37,7 +48,7 @@ export function createCompletedReadModel(db: TrackerDatabase) {
       if (filters.dateState === "dated") where.push("completion_precision in ('exact', 'month')");
       if (filters.dateState === "undated") where.push("completion_precision in ('none', 'year')");
       const rows = db.prepare(`
-        select * from completed_games
+        select ${LIST_COLUMNS} from completed_games
         where ${where.join(" and ")}
         order by coalesce(completion_month, '9999-99'), title
       `).all(params) as Array<Record<string, unknown>>;
@@ -134,6 +145,16 @@ function rowToReviewRow(row: Record<string, unknown>): CompletedReviewRow {
   };
 }
 
+function rowToRatingBreakdown(row: Record<string, unknown>): CompletedRatingBreakdown | null {
+  const breakdown: CompletedRatingBreakdown = {
+    story: toNumberOrNull(row.rating_story),
+    combat: toNumberOrNull(row.rating_combat),
+    art: toNumberOrNull(row.rating_art),
+    pacing: toNumberOrNull(row.rating_pacing)
+  };
+  return hasAnyCategoryRating(breakdown) ? breakdown : null;
+}
+
 function rowToListItem(row: Record<string, unknown>): CompletedGameListItem {
   return {
     id: String(row.id),
@@ -142,6 +163,8 @@ function rowToListItem(row: Record<string, unknown>): CompletedGameListItem {
     userPlatform: String(row.user_platform ?? ""),
     ratingRaw: nullable(row.rating_raw),
     ratingScore: toNumberOrNull(row.rating_score),
+    ratingBreakdown: rowToRatingBreakdown(row),
+    notes: nullable(row.notes),
     completionDate: nullable(row.completion_date),
     completionMonth: nullable(row.completion_month),
     completionYear: toNumberOrNull(row.completion_year),
@@ -161,6 +184,10 @@ function rowToDetail(row: Record<string, unknown>): CompletedGameDetail {
   return {
     ...rowToListItem(row),
     notes: nullable(row.notes),
+    verdict: nullable(row.verdict),
+    favouriteShot: nullable(row.favourite_shot),
+    favouriteCaption: nullable(row.favourite_caption),
+    replay: (nullable(row.replay) as CompletedGameDetail["replay"]) ?? null,
     extra: parseJson(row.extra_json, {}),
     igdbReleaseDate: nullable(row.igdb_release_date),
     igdbDeveloper: nullable(row.igdb_developer),

@@ -1,3 +1,6 @@
+import type { CompletedRatingBreakdown, RatingCategoryKey } from "./completedRatings";
+export type { CompletedRatingBreakdown, RatingCategoryKey };
+
 export type ReleaseCategory =
   | "Main"
   | "DLC"
@@ -250,6 +253,8 @@ export interface CompletedGameListItem {
   userPlatform: string;
   ratingRaw?: string | null;
   ratingScore?: number | null;
+  ratingBreakdown?: CompletedRatingBreakdown | null;
+  notes?: string | null;
   completionDate?: string | null;
   completionMonth?: string | null;
   completionYear?: number | null;
@@ -266,6 +271,12 @@ export interface CompletedGameListItem {
 
 export interface CompletedGameDetail extends CompletedGameListItem {
   notes?: string | null;
+  // Diary fields: a one-line verdict, a favourite moment (an IGDB screenshot id plus a caption) and
+  // whether you'd play it again.
+  verdict?: string | null;
+  favouriteShot?: string | null;
+  favouriteCaption?: string | null;
+  replay?: "yes" | "maybe" | "no" | null;
   extra: Record<string, string>;
   igdbReleaseDate?: string | null;
   igdbDeveloper?: string | null;
@@ -502,4 +513,40 @@ export interface YearInReviewSettingsPatch {
   // Absent: unchanged. null: cleared.
   gotyCompletedId?: string | null;
   musicLink?: string | null;
+}
+
+export type CloudSyncState = "idle" | "syncing" | "success" | "error";
+
+export interface CloudSyncSummary {
+  pulledCompleted: number;
+  pushedCompleted: number;
+  deletedCompleted: number;
+  pulledReleases: number;
+  pushedReleases: number;
+  deletedReleases: number;
+  pulledWatchlist: number;
+  pulledPublishers: number;
+}
+
+export interface CloudSyncStatus {
+  configured: boolean;
+  gistId: string | null;
+  autoSync: boolean;
+  lastSyncedAt: string | null;
+  lastStatus: CloudSyncState;
+  lastSummary: CloudSyncSummary | null;
+  lastError: string | null;
+}
+
+export interface CloudSyncConfigPatch {
+  token?: string;
+  gistId?: string;
+  autoSync?: boolean;
+}
+
+export interface CloudSyncRunResult {
+  ok: boolean;
+  status: CloudSyncStatus;
+  summary?: CloudSyncSummary;
+  error?: string;
 }
