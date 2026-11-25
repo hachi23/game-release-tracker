@@ -27,14 +27,16 @@ export function runSync(db: TrackerDatabase, candidates?: IgdbGameLike[], igdb?:
   return new SyncRun(db, candidates, igdb, options).execute();
 }
 
-let running: Promise<SyncStatus> | null = null;
+const runningByDb = new WeakMap<TrackerDatabase, Promise<SyncStatus>>();
 
 export function startSync(db: TrackerDatabase, candidates?: IgdbGameLike[], igdb?: IgdbGateway, options?: SyncOptions) {
-  if (running) return running;
-  running = runSync(db, candidates, igdb, options).finally(() => {
-    running = null;
+  const existing = runningByDb.get(db);
+  if (existing) return existing;
+  const run = runSync(db, candidates, igdb, options).finally(() => {
+    if (runningByDb.get(db) === run) runningByDb.delete(db);
   });
-  return running;
+  runningByDb.set(db, run);
+  return run;
 }
 
 class SyncRun {

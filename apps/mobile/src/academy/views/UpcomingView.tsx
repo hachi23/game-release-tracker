@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReleaseListItem, SyncStatus } from "../../../../../shared/types";
+import { findUpcomingStart } from "../../../../../shared/upcomingStart";
 import type { AcademyContext } from "../AcademyApp";
 import { circledCountdown, countdown, groupByMonth, longDate } from "../format";
 import { getCachedUpcoming, invalidateUpcomingCache, setCachedUpcoming } from "../listCache";
@@ -24,8 +25,10 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
   const [sync, setSync] = useState<SyncStatus | null>(null);
   const [adding, setAdding] = useState(false);
   const [sampleLoaded, setSampleLoaded] = useState(cachedInit?.sampleLoaded ?? false);
+  const [showEarlier, setShowEarlier] = useState(false);
   const [visibleGroups, setVisibleGroups] = useState(INITIAL_UPCOMING_GROUPS);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const syncingRef = useRef(false);
 
   const load = useCallback(async (force = false) => {
     const unfiltered = !search.trim() && !watchedOnly;
@@ -66,13 +69,17 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
   }, [api]);
 
   useEffect(() => {
-    if (sync?.status !== "running") return;
+    if (sync?.status !== "running" || syncingRef.current) return;
     const timer = setInterval(async () => {
-      const next = await api.getSyncStatus();
-      setSync(next);
-      if (next.status !== "running") {
-        invalidateUpcomingCache();
-        void load(true);
+      try {
+        const next = await api.getSyncStatus();
+        setSync(next);
+        if (next.status !== "running") {
+          invalidateUpcomingCache();
+          void load(true);
+        }
+      } catch {
+        // Retry on next tick.
       }
     }, 2000);
     return () => clearInterval(timer);
@@ -92,14 +99,19 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
   );
 
   const groups = useMemo(() => groupByMonth(visible, today), [visible, today]);
-  const current = visible.find(item => item.id === selected) ?? (wide ? visible[0] : undefined);
+  const upcomingStart = useMemo(() => findUpcomingStart(groups, today), [groups, today]);
+  const searching = Boolean(search.trim());
+  const startGroupIndex = searching || showEarlier ? 0 : upcomingStart.groupIndex;
+  const activeGroups = useMemo(() => groups.slice(startGroupIndex), [groups, startGroupIndex]);
+  const current = visible.find(item => item.id === selected) ?? (wide ? upcomingStart.item ?? visible[0] : undefined);
   const sameDay = current?.releaseDate ? visible.filter(item => item.id !== current.id && item.releaseDate === current.releaseDate) : [];
 
   useEffect(() => {
     setVisibleGroups(INITIAL_UPCOMING_GROUPS);
+    if (!search.trim()) setShowEarlier(false);
   }, [search, watchedOnly, genre]);
 
-  const hasMoreGroups = visibleGroups < groups.length;
+  const hasMoreGroups = visibleGroups < activeGroups.length;
   useEffect(() => {
     if (!hasMoreGroups || typeof IntersectionObserver === "undefined") return;
     const node = sentinelRef.current;
@@ -107,20 +119,46 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
     const observer = new IntersectionObserver(
       entries => {
         if (entries.some(entry => entry.isIntersecting)) {
-          setVisibleGroups(current => Math.min(groups.length, current + UPCOMING_GROUP_STEP));
+          setVisibleGroups(current => Math.min(activeGroups.length, current + UPCOMING_GROUP_STEP));
         }
       },
       { rootMargin: "420px 0px" }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMoreGroups, groups.length]);
+  }, [hasMoreGroups, activeGroups.length]);
 
   const syncNow = async () => {
+    if (syncingRef.current || sync?.status === "running") return;
+    syncingRef.current = true;
+    setSync(current => ({
+      added: current?.added ?? 0,
+      repaired: current?.repaired ?? 0,
+      skipped: current?.skipped ?? 0,
+      failed: 0,
+      status: "running",
+      message: "Syncing…"
+    }));
     try {
-      setSync(await api.syncNow());
+      const finished = await api.syncNow();
+      setSync(finished);
+      if (finished.status !== "running") {
+        invalidateUpcomingCache();
+        await load(true);
+      }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setSync(current => ({
+        added: current?.added ?? 0,
+        repaired: current?.repaired ?? 0,
+        skipped: current?.skipped ?? 0,
+        failed: 1,
+        status: "failed",
+        message
+      }));
       fail(error);
+    } finally {
+      syncingRef.current = false;
     }
   };
 
@@ -168,7 +206,7 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
         ) : null}
       </div>
       {sync && sync.status !== "running" && sync.status !== "idle" && sync.message ? (
-        <span className="muted" style={{ fontSize: 12.5 }}>{sync.message}</span>
+        <span className="muted" style={{ fontSize: 12.5, color: sync.status === "failed" ? "var(--red)" : undefined }}>{sync.message}</span>
       ) : null}
 
       {items === null ? null : visible.length === 0 ? (
@@ -185,7 +223,23 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
         )
       ) : (
         <div className="ruled">
-          {groups.slice(0, visibleGroups).map(group => (
+          {!searching && upcomingStart.earlierGroupCount > 0 ? (
+            <div className="m-binder__more" style={{ justifyContent: "flex-start", paddingTop: 0 }}>
+              <button
+                type="button"
+                className="btn tiny"
+                onClick={() => {
+                  setShowEarlier(value => !value);
+                  setVisibleGroups(c => Math.max(c, upcomingStart.earlierGroupCount + INITIAL_UPCOMING_GROUPS));
+                }}
+              >
+                {showEarlier
+                  ? "↓ Hide earlier months"
+                  : `↑ Show earlier months (${upcomingStart.earlierGroupCount})`}
+              </button>
+            </div>
+          ) : null}
+          {activeGroups.slice(0, visibleGroups).map(group => (
             <div key={group.name}>
               <h2>{group.name}</h2>
               {group.items.map(item => {
@@ -216,8 +270,8 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
           ))}
           {hasMoreGroups ? (
             <div ref={sentinelRef} className="m-binder__more">
-              <button type="button" className="btn tiny" onClick={() => setVisibleGroups(c => Math.min(groups.length, c + UPCOMING_GROUP_STEP))}>
-                Load more months ({groups.length - visibleGroups} remaining)
+              <button type="button" className="btn tiny" onClick={() => setVisibleGroups(c => Math.min(activeGroups.length, c + UPCOMING_GROUP_STEP))}>
+                Load more months ({activeGroups.length - visibleGroups} remaining)
               </button>
             </div>
           ) : null}

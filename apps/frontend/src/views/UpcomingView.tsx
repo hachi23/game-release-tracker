@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { ReleaseListItem, SyncStatus } from "../../../../shared/types";
+import { findUpcomingStart } from "../../../../shared/upcomingStart";
 import type { ReleaseDeletionMode } from "../releaseDeletion";
 import { artworkSrc } from "../artwork";
 import { Backdrop } from "../ui/Backdrop";
@@ -8,7 +9,7 @@ import { WatchButton } from "../ui/WatchButton";
 import { listDateBadge } from "../ui/dateChange";
 import { Field, SelectShell } from "../ui/Field";
 import { FramedPanel } from "../ui/FramedPanel";
-import { bannerLabel, daysUntil, rowSubLine, rowWhenLabel, stripCurrentYear } from "../ui/countdown";
+import { bannerLabel, rowSubLine, rowWhenLabel, stripCurrentYear } from "../ui/countdown";
 import type { CollectionWorkspace } from "../collectionWorkspace";
 import type { ReleaseFilters } from "../releaseWorkspace";
 import { BulkActions, GenreField, SyncState } from "./CollectionControls";
@@ -29,10 +30,34 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
   const [moreFilters, setMoreFilters] = useState(false);
   const [featuredId, setFeaturedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const anchoredRef = useRef(false);
   const today = new Date();
   const items = useMemo(() => groups.flatMap(group => group.items), [groups]);
-  const featured = items.find(item => item.id === featuredId) ?? items.find(item => item.datePrecision !== "Exact" || (item.releaseDate && daysUntil(item.releaseDate, today) >= 0)) ?? items[0];
+  const upcomingStart = useMemo(() => findUpcomingStart(groups, today), [groups, today.toDateString()]);
+  const returningItem = releases.returningToItemId ? items.find(item => item.id === releases.returningToItemId) : undefined;
+  const featured = items.find(item => item.id === featuredId) ?? returningItem ?? upcomingStart.item ?? items[0];
   useEffect(() => { if (featured?.id !== featuredId) setFeaturedId(featured?.id ?? null); }, [featured?.id, featuredId]);
+  useEffect(() => {
+    if (groups.length === 0) {
+      anchoredRef.current = false;
+      return;
+    }
+    if (anchoredRef.current || releases.returningToItemId || filtering) return;
+    anchoredRef.current = true;
+    if (upcomingStart.groupIndex === 0 && upcomingStart.itemIndex <= 0) return;
+    const container = listRef.current;
+    if (!container) return;
+    // Show the upcoming month heading at the top when the next release is near its start;
+    // if many games already came out earlier this month, jump straight to the next upcoming game.
+    const selector = upcomingStart.item && upcomingStart.itemIndex > 3
+      ? `[data-release-id="${CSS.escape(upcomingStart.item.id)}"]`
+      : "[data-upcoming-start=\"true\"]";
+    const target = container.querySelector<HTMLElement>(selector);
+    if (!target) return;
+    const delta = target.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    if (delta !== 0) container.scrollTop += delta;
+    else target.scrollIntoView?.({ block: "start", inline: "nearest" });
+  }, [groups, upcomingStart, releases.returningToItemId, filtering]);
   const featuredBadge = listDateBadge(featured?.lastDateChange);
   const art = featured?.artworks ?? [];
   const backdropArt = art.find(a => a.source === "artwork") ?? art.find(a => a.source === "local" || a.source === "steamgriddb");
@@ -74,7 +99,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
       {showWelcome && <Welcome onTrySample={() => void demo.actions.load()} onSetUp={onSetUpOwnLibrary} />}
       {status === "ready" && (releases.loadedCount > 0 || filtering) && releases.visibleItems.length === 0 && <div className="state">No releases match this filter.</div>}
       <div className="upcoming-list__scroll" ref={listRef} onKeyDown={handleListKey} tabIndex={0}>
-        {groups.map(group => <section key={group.heading}><h2 className="upcoming-month">{stripCurrentYear(group.heading, today)}</h2>{group.items.map(item => {
+        {groups.map((group, groupIndex) => <section key={group.heading} data-upcoming-start={groupIndex === upcomingStart.groupIndex ? "true" : undefined}><h2 className="upcoming-month">{stripCurrentYear(group.heading, today)}</h2>{group.items.map(item => {
           const rowCover = item.artworks.find(a => a.source === "cover") ?? item.artworks[0];
           const badge = listDateBadge(item.lastDateChange);
           return <div className={`release-row${featured?.id === item.id ? " release-row--selected" : ""}`} data-release-id={item.id} key={item.id}>

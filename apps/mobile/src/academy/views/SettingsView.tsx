@@ -3,7 +3,7 @@ import type { PreparedLibrary } from "../../libraryImport";
 import type { CloudSyncStatus, PlatformFamily, SettingsStatus, SyncSettings, TrackedPublisher } from "../../../../../shared/types";
 import type { AcademyContext } from "../AcademyApp";
 import type { DetailBgTint } from "../coverPalette";
-import { invalidateAllListCaches } from "../listCache";
+import { invalidateAllListCaches, invalidateUpcomingCache } from "../listCache";
 import type { TermChoice } from "../term";
 
 // Settings: Look (Day Term / Night Study, game cover tint, custom desk wallpaper), IGDB keys,
@@ -143,7 +143,13 @@ export function SettingsView({ context }: { context: AcademyContext }) {
     setKeys({ IGDB_CLIENT_ID: "", IGDB_CLIENT_SECRET: "" });
     notify("IGDB keys saved.");
   });
-  const updateSync = (patch: Parameters<typeof api.updateSyncSettings>[0]) => run(() => api.updateSyncSettings(patch), setSync);
+  const updateSync = (patch: Parameters<typeof api.updateSyncSettings>[0]) => run(
+    () => api.updateSyncSettings(patch),
+    next => {
+      invalidateUpcomingCache();
+      setSync(next);
+    }
+  );
   const togglePlatform = (id: PlatformFamily) => {
     if (!sync) return;
     const next = sync.platforms.includes(id) ? sync.platforms.filter(value => value !== id) : [...sync.platforms, id];
@@ -188,7 +194,7 @@ export function SettingsView({ context }: { context: AcademyContext }) {
         <div className="sheet stack" style={{ gap: 8 }}>
           <span style={{ fontWeight: 700, fontSize: 14 }}>Desk wallpaper</span>
           <span className="muted" style={{ fontSize: 12.5 }}>
-            Shows softly behind the translucent frosted-glass notebook.
+            Shows crisp and unblurred behind the translucent notebook, like on desktop.
           </span>
           <input ref={wallpaperPicker} type="file" accept="image/*" className="sr-only" onChange={event => void pickWallpaper(event.target.files?.[0])} />
           <div className="row">
@@ -287,10 +293,10 @@ export function SettingsView({ context }: { context: AcademyContext }) {
             <h3 className="hand" style={{ margin: 0, fontSize: 19, color: "var(--blue)" }}>Publishers I follow</h3>
             {sync.publishers.length ? (
               <div className="chips">
-                {sync.publishers.map(publisher => <button key={publisher.id} type="button" className="chip" aria-label={`Stop following ${publisher.name}`} onClick={() => void run(() => api.untrackPublisher(publisher.id), setSync)}>{publisher.name} ✕</button>)}
+                {sync.publishers.map(publisher => <button key={publisher.id} type="button" className="chip" aria-label={`Stop following ${publisher.name}`} onClick={() => void run(() => api.untrackPublisher(publisher.id), next => { invalidateUpcomingCache(); setSync(next); })}>{publisher.name} ✕</button>)}
               </div>
             ) : (
-              <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => void run(() => api.trackSuggestedPublishers(), answer => setSync(answer))}>Follow the suggested publishers</button>
+              <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => void run(() => api.trackSuggestedPublishers(), answer => { invalidateUpcomingCache(); setSync(answer); })}>Follow the suggested publishers</button>
             )}
             <form className="search" onSubmit={event => { event.preventDefault(); void run(() => api.searchPublishers(publisherQuery), answer => setPublisherResults(answer.items)); }}>
               <label className="sr-only" htmlFor="publisher-search">Find a publisher</label>
@@ -299,7 +305,7 @@ export function SettingsView({ context }: { context: AcademyContext }) {
             </form>
             {publisherResults.length ? (
               <div className="chips">
-                {publisherResults.map(publisher => <button key={publisher.id} type="button" className="chip" onClick={() => void run(() => api.trackPublisher(publisher), next => { setSync(next); setPublisherResults([]); setPublisherQuery(""); })}>+ {publisher.name}</button>)}
+                {publisherResults.map(publisher => <button key={publisher.id} type="button" className="chip" onClick={() => void run(() => api.trackPublisher(publisher), next => { invalidateUpcomingCache(); setSync(next); setPublisherResults([]); setPublisherQuery(""); notify(`Following ${publisher.name}. Tap Sync now on Upcoming to fetch their games.`); })}>+ {publisher.name}</button>)}
               </div>
             ) : null}
           </>

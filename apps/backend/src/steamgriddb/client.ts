@@ -1,4 +1,7 @@
 import type { ReleaseArtwork } from "../../../../shared/types";
+import { fetchWithTimeout } from "../igdb/token";
+
+const STEAMGRIDDB_TIMEOUT_MS = 10_000;
 
 interface SteamGridDbSearchResponse {
   success?: boolean;
@@ -43,12 +46,18 @@ export class SteamGridDbClient {
   }
 
   private async fetchJson<T>(url: string): Promise<T> {
-    const response = await this.fetcher(url, {
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        Accept: "application/json"
-      }
-    });
+    const response = await fetchWithTimeout(
+      this.fetcher,
+      url,
+      {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          Accept: "application/json"
+        }
+      },
+      STEAMGRIDDB_TIMEOUT_MS,
+      `SteamGridDB request timed out after ${STEAMGRIDDB_TIMEOUT_MS} ms`
+    );
     if (!response.ok) throw new Error(`SteamGridDB request failed: ${response.status}`);
     return await response.json() as T;
   }

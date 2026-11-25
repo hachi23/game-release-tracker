@@ -132,8 +132,8 @@ export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: 
   const bgStyle = wallpaper ? ({ ["--a-wallpaper" as string]: `url(${wallpaper})` } as CSSProperties) : undefined;
 
   return (
-    <div className="academy">
-      {/* Static GPU-promoted backdrop layer (replaces body background-attachment: fixed & live full-page backdrop-filter). */}
+    <div className="academy" data-wallpaper={wallpaper ? "true" : undefined}>
+      {/* Static GPU-promoted backdrop layer: renders the custom wallpaper crisp and unblurred like desktop. */}
       <div className={`academy__bg${wallpaper ? " academy__bg--wallpaper" : ""}`} style={bgStyle} aria-hidden="true" />
 
       <header className="crest-bar">

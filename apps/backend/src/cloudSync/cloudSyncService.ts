@@ -1,11 +1,14 @@
 import type { CloudSyncConfigPatch, CloudSyncRunResult, CloudSyncStatus } from "../../../../shared/types";
 import type { TrackerDatabase } from "../database/db";
 import { runWrite } from "../database/writeQueue";
+import { fetchWithTimeout } from "../igdb/token";
 import { createCloudSyncStore } from "./cloudSyncStore";
 import { CLOUD_SYNC_FILENAME, mergeAndApplySnapshot, parseRemoteSnapshot, type CloudSyncSnapshot } from "./gistSnapshot";
 
 const GIST_API_BASE = "https://api.github.com/gists";
 const GIST_DESCRIPTION = "Game Release Tracker — Cloud Sync Library";
+const CLOUD_SYNC_TIMEOUT_MS = 15_000;
+const activeCloudSyncByDb = new WeakMap<TrackerDatabase, Promise<CloudSyncRunResult>>();
 
 export type CloudSyncFetcher = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -50,8 +53,17 @@ export function createCloudSyncService(
 ) {
   const store = createCloudSyncStore(db);
 
+  const requestGitHub = (url: string, init: RequestInit) =>
+    fetchWithTimeout(
+      fetcher as typeof fetch,
+      url,
+      init,
+      CLOUD_SYNC_TIMEOUT_MS,
+      `GitHub cloud sync timed out after ${CLOUD_SYNC_TIMEOUT_MS} ms`
+    );
+
   const findExistingGist = async (token: string): Promise<string | null> => {
-    const response = await fetcher(`${GIST_API_BASE}?per_page=100`, {
+    const response = await requestGitHub(`${GIST_API_BASE}?per_page=100`, {
       method: "GET",
       headers: githubHeaders(token)
     });
@@ -62,7 +74,7 @@ export function createCloudSyncService(
   };
 
   const fetchRemoteGist = async (token: string, gistId: string): Promise<{ exists: boolean; snapshot: CloudSyncSnapshot | null }> => {
-    const response = await fetcher(`${GIST_API_BASE}/${encodeURIComponent(gistId)}`, {
+    const response = await requestGitHub(`${GIST_API_BASE}/${encodeURIComponent(gistId)}`, {
       method: "GET",
       headers: githubHeaders(token)
     });
@@ -73,7 +85,7 @@ export function createCloudSyncService(
     if (!file) return { exists: true, snapshot: null };
     let content = file.content ?? "";
     if (file.truncated && file.raw_url) {
-      const rawRes = await fetcher(file.raw_url, { method: "GET", headers: githubHeaders(token) });
+      const rawRes = await requestGitHub(file.raw_url, { method: "GET", headers: githubHeaders(token) });
       if (!rawRes.ok) throw new Error(await readGitHubError(rawRes));
       content = await rawRes.text();
     }
@@ -91,7 +103,7 @@ export function createCloudSyncService(
       }
     };
     const url = gistId ? `${GIST_API_BASE}/${encodeURIComponent(gistId)}` : GIST_API_BASE;
-    const response = await fetcher(url, {
+    const response = await requestGitHub(url, {
       method: gistId ? "PATCH" : "POST",
       headers: githubHeaders(token, true),
       body: JSON.stringify(payload)
@@ -99,6 +111,46 @@ export function createCloudSyncService(
     if (!response.ok) throw new Error(await readGitHubError(response));
     const saved = (await response.json()) as GitHubGist;
     return saved.id;
+  };
+
+  const runSyncOnce = async (): Promise<CloudSyncRunResult> => {
+    const token = store.getToken();
+    if (!token) {
+      const error = "Add a GitHub Personal Access Token (with gist permission) first.";
+      return { ok: false, status: store.recordRunError(error), error };
+    }
+
+    try {
+      let gistId = store.getStatus().gistId;
+      if (!gistId) {
+        gistId = await findExistingGist(token);
+      }
+
+      let remoteSnapshot: CloudSyncSnapshot | null = null;
+      if (gistId) {
+        const remote = await fetchRemoteGist(token, gistId);
+        if (!remote.exists) {
+          gistId = null;
+          store.setGistId(null);
+        } else {
+          remoteSnapshot = remote.snapshot;
+        }
+      }
+
+      const merged = await runWrite(db, () => {
+        const result = mergeAndApplySnapshot(db, remoteSnapshot, store.getTombstones());
+        store.saveTombstones(result.tombstones);
+        return result;
+      });
+
+      const finalGistId = await pushSnapshot(token, gistId, merged.snapshot);
+      const status = await runWrite(db, () => store.recordRunSuccess(finalGistId, merged.summary));
+      return { ok: true, status, summary: merged.summary };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const status = await runWrite(db, () => store.recordRunError(message));
+      return { ok: false, status, error: message };
+    }
   };
 
   return {
@@ -114,44 +166,15 @@ export function createCloudSyncService(
       return store.clearConfig();
     },
 
-    async syncNow(): Promise<CloudSyncRunResult> {
-      const token = store.getToken();
-      if (!token) {
-        const error = "Add a GitHub Personal Access Token (with gist permission) first.";
-        return { ok: false, status: store.recordRunError(error), error };
-      }
-
-      try {
-        let gistId = store.getStatus().gistId;
-        if (!gistId) {
-          gistId = await findExistingGist(token);
-        }
-
-        let remoteSnapshot: CloudSyncSnapshot | null = null;
-        if (gistId) {
-          const remote = await fetchRemoteGist(token, gistId);
-          if (!remote.exists) {
-            gistId = null;
-            store.setGistId(null);
-          } else {
-            remoteSnapshot = remote.snapshot;
-          }
-        }
-
-        const merged = await runWrite(db, () => {
-          const result = mergeAndApplySnapshot(db, remoteSnapshot, store.getTombstones());
-          store.saveTombstones(result.tombstones);
-          return result;
-        });
-
-        const finalGistId = await pushSnapshot(token, gistId, merged.snapshot);
-        const status = await runWrite(db, () => store.recordRunSuccess(finalGistId, merged.summary));
-        return { ok: true, status, summary: merged.summary };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        const status = await runWrite(db, () => store.recordRunError(message));
-        return { ok: false, status, error: message };
-      }
+    // Serialized per database so startup auto-sync and manual tap never race or overwrite tombstones.
+    syncNow(): Promise<CloudSyncRunResult> {
+      const inFlight = activeCloudSyncByDb.get(db);
+      if (inFlight) return inFlight;
+      const run = runSyncOnce().finally(() => {
+        if (activeCloudSyncByDb.get(db) === run) activeCloudSyncByDb.delete(db);
+      });
+      activeCloudSyncByDb.set(db, run);
+      return run;
     }
   };
 }

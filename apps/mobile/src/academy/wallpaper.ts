@@ -4,7 +4,8 @@ import { useCallback, useState } from "react";
 // on mobile screens while fitting comfortably inside localStorage).
 
 const KEY = "academy.wallpaper";
-const MAX_DIMENSION = 1280;
+const MAX_DIMENSION = 1600;
+const FALLBACK_DIMENSION = 1200;
 
 function readWallpaper(): string | null {
   try {
@@ -15,7 +16,7 @@ function readWallpaper(): string | null {
   }
 }
 
-async function compressImageFile(file: File): Promise<string> {
+async function compressImageFile(file: File, maxDimension = MAX_DIMENSION, quality = 0.86): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => (typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read image")));
@@ -28,7 +29,7 @@ async function compressImageFile(file: File): Promise<string> {
     image.onerror = () => reject(new Error("Unsupported image format"));
     image.src = dataUrl;
   });
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+  const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
   const width = Math.max(1, Math.round(img.naturalWidth * scale));
   const height = Math.max(1, Math.round(img.naturalHeight * scale));
   const canvas = document.createElement("canvas");
@@ -37,18 +38,23 @@ async function compressImageFile(file: File): Promise<string> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return dataUrl;
   ctx.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL("image/jpeg", 0.8);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 export function useWallpaper() {
   const [wallpaper, setWallpaper] = useState<string | null>(readWallpaper);
 
   const setWallpaperFromFile = useCallback(async (file: File) => {
-    const compressed = await compressImageFile(file);
+    let compressed = await compressImageFile(file, MAX_DIMENSION, 0.86);
     try {
       localStorage.setItem(KEY, compressed);
     } catch {
-      throw new Error("Image is too large to save on this device. Try a smaller photo.");
+      compressed = await compressImageFile(file, FALLBACK_DIMENSION, 0.78);
+      try {
+        localStorage.setItem(KEY, compressed);
+      } catch {
+        throw new Error("Image is too large to save on this device. Try a smaller photo.");
+      }
     }
     setWallpaper(compressed);
   }, []);

@@ -4,7 +4,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import { createLibrarySaver, defaultLibraryStore, exportLibraryCopy } from "./libraryFile";
 import { prepareLibraryImport, type PreparedLibrary } from "./libraryImport";
 import { createMobileApiClient, prepareMobileDatabase, type MobileApiClient } from "./mobileApiClient";
-import { invalidateAllListCaches } from "./academy/listCache";
+import { invalidateAllListCaches, invalidateUpcomingCache } from "./academy/listCache";
 import { asTrackerDatabase, openWasmDatabase } from "./wasmDatabase";
 
 // Starts the Android app's backend: opens the saved library, saves it after writes and when the app
@@ -80,7 +80,11 @@ async function checkIn(api: MobileApiClient) {
   }
   try {
     const settings = await api.getSettings();
-    if (settings.autoSyncDue) await waitForSync(api, await api.syncNow());
+    if (settings.autoSyncDue) {
+      await waitForSync(api, await api.syncNow());
+      invalidateUpcomingCache();
+      window.dispatchEvent(new CustomEvent("grt:cloud-synced"));
+    }
     await notifyAlerts(api);
   } catch (error) {
     console.warn("Check-in failed", error);

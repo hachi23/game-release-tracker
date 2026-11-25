@@ -114,6 +114,7 @@ export function useReleaseWorkspace({ api, initialState, shell }: { api: ApiClie
   }, [syncStatus, api]);
 
   const sync = async () => {
+    if (ownSyncRunning.current || syncStatus.status === "running") return;
     logUiEvent("ui.click", { action: "sync" });
     clearOperationError();
     ownSyncRunning.current = true;

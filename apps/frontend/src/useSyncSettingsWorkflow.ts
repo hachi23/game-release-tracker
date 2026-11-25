@@ -5,7 +5,17 @@ import { useLoadOnFirstOpen } from "./useLoadOnFirstOpen";
 
 // Settings → Sync: the tracked publishers (search, add, remove, add the suggested set) and the platform,
 // track-from and auto-sync choices. Every change saves at once; the backend's answer is the new state.
-export function useSyncSettingsWorkflow({ api, loadOnOpen, onError }: { api: ApiClient; loadOnOpen: boolean; onError?: (action: string, error: unknown) => void }) {
+export function useSyncSettingsWorkflow({
+  api,
+  loadOnOpen,
+  onError,
+  onTrackFromChanged
+}: {
+  api: ApiClient;
+  loadOnOpen: boolean;
+  onError?: (action: string, error: unknown) => void;
+  onTrackFromChanged?: () => void;
+}) {
   const [settings, setSettings] = useState<SyncSettings | null>(null);
   const [searchText, setSearchText] = useState("");
   const [results, setResults] = useState<TrackedPublisher[] | null>(null);
@@ -52,7 +62,7 @@ export function useSyncSettingsWorkflow({ api, loadOnOpen, onError }: { api: Api
         if (on && settings.platforms.length === 1) return;
         return update({ platforms: on ? settings.platforms.filter(item => item !== platform) : [...settings.platforms, platform] });
       },
-      setTrackFrom: (trackFrom: string) => (trackFrom ? update({ trackFrom }) : undefined),
+      setTrackFrom: (trackFrom: string) => (trackFrom ? update({ trackFrom }).then(() => onTrackFromChanged?.()) : undefined),
       setAutoSync: (autoSync: boolean) => update({ autoSync }),
       setAlerts: (alerts: boolean) => update({ alerts })
     }

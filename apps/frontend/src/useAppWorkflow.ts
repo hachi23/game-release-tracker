@@ -35,7 +35,12 @@ export function useAppWorkflow({ apiBaseUrl, initialState, api: injectedApi }: {
     onChanged: () => Promise.all([releaseWorkspace.actions.reload(), completedLibrary.games.reload()]),
     onError: shell.reportOperationError
   });
-  const syncSettings = useSyncSettingsWorkflow({ api, loadOnOpen: !initialState && shell.view === "settings", onError: shell.reportOperationError });
+  const syncSettings = useSyncSettingsWorkflow({
+    api,
+    loadOnOpen: !initialState && shell.view === "settings",
+    onError: shell.reportOperationError,
+    onTrackFromChanged: () => void releaseWorkspace.actions.reload()
+  });
 
   return {
     ...releaseWorkspace,

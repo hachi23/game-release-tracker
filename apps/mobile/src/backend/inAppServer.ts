@@ -172,7 +172,15 @@ export function createInAppBackend({
   const fetcher: typeof fetch = async (input, init) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, "http://in-app.local");
     const text = typeof init?.body === "string" ? init.body : undefined;
-    return handle((init?.method ?? "GET").toUpperCase(), url, text ? JSON.parse(text) : undefined);
+    let parsedBody: unknown;
+    if (text) {
+      try {
+        parsedBody = JSON.parse(text);
+      } catch {
+        return json(400, { error: "Invalid JSON request body" });
+      }
+    }
+    return handle((init?.method ?? "GET").toUpperCase(), url, parsedBody);
   };
 
   return { fetch: fetcher, routeCount: () => routes.length };

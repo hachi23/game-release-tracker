@@ -137,7 +137,8 @@ export function useCollectionWorkspace<Item extends { id: string }, Filters>({
     removeFromSelection: selection.removeIds,
     deleteSelected,
     rememberReturnPosition,
-    returnToList
+    returnToList,
+    returningToItemId: returnPosition.current?.view === view ? returnPosition.current.itemId : null
   };
 }
 
