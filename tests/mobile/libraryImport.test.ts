@@ -64,7 +64,7 @@ describe("importing the desktop library", () => {
     });
     const prepared = await prepareLibraryImport(bytes);
     const phone = await openWasmDatabase(prepared.bytes);
-    expect((phone.prepare("select version from schema_version").get() as { version: number }).version).toBe(22);
+    expect((phone.prepare("select version from schema_version").get() as { version: number }).version).toBe(23);
     phone.close();
   });
 });

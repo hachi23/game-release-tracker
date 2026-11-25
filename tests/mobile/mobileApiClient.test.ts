@@ -87,6 +87,7 @@ async function session(api: ApiClient) {
   answers.push(completed);
   await step(() => api.getCompletedGame(completed.items[0].id));
   await step(() => api.patchCompletedGame(completed.items[0].id, { ratingRaw: "7.5", notes: "From the test" }));
+  await step(() => api.patchCompletedGame(completed.items[0].id, { ratingBreakdown: { story: 9.5, combat: 9, art: 9.5, pacing: 8 } }));
   await step(() => api.listCompletedGames({ search: completed.items[1].title }));
   const years = await api.getYearInReviewYears();
   answers.push(years);

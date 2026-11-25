@@ -73,13 +73,14 @@ jobs:
           **Install:** download the `.apk` below on your phone and open it. Android asks you to allow installs from your browser or file manager the first time. This is a debug-signed preview build, so to update from an earlier preview, uninstall the old one first (your library is kept only on the phone, so load or sync it again afterwards).
 
           **What's in it**
-          - Every screen: Upcoming, Calendar, Completed Library, Randomizer, Year in Review and Settings, with IGDB sync and search (add your IGDB keys in Settings), editing, and notifications for watched games.
-          - The Magic Academy look, with Day Term and Night Study (a candlelit dark mode). Settings → Look picks one or follows your phone.
-          - Upcoming game pages are the Spellbook Entry, finished games the Dorm Corkboard, and Year in Review the animated Yearbook.
-          - **Bring your desktop library over:** Settings → Your library → Import from the desktop app. Close the desktop app, copy `game-release-tracker.db` (Windows: `%APPDATA%\Game Release Tracker`; Linux: `~/.config/Game Release Tracker`) to your phone, and pick it. IGDB keys need entering again on the phone.
+          - **Phone-first Magic Academy redesign:** translucent frosted-glass notebook (Day Term & Night Study) with Klee One handwriting, optional custom desk wallpaper (Settings → Look & Glass), and floating bottom navigation dock.
+          - **Completed 9-Pocket Collector's Binder + Certified Graded Slab:** 3×3 binder grid with folio pagination, Masterpiece 9.5+ gold frame, tap-to-open Graded Slab bottom sheet (side-by-side spread on tablets/landscape), and a Binder/List toggle.
+          - **4-Category Ratings (schema v23):** score `Story & World`, `Combat & Feel`, `Art & Music`, and `Pacing` inline from the Graded Slab, Add Completed Game sheet, or Completed Detail — auto-averaged into the overall score while preserving single-score games.
+          - **Cover-tinted detail pages:** opened Upcoming and Completed game pages subtly pull colours from each game's cover art (`40% / 60% / 70%` tint switcher) with harmonized frosted cards, rectangular covers, full-width 16:9 trailer & screenshot galleries, and fullscreen lightbox.
+          - **Bring your desktop library over:** Settings → Your library → Import from desktop. Close the desktop app, copy `game-release-tracker.db` (Windows: `%APPDATA%\Game Release Tracker`; Linux: `~/.config/Game Release Tracker`) to your phone, and pick it. Fully compatible with desktop schema v23 (including 4-category ratings).
           - The desktop app's own backend runs inside the app; your library is one file in the app's private storage.
 
-          **Not yet:** custom artwork uploads, wallpaper, and syncing while the app is closed.
+          **Not yet:** custom artwork uploads and syncing while the app is closed.
           EOF
       - uses: softprops/action-gh-release@v2
         if: env.RELEASE_TAG != ''

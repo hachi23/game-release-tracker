@@ -27,7 +27,8 @@ const migrations: Array<(db: TrackerDatabase) => void> = [
   migrateToV19,
   migrateToV20,
   migrateToV21,
-  migrateToV22
+  migrateToV22,
+  migrateToV23
 ];
 
 const LATEST_SCHEMA_VERSION = migrations.length;
@@ -630,6 +631,17 @@ function migrateToV22(db: TrackerDatabase) {
     if (!hasColumn(db, "completed_games", "favourite_shot")) db.exec("alter table completed_games add column favourite_shot text");
     if (!hasColumn(db, "completed_games", "favourite_caption")) db.exec("alter table completed_games add column favourite_caption text");
     if (!hasColumn(db, "completed_games", "replay")) db.exec("alter table completed_games add column replay text");
+  });
+  tx();
+}
+
+// v23: 4-category completed-game rating breakdown (Story & World, Combat & Feel, Art & Music, Pacing).
+function migrateToV23(db: TrackerDatabase) {
+  const tx = db.transaction(() => {
+    if (!hasColumn(db, "completed_games", "rating_story")) db.exec("alter table completed_games add column rating_story real");
+    if (!hasColumn(db, "completed_games", "rating_combat")) db.exec("alter table completed_games add column rating_combat real");
+    if (!hasColumn(db, "completed_games", "rating_art")) db.exec("alter table completed_games add column rating_art real");
+    if (!hasColumn(db, "completed_games", "rating_pacing")) db.exec("alter table completed_games add column rating_pacing real");
   });
   tx();
 }

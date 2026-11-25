@@ -1,3 +1,6 @@
+import type { CompletedRatingBreakdown, RatingCategoryKey } from "./completedRatings";
+export type { CompletedRatingBreakdown, RatingCategoryKey };
+
 export type ReleaseCategory =
   | "Main"
   | "DLC"
@@ -250,6 +253,8 @@ export interface CompletedGameListItem {
   userPlatform: string;
   ratingRaw?: string | null;
   ratingScore?: number | null;
+  ratingBreakdown?: CompletedRatingBreakdown | null;
+  notes?: string | null;
   completionDate?: string | null;
   completionMonth?: string | null;
   completionYear?: number | null;

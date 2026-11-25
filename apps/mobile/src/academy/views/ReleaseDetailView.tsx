@@ -1,27 +1,40 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReleaseDetail } from "../../../../../shared/types";
 import { screenshotSrc } from "../../../../frontend/src/artwork";
 import { youtubeEmbedSrc, youtubePosterSrc } from "../../../../frontend/src/youtube";
 import type { AcademyContext } from "../AcademyApp";
-import { countdown, longDate, monthName, parseDay } from "../format";
+import { coverTintStyle, useCoverPalette, type DetailBgTint } from "../coverPalette";
+import { countdown, longDate } from "../format";
 import { coverOf, Icon } from "../ui";
 
-// An upcoming game's page: the Spellbook Entry design. The cover sits in an arched window, the title
-// opens with an illuminated capital, a ring of fourteen moons counts down the last two weeks, and the
-// wax seal watches the game. The trailer mounts only after Play and unmounts when the page closes.
+// Upcoming game detail page: cover-tinted frosted glass (40% / 60% / 70%) with harmonized cards,
+// big rectangular cover (no arch, no candles/moon ring), clean countdown + Watch bar, and a
+// full-width 16:9 rectangular Trailer + Screenshots gallery with tap-to-fullscreen lightbox.
 
-const MOONS = 14;
+const TINTS: DetailBgTint[] = ["40", "60", "70"];
+
+type MediaSlide =
+  | { kind: "trailer"; videoId: string; label: string }
+  | { kind: "screenshot"; imageId: string; label: string };
 
 export function ReleaseDetailView({ id, context }: { id: string; context: AcademyContext }) {
-  const { api, today, fail, back } = context;
+  const { api, today, fail, back, detailTint, setDetailTint } = context;
   const [release, setRelease] = useState<ReleaseDetail | null>(null);
   const [missing, setMissing] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const [shot, setShot] = useState(0);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [playingTrailer, setPlayingTrailer] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
 
   useEffect(() => {
+    setActiveSlide(0);
+    setPlayingTrailer(false);
+    setLightbox(false);
     api.getRelease(id).then(setRelease).catch(() => setMissing(true));
   }, [api, id]);
+
+  const coverUrl = release ? coverOf(release.artworks, "detail") : null;
+  const palette = useCoverPalette(coverUrl);
 
   const patch = async (payload: Record<string, unknown>) => {
     try {
@@ -41,138 +54,200 @@ export function ReleaseDetailView({ id, context }: { id: string; context: Academ
     }
   };
 
-  if (missing) return <><button type="button" className="back" onClick={back}>‹ Back</button><p className="page-note">This game isn't in Upcoming any more.</p></>;
+  if (missing) {
+    return (
+      <div className="detail-glass" data-tint={detailTint}>
+        <button type="button" className="back detail-pill" style={{ alignSelf: "flex-start" }} onClick={back}>‹ Back</button>
+        <p className="page-note">This game isn't in Upcoming any more.</p>
+      </div>
+    );
+  }
   if (!release) return null;
 
-  const { days } = countdown(release, today);
-  const day = release.datePrecision === "Exact" ? parseDay(release.releaseDate) : null;
-  const chapter = day ? `Chapter of ${monthName(day.getMonth() + 1)}` : `Chapter of ${release.dateText || "the unknown"}`;
-  const house = release.publishers[0] ?? release.developers[0];
-  const [initial, rest] = [release.title.slice(0, 1), release.title.slice(1)];
-  const trailer = release.trailers[0];
-  const shots = release.screenshots;
+  const { label: countdownLabel, days } = countdown(release, today);
+  const studio = [...release.developers, ...release.publishers].filter(Boolean);
   const latestChange = release.dateChanges?.[0];
+  const slides: MediaSlide[] = [
+    ...release.trailers.map(trailer => ({
+      kind: "trailer" as const,
+      videoId: trailer.videoId,
+      label: trailer.name?.trim() || "Trailer"
+    })),
+    ...release.screenshots.slice(0, 10).map((shot, idx) => ({
+      kind: "screenshot" as const,
+      imageId: shot.imageId,
+      label: `Screenshot ${idx + 1}`
+    }))
+  ];
+  const currentSlide = slides[Math.min(activeSlide, Math.max(0, slides.length - 1))] ?? null;
 
-  const castLine = days === null ? `Arrives ${release.dateText || "on a date not yet known"}` : days < 0 ? "Out now" : days === 0 ? "Cast tonight" : days === 1 ? "One night until it's cast" : `${days} nights until it's cast`;
+  const selectSlide = (index: number) => {
+    setActiveSlide(index);
+    setPlayingTrailer(false);
+  };
 
-  return (
-    <article className="spellbook">
-      <button type="button" className="back" onClick={back} style={{ alignSelf: "flex-start" }}>‹ Back</button>
-      <div className="spellbook-frame">
-        <div className="arch">
-          {coverOf(release.artworks, "detail") ? <img src={coverOf(release.artworks, "detail")!} alt={`${release.title} cover`} /> : <div className="blank" aria-hidden="true" />}
+  const coverSection = (
+    <div className="m-spell-hero">
+      <figure className="m-rect-cover">
+        {coverUrl ? <img src={coverUrl} alt={`${release.title} cover`} /> : <div className="blank" aria-hidden="true" />}
+      </figure>
+
+      <div className="detail-card stack" style={{ gap: 8 }}>
+        <div className="chips">
+          <span className="tag">{release.category}</span>
+          {release.genres.slice(0, 3).map(genre => <span key={genre} className="tag">{genre}</span>)}
         </div>
+        <h1 className="m-spell-title">{release.title}</h1>
+        {studio.length ? <div className="m-spell-meta">{[...new Set(studio)].slice(0, 2).join(" · ")}</div> : null}
+      </div>
+    </div>
+  );
 
-        <div className="chapter-line">{[chapter, house].filter(Boolean).join(" · ")}</div>
-
-        <div className="illuminated">
-          <span className="capital" aria-hidden="true">{initial}</span>
-          <h1 aria-label={release.title}><span aria-hidden="true">{rest}</span></h1>
-        </div>
-
-        <div className="moon-card">
-          <MoonRing days={days} />
-          <div className="stack" style={{ gap: 2 }}>
-            <span className="hand" style={{ fontSize: 24, lineHeight: 1.1, color: "var(--red)" }}>{castLine}</span>
-            <span style={{ fontWeight: 700 }}>{longDate(release.releaseDate) ?? release.dateText}</span>
-            <span className="muted" style={{ fontSize: 13 }}>
-              {latestChange
-                ? `${latestChange.kind === "delayed" ? "Delayed" : latestChange.kind === "earlier" ? "Moved up" : "Dated"} from ${latestChange.fromText}`
-                : release.watched ? "No delays recorded since you started watching" : "No date changes recorded"}
+  const infoSection = (
+    <div className="stack" style={{ gap: 12 }}>
+      <section className="detail-card m-countdown-bar" aria-label="Release date and watchlist">
+        <div className="stack" style={{ gap: 3 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <span className={`m-countdown-pill${days !== null && days <= 14 ? "" : " m-countdown-pill--muted"}`}>
+              {days === null ? release.dateText || "TBA" : days < 0 ? "Out now" : days === 0 ? "Out today!" : countdownLabel}
             </span>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>{longDate(release.releaseDate) ?? release.dateText}</span>
           </div>
+          <span className="muted" style={{ fontSize: 12.5 }}>
+            {latestChange
+              ? `${latestChange.kind === "delayed" ? "Delayed" : latestChange.kind === "earlier" ? "Moved up" : "Dated"} from ${latestChange.fromText}`
+              : release.watched ? "Watching for release day & date changes" : "Tap Watch for release-day alerts"}
+          </span>
         </div>
+        <button
+          type="button"
+          className={`btn small${release.watched ? " solid" : ""}`}
+          aria-pressed={Boolean(release.watched)}
+          onClick={() => void patch({ watched: !release.watched })}
+        >
+          {release.watched ? "★ Watching" : "☆ Watch"}
+        </button>
+      </section>
 
-        <section className="stack" style={{ gap: 8 }} aria-label="Platforms and genres">
-          <h2 className="hand spell-heading">Appears in these circles</h2>
-          <div className="chips">
-            {release.platforms.map(platform => (
-              <span key={platform} className="circle-chip">
-                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0 L10 5 L5 10 L0 5 Z" fill="currentColor" /></svg>
-                {platform}
-              </span>
-            ))}
-          </div>
-          <div className="chips">
-            {[release.category, ...release.genres].map(tag => <span key={tag} className="tag">{tag}</span>)}
-          </div>
-        </section>
-
-        {trailer ? (
-          <section aria-label="Trailer" className="stack" style={{ gap: 10 }}>
-            {playing ? (
-              <>
-                <h2 className="hand spell-heading">Scrying glass</h2>
+      {slides.length && currentSlide ? (
+        <section className="m-media" aria-label="Trailer and screenshots">
+          <div className="m-media__hero">
+            {currentSlide.kind === "trailer" ? (
+              playingTrailer ? (
                 <iframe
-                  className="scrying-player"
-                  title={trailer.name ?? `${release.title} trailer`}
-                  src={youtubeEmbedSrc(trailer.videoId)}
+                  title={currentSlide.label}
+                  src={youtubeEmbedSrc(currentSlide.videoId)}
                   allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                   allowFullScreen
                 />
-                <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => setPlaying(false)}>Close the glass</button>
-              </>
+              ) : (
+                <>
+                  <img src={youtubePosterSrc(currentSlide.videoId)} alt={currentSlide.label} />
+                  <button type="button" className="m-media__play" aria-label="Play trailer" onClick={() => setPlayingTrailer(true)}>
+                    <Icon name="play" size={24} />
+                  </button>
+                  <span className="m-media__badge">{currentSlide.label}</span>
+                </>
+              )
             ) : (
-              <div className="row" style={{ flexWrap: "nowrap", gap: 14 }}>
-                <div className="scrying">
-                  <img src={youtubePosterSrc(trailer.videoId)} alt="" />
-                  <button type="button" aria-label="Play the trailer" onClick={() => setPlaying(true)}><Icon name="play" size={22} /></button>
-                </div>
-                <div>
-                  <h2 className="hand spell-heading">Scrying glass</h2>
-                  <p className="muted" style={{ margin: 0 }}>{trailer.name ?? "Trailer"}. Plays in the glass; leave the page and it stops.</p>
-                </div>
-              </div>
+              <>
+                <img
+                  src={screenshotSrc(currentSlide.imageId, "hero")}
+                  alt={`${release.title} ${currentSlide.label}`}
+                  onClick={() => setLightbox(true)}
+                  style={{ cursor: "zoom-in" }}
+                />
+                <span className="m-media__badge">{currentSlide.label}</span>
+                <button type="button" className="m-media__fs" onClick={() => setLightbox(true)}>Fullscreen</button>
+              </>
             )}
-          </section>
-        ) : null}
+          </div>
 
-        {shots.length ? (
-          <section aria-label="Screenshots" className="stack" style={{ gap: 8 }}>
-            <h2 className="hand spell-heading">Illustrations</h2>
-            <img className="illustration" src={screenshotSrc(shots[Math.min(shot, shots.length - 1)].imageId, "hero")} alt="Selected screenshot" />
-            <div className="illustration-thumbs">
-              {shots.slice(0, 6).map((item, index) => (
-                <button key={item.imageId} type="button" aria-label={`Show screenshot ${index + 1}`} aria-pressed={index === shot} onClick={() => setShot(index)}>
-                  <img src={screenshotSrc(item.imageId)} alt="" />
+          {slides.length > 1 ? (
+            <div className="m-media__thumbs">
+              {slides.map((slide, index) => (
+                <button
+                  key={slide.kind === "trailer" ? `tr-${slide.videoId}` : `sc-${slide.imageId}`}
+                  type="button"
+                  className="m-media__thumb"
+                  aria-label={slide.label}
+                  aria-pressed={index === activeSlide}
+                  onClick={() => selectSlide(index)}
+                >
+                  <img
+                    src={slide.kind === "trailer" ? youtubePosterSrc(slide.videoId) : screenshotSrc(slide.imageId)}
+                    alt=""
+                    loading="lazy"
+                  />
+                  {slide.kind === "trailer" ? <span className="m-media__thumb-tag">Trailer</span> : null}
                 </button>
               ))}
             </div>
-          </section>
-        ) : null}
+          ) : null}
+        </section>
+      ) : null}
 
-        <div className="row" style={{ flexWrap: "nowrap", gap: 14 }}>
-          <button type="button" className="wax-seal" aria-pressed={Boolean(release.watched)} onClick={() => void patch({ watched: !release.watched })}>
-            {release.watched ? "Sealed" : "Seal it"}
-          </button>
-          <span className="hand" style={{ fontSize: 20, lineHeight: 1.2, color: "var(--ink-muted)" }}>
-            {release.watched ? "Watching. You'll be told if the date moves or when it's out." : "Seal it to watch for delays and the release day."}
-          </span>
-        </div>
-        <div className="row">
-          <button type="button" className="btn small" onClick={() => void patch({ hidden: !release.hidden })}>{release.hidden ? "Show again" : "Hide"}</button>
-          <button type="button" className="btn small danger" onClick={() => void remove()}>Delete</button>
-          {release.igdbUrl ? <a href={release.igdbUrl} target="_blank" rel="noreferrer" style={{ color: "var(--blue)", alignSelf: "center" }}>Open on IGDB</a> : null}
+      {release.platforms.length ? (
+        <section className="detail-card stack" style={{ gap: 8 }} aria-label="Platforms">
+          <span className="m-cork-label" style={{ margin: 0 }}>Platforms</span>
+          <div className="chips">
+            {release.platforms.map(platform => <span key={platform} className="tag">{platform}</span>)}
+          </div>
+        </section>
+      ) : null}
+
+      {release.dateChanges?.length ? (
+        <section className="detail-card stack" style={{ gap: 6 }} aria-label="Date history">
+          <span className="m-cork-label" style={{ margin: 0 }}>Date history</span>
+          {release.dateChanges.map((change, idx) => (
+            <div key={idx} className="row" style={{ justifyContent: "space-between", fontSize: 13 }}>
+              <span>{change.fromText} → <b>{change.toText}</b></span>
+              <span className="muted" style={{ textTransform: "capitalize" }}>{change.kind}</span>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      <div className="row">
+        <button type="button" className="btn small detail-pill" onClick={() => void patch({ hidden: !release.hidden })}>
+          {release.hidden ? "Show again" : "Hide"}
+        </button>
+        <button type="button" className="btn small danger detail-pill" onClick={() => void remove()}>Delete</button>
+        {release.igdbUrl ? (
+          <a href={release.igdbUrl} target="_blank" rel="noreferrer" className="btn small detail-pill" style={{ textDecoration: "none", color: "var(--blue)" }}>
+            Open on IGDB ↗
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  return (
+    <article className="detail-glass" data-tint={detailTint} style={coverTintStyle(palette)}>
+      <div className="detail-topbar">
+        <button type="button" className="back detail-pill" onClick={back}>‹ Back</button>
+        <div className="detail-pill detail-tint" role="group" aria-label="Cover tint strength">
+          <span>Tint</span>
+          {TINTS.map(value => (
+            <button key={value} type="button" aria-pressed={detailTint === value} onClick={() => setDetailTint(value)}>
+              {value}%
+            </button>
+          ))}
         </div>
       </div>
-    </article>
-  );
-}
 
-// Fourteen moons for the last two weeks: the nights still to go glow red; further out, the count sits
-// in the middle of an unlit ring.
-function MoonRing({ days }: { days: number | null }) {
-  const lit = days === null || days < 0 ? 0 : Math.min(days, MOONS);
-  const label = days === null ? "?" : days < 0 ? "✓" : String(days);
-  return (
-    <svg width="96" height="96" viewBox="0 0 96 96" role="img" aria-label={days === null ? "Date not known yet" : days < 0 ? "Already out" : `${days} nights to go`} style={{ flex: "none" }}>
-      <circle cx="48" cy="48" r="40" fill="none" stroke="var(--rule)" strokeWidth="2" />
-      {Array.from({ length: MOONS }, (_, index) => {
-        const angle = (index / MOONS) * Math.PI * 2 - Math.PI / 2;
-        const on = index >= MOONS - lit;
-        return <circle key={index} cx={48 + Math.cos(angle) * 40} cy={48 + Math.sin(angle) * 40} r="5" fill={on ? "var(--red)" : "var(--sheet)"} stroke="var(--gold-strong)" strokeWidth="1" />;
-      })}
-      <text x="48" y="55" textAnchor="middle" style={{ font: "700 26px Caveat, cursive" }} fill="var(--red)">{label}</text>
-    </svg>
+      <div className="m-spell-layout">
+        {coverSection}
+        {infoSection}
+      </div>
+
+      {lightbox && currentSlide?.kind === "screenshot" ? createPortal(
+        <div className="m-lightbox" role="dialog" aria-modal="true" aria-label="Screenshot viewer" onClick={() => setLightbox(false)}>
+          <img src={screenshotSrc(currentSlide.imageId, "hero")} alt={currentSlide.label} onClick={event => event.stopPropagation()} />
+          <button type="button" className="btn small" style={{ color: "#fff", borderColor: "var(--gold)" }} onClick={() => setLightbox(false)}>Close</button>
+        </div>,
+        document.body
+      ) : null}
+    </article>
   );
 }

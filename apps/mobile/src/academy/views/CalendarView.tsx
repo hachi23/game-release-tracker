@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReleaseListItem } from "../../../../../shared/types";
 import type { AcademyContext } from "../AcademyApp";
 import { monthName, parseDay } from "../format";
+import { coverOf } from "../ui";
 
-// Calendar: the month as a timetable. On a phone each day shows a dot per release; tap a day to list them.
+// Calendar: monthly release timetable with translucent day cells and cover thumbnails on selected days.
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -45,7 +46,7 @@ export function CalendarView({ context }: { context: AcademyContext }) {
         <button type="button" className="btn small icon-btn" aria-label="Next month" onClick={() => shift(1)}>›</button>
       </div>
       <span className="page-note">{total === 1 ? "1 release" : `${total} releases`} this month</span>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: wide ? 6 : 3 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: wide ? 6 : 4 }}>
         {WEEKDAYS.map(day => <div key={day} className="muted" style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textAlign: "center" }}>{wide ? day.toUpperCase() : day[0]}</div>)}
         {cells.map(day => {
           const inMonth = day >= 1 && day <= length;
@@ -59,25 +60,25 @@ export function CalendarView({ context }: { context: AcademyContext }) {
               aria-pressed={picked === day}
               onClick={() => setPicked(day)}
               style={{
-                minHeight: wide ? 96 : 52,
-                padding: wide ? "4px 7px" : 4,
+                minHeight: wide ? 92 : 52,
+                padding: wide ? "5px 7px" : 4,
                 border: `1px solid ${isToday(day) ? "var(--red)" : inMonth ? "var(--rule)" : "transparent"}`,
                 outline: picked === day && inMonth ? "2px solid var(--blue)" : undefined,
-                borderRadius: 4,
+                borderRadius: 8,
                 background: isToday(day) ? "var(--sticky)" : inMonth ? "var(--sheet)" : "transparent",
                 color: isToday(day) ? "var(--sticky-ink)" : "var(--ink)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: wide ? "stretch" : "center",
-                gap: 2,
+                gap: 3,
                 overflow: "hidden",
                 textAlign: "left",
                 cursor: inMonth ? "pointer" : "default"
               }}
             >
-              <span className="display" style={{ fontWeight: 700, fontSize: wide ? 16 : 14 }}>{inMonth ? day : ""}</span>
+              <span className="display" style={{ fontWeight: 700, fontSize: wide ? 15 : 14 }}>{inMonth ? day : ""}</span>
               {wide
-                ? list.slice(0, 3).map(item => <span key={item.id} className="hand" style={{ fontSize: 15, lineHeight: 1.05, color: "var(--blue-ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</span>)
+                ? list.slice(0, 3).map(item => <span key={item.id} className="hand" style={{ fontSize: 13, lineHeight: 1.1, color: "var(--blue-ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</span>)
                 : list.length ? <span aria-hidden="true" style={{ display: "flex", gap: 2 }}>{list.slice(0, 3).map(item => <i key={item.id} style={{ width: 6, height: 6, borderRadius: 3, background: "var(--red)" }} />)}</span> : null}
             </button>
           );
@@ -86,12 +87,20 @@ export function CalendarView({ context }: { context: AcademyContext }) {
       {picked && byDay.get(picked)?.length ? (
         <div className="ruled">
           <h2>{picked} {monthName(month.getMonth() + 1)}</h2>
-          {byDay.get(picked)!.map(item => (
-            <button key={item.id} type="button" className="line-row" onClick={() => openRelease(item.id)}>
-              <span className="title">{item.title}</span>
-              <span className="when">{item.platforms.slice(0, 2).join(", ")}</span>
-            </button>
-          ))}
+          {byDay.get(picked)!.map(item => {
+            const thumb = coverOf(item.artworks, "big");
+            return (
+              <button key={item.id} type="button" className="line-row" onClick={() => openRelease(item.id)}>
+                <span className="line-row__thumb">
+                  {thumb ? <img src={thumb} alt="" loading="lazy" /> : null}
+                </span>
+                <span className="line-row__info">
+                  <span className="title">{item.title}</span>
+                  <span className="line-row__sub">{item.platforms.slice(0, 3).join(" · ")}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </section>

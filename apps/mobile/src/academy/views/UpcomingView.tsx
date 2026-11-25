@@ -5,14 +5,15 @@ import { circledCountdown, countdown, groupByMonth, longDate } from "../format";
 import { Circled, Empty, Icon, Polaroid, coverOf } from "../ui";
 import { AddReleaseSheet } from "./AddReleaseSheet";
 
-// Upcoming: the releases written down the ruled page, grouped by month, with the days to go in red ink
-// when they are close. On a wide screen the right-hand page shows the selected game.
+// Upcoming: chronological releases grouped by month with crisp cover thumbnails for quick scanning
+// on phones. On wide screens the right-hand page previews the selected release.
 
 export function UpcomingView({ context }: { context: AcademyContext }) {
   const { api, today, wide, fail, openRelease } = context;
   const [items, setItems] = useState<ReleaseListItem[] | null>(null);
   const [search, setSearch] = useState("");
   const [watchedOnly, setWatchedOnly] = useState(false);
+  const [genre, setGenre] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
   const [adding, setAdding] = useState(false);
@@ -20,7 +21,10 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
 
   const load = useCallback(async () => {
     try {
-      const [list, demo] = await Promise.all([api.listReleases({ search: search.trim() || undefined, watchedOnly: watchedOnly || undefined }), api.getDemo()]);
+      const [list, demo] = await Promise.all([
+        api.listReleases({ search: search.trim() || undefined, watchedOnly: watchedOnly || undefined }),
+        api.getDemo()
+      ]);
       setItems(list.items);
       setSampleLoaded(demo.loaded);
     } catch (error) {
@@ -37,7 +41,6 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
     void api.getSyncStatus().then(setSync).catch(() => undefined);
   }, [api]);
 
-  // Poll while a sync runs, then reload the list.
   useEffect(() => {
     if (sync?.status !== "running") return;
     const timer = setInterval(async () => {
@@ -48,9 +51,22 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
     return () => clearInterval(timer);
   }, [api, sync?.status, load]);
 
-  const groups = useMemo(() => groupByMonth(items ?? [], today), [items, today]);
-  const current = items?.find(item => item.id === selected) ?? (wide ? items?.[0] : undefined);
-  const sameDay = current?.releaseDate ? (items ?? []).filter(item => item.id !== current.id && item.releaseDate === current.releaseDate) : [];
+  const genres = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of items ?? []) {
+      for (const g of item.genres) counts.set(g, (counts.get(g) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+  }, [items]);
+
+  const visible = useMemo(
+    () => (genre ? (items ?? []).filter(item => item.genres.includes(genre)) : (items ?? [])),
+    [items, genre]
+  );
+
+  const groups = useMemo(() => groupByMonth(visible, today), [visible, today]);
+  const current = visible.find(item => item.id === selected) ?? (wide ? visible[0] : undefined);
+  const sameDay = current?.releaseDate ? visible.filter(item => item.id !== current.id && item.releaseDate === current.releaseDate) : [];
 
   const syncNow = async () => {
     try {
@@ -67,27 +83,55 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
 
   const list = (
     <section className="stack" aria-label="Upcoming releases">
-      <div className="page-head">
+      <div className="page-head" style={{ flexWrap: "nowrap" }}>
         <h1>Upcoming</h1>
-        <button type="button" className="btn small ribbon-blue" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Add game</button>
+        <button type="button" className="btn small ribbon-blue" onClick={() => setAdding(true)}>
+          <Icon name="plus" size={16} />Add
+        </button>
       </div>
+      {items ? <span className="page-note" style={{ marginTop: -6 }}>{visible.length} on the list</span> : null}
       <div className="search">
         <label className="sr-only" htmlFor="upcoming-search">Search</label>
-        <input id="upcoming-search" className="input" type="search" placeholder="Title, publisher, DLC…" value={search} onChange={event => setSearch(event.target.value)} />
+        <input
+          id="upcoming-search"
+          className="input"
+          type="search"
+          placeholder="Title, publisher, DLC…"
+          value={search}
+          onChange={event => setSearch(event.target.value)}
+        />
       </div>
       <div className="row">
-        <button type="button" className="chip" aria-pressed={watchedOnly} onClick={() => setWatchedOnly(value => !value)}>★ Watched only</button>
+        <button type="button" className="chip" aria-pressed={watchedOnly} onClick={() => setWatchedOnly(value => !value)}>★ Watched</button>
         <button type="button" className="chip" onClick={syncNow} disabled={sync?.status === "running"}>
           {sync?.status === "running" ? "Syncing…" : "Sync now"}
         </button>
-        {sync && sync.status !== "running" && sync.status !== "idle" && sync.message ? <span className="muted" style={{ fontSize: 13 }}>{sync.message}</span> : null}
+        {genres.length ? (
+          <select
+            aria-label="Filter by genre"
+            className="chip"
+            style={{ paddingRight: 10 }}
+            value={genre}
+            onChange={event => setGenre(event.target.value)}
+          >
+            <option value="">All genres</option>
+            {genres.map(name => <option key={name} value={name}>{name}</option>)}
+          </select>
+        ) : null}
       </div>
+      {sync && sync.status !== "running" && sync.status !== "idle" && sync.message ? (
+        <span className="muted" style={{ fontSize: 12.5 }}>{sync.message}</span>
+      ) : null}
 
-      {items === null ? null : items.length === 0 ? (
-        search || watchedOnly ? (
+      {items === null ? null : visible.length === 0 ? (
+        search || watchedOnly || genre ? (
           <Empty>Nothing on this page matches.</Empty>
         ) : (
-          <Empty action={<button type="button" className="btn solid" onClick={async () => { try { await api.loadDemo(); await load(); } catch (error) { fail(error); } }}>Load the sample library</button>}>
+          <Empty action={
+            <button type="button" className="btn solid" onClick={async () => { try { await api.loadDemo(); await load(); } catch (error) { fail(error); } }}>
+              Load the sample library
+            </button>
+          }>
             Your notebook is empty. Add IGDB keys in Settings and sync, or try the sample library.
           </Empty>
         )
@@ -98,10 +142,24 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
               <h2>{group.name}</h2>
               {group.items.map(item => {
                 const when = countdown(item, today);
+                const thumb = coverOf(item.artworks, "big");
                 return (
-                  <button key={item.id} type="button" className="line-row" aria-selected={current?.id === item.id} onClick={() => choose(item)}>
-                    {item.watched ? <span className="star" aria-label="Watched">★</span> : null}
-                    <span className="title">{item.title}</span>
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="line-row"
+                    aria-selected={current?.id === item.id}
+                    onClick={() => choose(item)}
+                  >
+                    <span className="line-row__thumb">
+                      {thumb ? <img src={thumb} alt="" loading="lazy" /> : null}
+                    </span>
+                    <span className="line-row__info">
+                      <span className="title">{item.watched ? "★ " : ""}{item.title}</span>
+                      <span className="line-row__sub">
+                        {[item.publishers[0] ?? item.developers[0], item.platforms.slice(0, 3).join(" · ")].filter(Boolean).join(" — ")}
+                      </span>
+                    </span>
                     <span className={`when${when.days !== null && when.days <= 14 ? " soon" : ""}`}>{when.label}</span>
                   </button>
                 );
@@ -110,7 +168,7 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
           ))}
         </div>
       )}
-      {sampleLoaded && items?.length ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>You're looking at the sample library. Remove it in Settings.</p> : null}
+      {sampleLoaded && items?.length ? <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>You're looking at the sample library. Remove it in Settings.</p> : null}
     </section>
   );
 
@@ -142,10 +200,10 @@ function SelectedPage({ item, sameDay, context, onChanged }: { item: ReleaseList
   return (
     <section className="stack" aria-label="Selected game">
       <div className="row" style={{ alignItems: "flex-start", gap: 20, flexWrap: "nowrap" }}>
-        <Polaroid src={coverOf(item.artworks)} tilt={-2} tape width={170} />
+        <Polaroid src={coverOf(item.artworks)} tilt={-1.5} tape width={168} />
         <div className="stack" style={{ gap: 8, minWidth: 0 }}>
           {item.genres.length ? <span className="tag" style={{ alignSelf: "flex-start" }}>{item.genres.slice(0, 2).join(" · ")}</span> : null}
-          <h2 className="display" style={{ margin: 0, fontSize: 28, lineHeight: 1.08 }}>{item.title}</h2>
+          <h2 className="display" style={{ margin: 0, fontSize: 26, lineHeight: 1.08 }}>{item.title}</h2>
           <div className="muted">{[item.publishers.join(", "), item.developers.join(", ")].filter(Boolean).join(" · ")}</div>
         </div>
       </div>

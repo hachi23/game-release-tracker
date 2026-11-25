@@ -1,6 +1,7 @@
 import "@fontsource-variable/fraunces";
 import "@fontsource-variable/work-sans";
-import "@fontsource/caveat/700.css";
+import "@fontsource/klee-one/latin-400.css";
+import "@fontsource/klee-one/latin-600.css";
 import "./academy/theme.css";
 import "./academy/term";
 import { App as NativeApp } from "@capacitor/app";

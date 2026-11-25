@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { MobileApiClient } from "../mobileApiClient";
 import type { LibraryTransfer } from "../boot";
+import { useDetailTint, type DetailBgTint } from "./coverPalette";
 import { todayLabel } from "./format";
-import { Crest, Icon } from "./ui";
 import { useTerm, type TermChoice } from "./term";
+import { Crest, Icon } from "./ui";
+import { useWallpaper } from "./wallpaper";
 import { UpcomingView } from "./views/UpcomingView";
 import { CalendarView } from "./views/CalendarView";
 import { CompletedView } from "./views/CompletedView";
@@ -13,8 +15,9 @@ import { SettingsView } from "./views/SettingsView";
 import { ReleaseDetailView } from "./views/ReleaseDetailView";
 import { CompletedDetailView } from "./views/CompletedDetailView";
 
-// The Android app's UI: one notebook page at a time, chosen by the ribbons. Detail pages open over the
-// ribbon's page and Back returns to it (Android's back gesture too).
+// The Android app's UI: translucent frosted-glass Academy notebook with bottom bookmark dock on
+// phones and right-edge ribbons on tablets/landscape. Detail pages open over the current tab and
+// inherit subtle cover-art colours.
 
 export type Tab = "upcoming" | "calendar" | "completed" | "randomizer" | "year" | "settings";
 type Screen = { tab: Tab } | { tab: Tab; release: string } | { tab: Tab; completed: string };
@@ -26,6 +29,11 @@ export interface AcademyContext {
   wide: boolean;
   term: TermChoice;
   setTerm: (term: TermChoice) => void;
+  detailTint: DetailBgTint;
+  setDetailTint: (tint: DetailBgTint) => void;
+  wallpaper: string | null;
+  setWallpaperFromFile: (file: File) => Promise<void>;
+  clearWallpaper: () => void;
   notify: (message: string) => void;
   fail: (error: unknown) => void;
   openRelease: (id: string) => void;
@@ -66,6 +74,8 @@ export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: 
   const [today] = useState(() => new Date());
   const wide = useWide();
   const [term, setTerm] = useTerm();
+  const [detailTint, setDetailTint] = useDetailTint();
+  const { wallpaper, setWallpaperFromFile, clearWallpaper } = useWallpaper();
   const screen = stack[stack.length - 1];
 
   const notify = useCallback((message: string) => setNotice(message), []);
@@ -97,14 +107,34 @@ export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: 
   }, [screen]);
 
   const context = useMemo<AcademyContext>(
-    () => ({ api, library, today, wide, term, setTerm, notify, fail, openRelease, openCompleted, goTo, back }),
-    [api, library, today, wide, term, setTerm, notify, fail, openRelease, openCompleted, goTo, back]
+    () => ({
+      api,
+      library,
+      today,
+      wide,
+      term,
+      setTerm,
+      detailTint,
+      setDetailTint,
+      wallpaper,
+      setWallpaperFromFile,
+      clearWallpaper,
+      notify,
+      fail,
+      openRelease,
+      openCompleted,
+      goTo,
+      back
+    }),
+    [api, library, today, wide, term, setTerm, detailTint, setDetailTint, wallpaper, setWallpaperFromFile, clearWallpaper, notify, fail, openRelease, openCompleted, goTo, back]
   );
 
-  const spread = wide && !("release" in screen) && !("completed" in screen) && screen.tab !== "calendar" && screen.tab !== "completed";
+  const isDetail = "release" in screen || "completed" in screen;
+  const spread = wide && !isDetail && screen.tab !== "calendar";
+  const shellStyle = wallpaper ? ({ ["--a-wallpaper" as string]: `url(${wallpaper})` } as CSSProperties) : undefined;
 
   return (
-    <div className="academy">
+    <div className="academy" data-wallpaper={wallpaper ? "true" : undefined} style={shellStyle}>
       <header className="crest-bar">
         <Crest />
         <div>
@@ -121,26 +151,28 @@ export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: 
         </div>
       ) : null}
 
-      <div className={`book${spread ? " spread" : ""}`}>
-        <main className="page">
-          {"release" in screen ? (
-            <ReleaseDetailView key={screen.release} id={screen.release} context={context} />
-          ) : "completed" in screen ? (
-            <CompletedDetailView key={screen.completed} id={screen.completed} context={context} />
-          ) : screen.tab === "upcoming" ? (
-            <UpcomingView context={context} />
-          ) : screen.tab === "calendar" ? (
-            <CalendarView context={context} />
-          ) : screen.tab === "completed" ? (
-            <CompletedView context={context} />
-          ) : screen.tab === "randomizer" ? (
-            <RandomizerView context={context} />
-          ) : screen.tab === "year" ? (
-            <YearView context={context} />
-          ) : (
-            <SettingsView context={context} />
-          )}
-        </main>
+      <div className="book-stage">
+        <div className={`book${spread ? " spread" : ""}`} data-detail={isDetail ? "true" : undefined}>
+          <main className={`page${isDetail ? " page--detail" : ""}`}>
+            {"release" in screen ? (
+              <ReleaseDetailView key={screen.release} id={screen.release} context={context} />
+            ) : "completed" in screen ? (
+              <CompletedDetailView key={screen.completed} id={screen.completed} context={context} />
+            ) : screen.tab === "upcoming" ? (
+              <UpcomingView context={context} />
+            ) : screen.tab === "calendar" ? (
+              <CalendarView context={context} />
+            ) : screen.tab === "completed" ? (
+              <CompletedView context={context} />
+            ) : screen.tab === "randomizer" ? (
+              <RandomizerView context={context} />
+            ) : screen.tab === "year" ? (
+              <YearView context={context} />
+            ) : (
+              <SettingsView context={context} />
+            )}
+          </main>
+        </div>
 
         <nav className="ribbons" aria-label="Notebook sections">
           {TABS.map(tab => (
@@ -149,10 +181,10 @@ export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: 
               type="button"
               className="ribbon"
               style={{ ["--ribbon-color" as string]: tab.color }}
-              aria-current={screen.tab === tab.id && stack.length === 1 ? "page" : undefined}
+              aria-current={screen.tab === tab.id ? "page" : undefined}
               onClick={() => goTo(tab.id)}
             >
-              <Icon name={tab.icon} />
+              <Icon name={tab.icon} size={19} />
               <span>{wide ? tab.label : tab.short}</span>
             </button>
           ))}

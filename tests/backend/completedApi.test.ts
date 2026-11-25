@@ -147,6 +147,51 @@ describe("completed library API", () => {
     expect(cleared.json().item).toMatchObject({ verdict: null, favouriteShot: null, favouriteCaption: null, replay: null });
   });
 
+  test("saves 4-category ratings and auto-averages overall score while preserving legacy ratings", async () => {
+    withoutIgdbEnv();
+    const { app } = setup();
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/completed-games/manual",
+      payload: {
+        title: "Metaphor: ReFantazio",
+        userPlatform: "PC",
+        ratingBreakdown: { story: 9.5, combat: 9, art: 9.5, pacing: 8 }
+      }
+    });
+    expect(created.statusCode).toBe(200);
+    expect(created.json().item).toMatchObject({
+      ratingScore: 9,
+      ratingRaw: "9.0",
+      ratingBreakdown: { story: 9.5, combat: 9, art: 9.5, pacing: 8 }
+    });
+
+    const id = created.json().item.id;
+    const partial = await app.inject({
+      method: "PATCH",
+      url: `/api/completed-games/${id}`,
+      payload: { ratingBreakdown: { story: 10, combat: 9, art: null, pacing: null } }
+    });
+    expect(partial.statusCode).toBe(200);
+    expect(partial.json().item).toMatchObject({
+      ratingScore: 9.5,
+      ratingRaw: "9.5",
+      ratingBreakdown: { story: 10, combat: 9, art: null, pacing: null }
+    });
+
+    const cleared = await app.inject({
+      method: "PATCH",
+      url: `/api/completed-games/${id}`,
+      payload: { ratingBreakdown: { story: null, combat: null, art: null, pacing: null } }
+    });
+    expect(cleared.json().item).toMatchObject({
+      ratingScore: 9.5,
+      ratingRaw: "9.5",
+      ratingBreakdown: null
+    });
+  });
+
   test("deletes a completed game", async () => {
     withoutIgdbEnv();
     const { app } = setup();

@@ -1,5 +1,6 @@
-import type { CompletedGameDetail, CompletedGameFilters, CompletedGameListItem, ReleaseArtwork } from "../../../../shared/types";
+import type { CompletedGameDetail, CompletedGameFilters, CompletedGameListItem, CompletedRatingBreakdown, ReleaseArtwork } from "../../../../shared/types";
 import { completedGenres } from "../../../../shared/completedGenres";
+import { hasAnyCategoryRating } from "../../../../shared/completedRatings";
 import type { TrackerDatabase } from "../database/db";
 import { nullable, parseJson, toNumberOrNull } from "../database/rowHelpers";
 import { normalizeText } from "../text/normalizeText";
@@ -134,6 +135,16 @@ function rowToReviewRow(row: Record<string, unknown>): CompletedReviewRow {
   };
 }
 
+function rowToRatingBreakdown(row: Record<string, unknown>): CompletedRatingBreakdown | null {
+  const breakdown: CompletedRatingBreakdown = {
+    story: toNumberOrNull(row.rating_story),
+    combat: toNumberOrNull(row.rating_combat),
+    art: toNumberOrNull(row.rating_art),
+    pacing: toNumberOrNull(row.rating_pacing)
+  };
+  return hasAnyCategoryRating(breakdown) ? breakdown : null;
+}
+
 function rowToListItem(row: Record<string, unknown>): CompletedGameListItem {
   return {
     id: String(row.id),
@@ -142,6 +153,8 @@ function rowToListItem(row: Record<string, unknown>): CompletedGameListItem {
     userPlatform: String(row.user_platform ?? ""),
     ratingRaw: nullable(row.rating_raw),
     ratingScore: toNumberOrNull(row.rating_score),
+    ratingBreakdown: rowToRatingBreakdown(row),
+    notes: nullable(row.notes),
     completionDate: nullable(row.completion_date),
     completionMonth: nullable(row.completion_month),
     completionYear: toNumberOrNull(row.completion_year),
