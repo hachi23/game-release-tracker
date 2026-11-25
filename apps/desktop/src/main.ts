@@ -12,13 +12,22 @@ import { loadCredentialDataKey } from "./credentialKey";
 import { type AppTray, bringWindowBack, setupAppTray } from "./trayWindow";
 import { createSystemNotifier, startReleaseAlerts } from "./releaseAlerts";
 import { createStartAtLogin, registerStartAtLoginIpc, startsHidden } from "./startAtLogin";
+import { readLowMemoryMode, registerLowMemoryModeIpc } from "./lowMemoryMode";
 import { createFileDiagnosticLogger } from "../../backend/src/diagnostics/logger";
 import type { resolveDesktopRuntimeLayout } from "../../runtime/src/layout";
 
-// Low-memory defaults for 2 GB RAM systems (works identically on Windows and Linux):
+// The data folder is named after the app (on Windows %APPDATA%\Game Release Tracker), not after the npm
+// package, so the app never shares a folder with another build of the same package. Set before anything
+// reads userData. An explicit --user-data-dir (a test profile) still wins.
+// Windows shows notifications under this id (the installer's shortcut carries the same one).
+if (process.platform === "win32") app.setAppUserModelId("io.github.hachi23.game-release-tracker");
+if (!app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", join(app.getPath("appData"), "Game Release Tracker"));
+
+// Low-memory mode (enabled by default, configurable in Settings → Appearance):
 // disabling GPU hardware acceleration drops ~110 MB of Chromium GPU compositor memory,
 // --in-process-gpu avoids a separate GPU OS process, and heap/cache caps stop idle bloat.
-if (process.env.GRT_ENABLE_GPU !== "1") {
+const lowMemoryModeActive = readLowMemoryMode(app.getPath("userData"));
+if (lowMemoryModeActive) {
   app.disableHardwareAcceleration();
   app.commandLine.appendSwitch("in-process-gpu");
 }
@@ -45,12 +54,6 @@ let fatalDialogShown = false;
 // programs cannot use the local API. Only this app's renderer receives it, through the preload.
 const apiToken = randomBytes(32).toString("hex");
 
-// The data folder is named after the app (on Windows %APPDATA%\Game Release Tracker), not after the npm
-// package, so the app never shares a folder with another build of the same package. Set before anything
-// reads userData. An explicit --user-data-dir (a test profile) still wins.
-// Windows shows notifications under this id (the installer's shortcut carries the same one).
-if (process.platform === "win32") app.setAppUserModelId("io.github.hachi23.game-release-tracker");
-if (!app.commandLine.hasSwitch("user-data-dir")) app.setPath("userData", join(app.getPath("appData"), "Game Release Tracker"));
 registerAppScheme(protocol);
 
 const gotLock = app.requestSingleInstanceLock();
@@ -120,6 +123,21 @@ registerStartAtLoginIpc({
     getLoginItemSettings: options => app.getLoginItemSettings(options),
     setLoginItemSettings: settings => app.setLoginItemSettings(settings)
   })
+});
+registerLowMemoryModeIpc({
+  ipcMain,
+  isAppFrame,
+  getUserDataDir: () => app.getPath("userData"),
+  active: lowMemoryModeActive,
+  relaunch: async () => {
+    hiddenInTray = false;
+    backendShutdownStarted = true;
+    const running = backend;
+    backend = null;
+    await running?.stop();
+    app.relaunch();
+    app.exit(0);
+  }
 });
 registerWallpaperIpc({
   ipcMain,

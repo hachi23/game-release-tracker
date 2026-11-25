@@ -5,6 +5,7 @@ import type { SavedCredential } from "../../../../shared/types";
 import { SETTINGS_TABS, type SettingsWorkflow } from "../useSettingsWorkflow";
 import type { SyncSettingsWorkflow } from "../useSyncSettingsWorkflow";
 import { SyncSettingsPanel } from "./settings/SyncSettingsPanel";
+import { useLowMemoryMode } from "../useLowMemoryMode";
 
 
 export function SettingsView({
@@ -39,6 +40,7 @@ export function SettingsView({
   const { settings, settingsStatus, steamGridDbKey, tab, actions } = workflow;
   // The desktop bridge; in a browser (development) there is no app data folder to open or delete.
   const bridge = typeof window === "undefined" ? undefined : window.releaseTracker;
+  const lowMemory = useLowMemoryMode();
   return (
     <FramedPanel className="settings-view">
       <div className="settings-view__scroll">
@@ -61,6 +63,18 @@ export function SettingsView({
       <section className="settings-section"><h3>Year in Review</h3>
         <label className="sync-auto"><input type="checkbox" className="check" checked={themeAutoplay} onChange={event => setThemeAutoplay(event.target.checked)} /> Play a year's theme music automatically when Year in Review opens (it loads YouTube)</label>
       </section>
+      {lowMemory.supported && <section className="settings-section">
+        <h3>Performance</h3>
+        <label className="sync-auto">
+          <input type="checkbox" className="check" checked={lowMemory.enabled} onChange={event => void lowMemory.setEnabled(event.target.checked)} />
+          {" "}Low-memory mode (disable GPU acceleration to cut RAM usage by ~110 MB)
+        </label>
+        <p>Enabled by default for low-RAM PCs. Turn off for GPU-accelerated Year in Review and Randomizer animations.</p>
+        {lowMemory.restartRequired && <div className="settings-actions">
+          <span className="settings-status">Restart the app to apply this change.</span>
+          <button type="button" onClick={() => void lowMemory.relaunch()}>Restart now</button>
+        </div>}
+      </section>}
       </>}
       {tab === "API keys" && <section className="settings-section">
         <h3>API keys</h3>

@@ -4,6 +4,12 @@ interface StartAtLoginState {
   enabled: boolean;
 }
 
+interface LowMemoryModeState {
+  supported: boolean;
+  enabled: boolean;
+  active: boolean;
+}
+
 interface ReleaseTrackerBridge {
   getApiBaseUrl?(): Promise<string>;
   getApiToken?(): Promise<string>;
@@ -18,6 +24,10 @@ interface ReleaseTrackerBridge {
   // Start with Windows (or the Linux session), straight into the tray. Packaged desktop app only.
   getStartAtLogin?(): Promise<StartAtLoginState>;
   setStartAtLogin?(on: boolean): Promise<StartAtLoginState>;
+  // Low-memory mode (disables GPU hardware acceleration; enabled by default). Desktop app only.
+  getLowMemoryMode?(): Promise<LowMemoryModeState>;
+  setLowMemoryMode?(on: boolean): Promise<LowMemoryModeState>;
+  relaunchApp?(): Promise<{ ok: boolean }>;
   // Calls back with a release id when the user clicks a release alert. Returns the unsubscribe function.
   onOpenRelease?(callback: (releaseId: string) => void): () => void;
 }
