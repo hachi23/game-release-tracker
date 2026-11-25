@@ -9,11 +9,10 @@ import {
   type CompletedRatingBreakdown,
   type RatingCategoryKey
 } from "../../../../shared/completedRatings";
+import type { CompletedGameGroup } from "../../../frontend/src/completedGroups";
 import type { CompletedGameListItem } from "../../../../shared/types";
 import { igdbCoverSrc } from "../../../frontend/src/artwork";
 import { parseDay, ratingLabel } from "./format";
-
-export const BINDER_PAGE_SIZE = 9;
 
 type DraftBreakdown = Record<RatingCategoryKey, string>;
 
@@ -204,92 +203,70 @@ export function CategoryRatingBlock({
   );
 }
 
-// 9-Pocket Collector's Binder grid (3x3 cards per folio).
+// Monthly Collector's Binder: games grouped by completion month, 3-column pockets per month.
 export function CompletedBinderGrid({
-  items,
+  groups,
   selectedId,
-  page,
-  totalCount,
-  onPageChange,
+  certNumberById,
   onSelect
 }: {
-  items: CompletedGameListItem[];
+  groups: CompletedGameGroup[];
   selectedId: string | null;
-  page: number;
-  totalCount: number;
-  onPageChange: (nextPage: number) => void;
+  certNumberById: Map<string, number>;
   onSelect: (game: CompletedGameListItem) => void;
 }) {
-  const totalPages = Math.max(1, Math.ceil(items.length / BINDER_PAGE_SIZE));
-  const safePage = Math.max(0, Math.min(page, totalPages - 1));
-  const start = safePage * BINDER_PAGE_SIZE;
-  const pageItems = items.slice(start, start + BINDER_PAGE_SIZE);
-  const emptyCount = Math.max(0, BINDER_PAGE_SIZE - pageItems.length);
-  const pad = (n: number) => String(n).padStart(2, "0");
+  let rendered = 0;
 
   return (
-    <div className="m-binder">
-      <div className="m-binder__grid" role="listbox" aria-label="Completed games binder">
-        {pageItems.map((game, index) => {
-          const globalIndex = start + index;
-          const certNumber = Math.max(1, totalCount - globalIndex);
-          const isMaster = (game.ratingScore ?? 0) >= 9.5;
-          const isSelected = game.id === selectedId;
-          const scoreLabel = formatScore(game.ratingScore, game.ratingRaw);
-          return (
-            <button
-              key={game.id}
-              type="button"
-              role="option"
-              aria-selected={isSelected}
-              className={`m-tcg${isMaster ? " m-tcg--master" : ""}${isSelected ? " m-tcg--selected" : ""}`}
-              onClick={() => onSelect(game)}
-            >
-              <div className="m-tcg__art">
-                {game.coverImageId ? (
-                  <img src={igdbCoverSrc(game.coverImageId, "big")} alt={`${game.title} cover`} />
-                ) : (
-                  <div className="m-tcg__blank" aria-hidden="true">{game.title.slice(0, 1).toUpperCase()}</div>
-                )}
-                {game.userPlatform ? <span className="m-tcg__plat">{game.userPlatform}</span> : null}
-                {scoreLabel !== "–" ? <span className="m-tcg__score">{scoreLabel}</span> : null}
-              </div>
-              <div className="m-tcg__foot">
-                <span className="m-tcg__title">{game.title}</span>
-                <span className="m-tcg__meta">
-                  <span>#{certNumber}</span>
-                  <span>{formatShortFinished(game)}</span>
-                </span>
-              </div>
-            </button>
-          );
-        })}
-        {Array.from({ length: emptyCount }, (_, idx) => (
-          <div key={`empty-${idx}`} className="m-tcg__empty" aria-hidden="true" />
-        ))}
-      </div>
-
-      {totalPages > 1 ? (
-        <div className="m-binder__pager">
-          <button
-            type="button"
-            className="btn tiny"
-            disabled={safePage <= 0}
-            onClick={() => onPageChange(safePage - 1)}
-          >
-            ← Prev
-          </button>
-          <span className="m-binder__folio-pill">FOLIO {pad(safePage + 1)} / {pad(totalPages)}</span>
-          <button
-            type="button"
-            className="btn tiny"
-            disabled={safePage >= totalPages - 1}
-            onClick={() => onPageChange(safePage + 1)}
-          >
-            Next →
-          </button>
-        </div>
-      ) : null}
+    <div className="m-binder" role="listbox" aria-label="Completed games binder by month">
+      {groups.map(group => (
+        <section key={group.key} className="m-binder__section" aria-label={group.heading}>
+          <h2 className="m-binder__month">
+            <span>{group.heading}</span>
+            <small>· {group.items.length}</small>
+          </h2>
+          <div className="m-binder__grid">
+            {group.items.map(game => {
+              const cardIdx = rendered++;
+              const certNumber = certNumberById.get(game.id) ?? 1;
+              const isMaster = (game.ratingScore ?? 0) >= 9.5;
+              const isSelected = game.id === selectedId;
+              const scoreLabel = formatScore(game.ratingScore, game.ratingRaw);
+              return (
+                <button
+                  key={game.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`m-tcg${isMaster ? " m-tcg--master" : ""}${isSelected ? " m-tcg--selected" : ""}`}
+                  onClick={() => onSelect(game)}
+                >
+                  <div className="m-tcg__art">
+                    {game.coverImageId ? (
+                      <img
+                        src={igdbCoverSrc(game.coverImageId, "big")}
+                        alt={`${game.title} cover`}
+                        loading={cardIdx < 12 ? undefined : "lazy"}
+                      />
+                    ) : (
+                      <div className="m-tcg__blank" aria-hidden="true">{game.title.slice(0, 1).toUpperCase()}</div>
+                    )}
+                    {game.userPlatform ? <span className="m-tcg__plat">{game.userPlatform}</span> : null}
+                    {scoreLabel !== "–" ? <span className="m-tcg__score">{scoreLabel}</span> : null}
+                  </div>
+                  <div className="m-tcg__foot">
+                    <span className="m-tcg__title">{game.title}</span>
+                    <span className="m-tcg__meta">
+                      <span>#{certNumber}</span>
+                      <span>{formatShortFinished(game)}</span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

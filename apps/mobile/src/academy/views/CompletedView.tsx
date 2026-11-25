@@ -9,9 +9,9 @@ import {
 } from "../../../../../shared/completedRatings";
 import type { CompletedGameListItem } from "../../../../../shared/types";
 import { igdbCoverSrc } from "../../../../frontend/src/artwork";
+import { groupCompletedGames } from "../../../../frontend/src/completedGroups";
 import type { AcademyContext } from "../AcademyApp";
 import {
-  BINDER_PAGE_SIZE,
   CompletedBinderGrid,
   CompletedGradedSlab,
   formatScore,
@@ -44,7 +44,6 @@ export function CompletedView({ context }: { context: AcademyContext }) {
   const [search, setSearch] = useState("");
   const [year, setYear] = useState<string>("");
   const [viewMode, setViewMode] = useState<ViewMode>("binder");
-  const [binderPage, setBinderPage] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -80,11 +79,13 @@ export function CompletedView({ context }: { context: AcademyContext }) {
     return () => clearTimeout(timer);
   }, [load, search]);
 
-  useEffect(() => {
-    setBinderPage(0);
-  }, [search, year]);
-
-  const list = items ?? [];
+  const groups = useMemo(() => groupCompletedGames(items ?? []), [items]);
+  const list = useMemo(() => groups.flatMap(group => group.items), [groups]);
+  const certNumberById = useMemo(() => {
+    const map = new Map<string, number>();
+    list.forEach((game, index) => map.set(game.id, Math.max(1, list.length - index)));
+    return map;
+  }, [list]);
   const selectedIndex = useMemo(() => {
     if (!list.length) return -1;
     const found = selectedId ? list.findIndex(entry => entry.id === selectedId) : -1;
@@ -160,7 +161,6 @@ export function CompletedView({ context }: { context: AcademyContext }) {
     const nextIdx = selectedIndex + delta;
     if (nextIdx < 0 || nextIdx >= list.length) return;
     setSelectedId(list[nextIdx].id);
-    setBinderPage(Math.floor(nextIdx / BINDER_PAGE_SIZE));
   };
 
   const leftPane = (
@@ -181,10 +181,9 @@ export function CompletedView({ context }: { context: AcademyContext }) {
           <span className="page-note">
             {items.length} {items.length === 1 ? "game" : "games"}{year ? ` in ${year}` : ` — ${thisYearCount} this year`}
           </span>
-          {viewMode === "binder" && items.length > 0 ? (
+          {groups.length > 0 ? (
             <span className="m-binder__folio-pill">
-              FOLIO {String(Math.min(binderPage, Math.max(0, Math.ceil(items.length / BINDER_PAGE_SIZE) - 1)) + 1).padStart(2, "0")}/
-              {String(Math.max(1, Math.ceil(items.length / BINDER_PAGE_SIZE))).padStart(2, "0")}
+              {groups.length} {groups.length === 1 ? "MONTH" : "MONTHS"}
             </span>
           ) : null}
         </div>
@@ -215,39 +214,42 @@ export function CompletedView({ context }: { context: AcademyContext }) {
         <Empty>No finished games match this filter.</Empty>
       ) : viewMode === "binder" && items ? (
         <CompletedBinderGrid
-          items={items}
+          groups={groups}
           selectedId={selectedGame?.id ?? null}
-          page={binderPage}
-          totalCount={items.length}
-          onPageChange={setBinderPage}
+          certNumberById={certNumberById}
           onSelect={selectFromBinder}
         />
       ) : items ? (
         <div className="ruled">
-          {items.map(game => {
-            const score = formatScore(game.ratingScore, game.ratingRaw);
-            return (
-              <button
-                key={game.id}
-                type="button"
-                className="line-row"
-                aria-selected={wide && selectedGame?.id === game.id}
-                onClick={() => {
-                  if (wide) setSelectedId(game.id);
-                  else openCompleted(game.id);
-                }}
-              >
-                <span className="line-row__thumb">
-                  {game.coverImageId ? <img src={igdbCoverSrc(game.coverImageId, "big")} alt="" loading="lazy" /> : null}
-                </span>
-                <span className="line-row__info">
-                  <span className="title">{game.title}</span>
-                  <span className="line-row__sub">{[game.userPlatform, formatShortFinished(game)].filter(Boolean).join(" · ")}</span>
-                </span>
-                {score !== "–" ? <span className="line-row__grade">{score}</span> : null}
-              </button>
-            );
-          })}
+          {groups.map(group => (
+            <section key={group.key} aria-label={group.heading}>
+              <h2>{group.heading} <small style={{ fontSize: 13, fontWeight: 600, opacity: 0.72 }}>· {group.items.length}</small></h2>
+              {group.items.map(game => {
+                const score = formatScore(game.ratingScore, game.ratingRaw);
+                return (
+                  <button
+                    key={game.id}
+                    type="button"
+                    className="line-row"
+                    aria-selected={wide && selectedGame?.id === game.id}
+                    onClick={() => {
+                      if (wide) setSelectedId(game.id);
+                      else openCompleted(game.id);
+                    }}
+                  >
+                    <span className="line-row__thumb">
+                      {game.coverImageId ? <img src={igdbCoverSrc(game.coverImageId, "big")} alt="" loading="lazy" /> : null}
+                    </span>
+                    <span className="line-row__info">
+                      <span className="title">{game.title}</span>
+                      <span className="line-row__sub">{[game.userPlatform, formatShortFinished(game)].filter(Boolean).join(" · ")}</span>
+                    </span>
+                    {score !== "–" ? <span className="line-row__grade">{score}</span> : null}
+                  </button>
+                );
+              })}
+            </section>
+          ))}
         </div>
       ) : null}
     </section>

@@ -598,7 +598,22 @@ textarea.input { border-radius: 14px; padding: 10px 14px; min-height: 88px; resi
 
 /* ---------- Completed: 9-Pocket Collector's Binder + Certified Graded Slab ---------- */
 
-.m-binder { display: flex; flex-direction: column; gap: 10px; }
+.m-binder { display: flex; flex-direction: column; gap: 14px; }
+.m-binder__section { display: flex; flex-direction: column; gap: 6px; }
+.m-binder__month {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 2px 4px;
+  border-bottom: 1px solid var(--rule);
+  font: 600 18px/1.2 var(--hand);
+  color: var(--blue);
+}
+.m-binder__month small {
+  font: 600 12px/1 var(--mono);
+  color: var(--ink-muted);
+}
 .m-binder__head {
   display: flex;
   align-items: center;
