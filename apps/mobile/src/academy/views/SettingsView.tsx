@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PreparedLibrary } from "../../libraryImport";
-import type { PlatformFamily, SettingsStatus, SyncSettings, TrackedPublisher } from "../../../../../shared/types";
+import type { CloudSyncStatus, PlatformFamily, SettingsStatus, SyncSettings, TrackedPublisher } from "../../../../../shared/types";
 import type { AcademyContext } from "../AcademyApp";
 import type { DetailBgTint } from "../coverPalette";
 import { invalidateAllListCaches } from "../listCache";
@@ -62,6 +62,10 @@ export function SettingsView({ context }: { context: AcademyContext }) {
 
   const [status, setStatus] = useState<SettingsStatus | null>(null);
   const [sync, setSync] = useState<SyncSettings | null>(null);
+  const [cloud, setCloud] = useState<CloudSyncStatus | null>(null);
+  const [cloudToken, setCloudToken] = useState("");
+  const [cloudGistId, setCloudGistId] = useState("");
+  const [cloudBusy, setCloudBusy] = useState(false);
   const [keys, setKeys] = useState({ IGDB_CLIENT_ID: "", IGDB_CLIENT_SECRET: "" });
   const [publisherQuery, setPublisherQuery] = useState("");
   const [publisherResults, setPublisherResults] = useState<TrackedPublisher[]>([]);
@@ -70,8 +74,60 @@ export function SettingsView({ context }: { context: AcademyContext }) {
   useEffect(() => {
     api.getSettings().then(setStatus).catch(fail);
     api.getSyncSettings().then(setSync).catch(fail);
+    api.getCloudSyncStatus().then(next => { setCloud(next); setCloudGistId(next.gistId ?? ""); }).catch(() => undefined);
     api.getDemo().then(answer => setSample(answer.loaded)).catch(() => undefined);
   }, [api, fail]);
+
+  const saveCloudConfig = async () => {
+    setCloudBusy(true);
+    try {
+      const next = await api.saveCloudSyncConfig({
+        ...(cloudToken.trim() ? { token: cloudToken.trim() } : {}),
+        gistId: cloudGistId.trim()
+      });
+      setCloud(next);
+      setCloudToken("");
+      setCloudGistId(next.gistId ?? "");
+      notify("Cloud sync settings saved.");
+    } catch (error) {
+      fail(error);
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const runCloudSyncNow = async () => {
+    if (cloudBusy) return;
+    setCloudBusy(true);
+    try {
+      if (cloudToken.trim() || cloudGistId.trim() !== (cloud?.gistId ?? "")) {
+        const saved = await api.saveCloudSyncConfig({
+          ...(cloudToken.trim() ? { token: cloudToken.trim() } : {}),
+          gistId: cloudGistId.trim()
+        });
+        setCloud(saved);
+        setCloudToken("");
+      }
+      const result = await api.runCloudSync();
+      setCloud(result.status);
+      if (result.status.gistId) setCloudGistId(result.status.gistId);
+      if (result.ok) {
+        invalidateAllListCaches();
+        window.dispatchEvent(new CustomEvent("grt:cloud-synced"));
+        const s = result.summary;
+        const pulled = (s?.pulledCompleted ?? 0) + (s?.pulledReleases ?? 0) + (s?.pulledWatchlist ?? 0) + (s?.pulledPublishers ?? 0);
+        const pushed = (s?.pushedCompleted ?? 0) + (s?.pushedReleases ?? 0);
+        notify(`Synced with GitHub Gist (${pulled} pulled, ${pushed} pushed).`);
+        api.getSyncSettings().then(setSync).catch(() => undefined);
+      } else {
+        fail(new Error(result.error ?? "Cloud sync failed."));
+      }
+    } catch (error) {
+      fail(error);
+    } finally {
+      setCloudBusy(false);
+    }
+  };
 
   const run = async <T,>(work: () => Promise<T>, done?: (value: T) => void) => {
     try {
@@ -162,7 +218,64 @@ export function SettingsView({ context }: { context: AcademyContext }) {
       </section>
 
       <section className="stack">
-        <h2 className="display" style={{ margin: 0, fontSize: 20 }}>Sync</h2>
+        <h2 className="display" style={{ margin: 0, fontSize: 20 }}>Desktop ↔ Android sync</h2>
+        <div className="sheet stack" style={{ gap: 8 }}>
+          <span className="muted" style={{ fontSize: 12.5 }}>
+            Two-way sync via a private GitHub Gist (completed games, ratings, notes, watchlist, custom releases, and tracked publishers). Paste the same GitHub token (with <b>gist</b> permission) on Desktop and Android.
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: cloud?.lastStatus === "error" ? "var(--red)" : cloud?.configured ? "var(--green, #2E6B57)" : "var(--muted)" }}>
+            {cloud?.configured
+              ? `Connected${cloud.gistId ? ` · Gist ${cloud.gistId}` : ""}${cloud.lastSyncedAt ? ` · Last synced ${new Date(cloud.lastSyncedAt).toLocaleString()}` : ""}`
+              : "Not connected yet"}
+          </span>
+          {cloud?.lastStatus === "error" && cloud.lastError ? (
+            <span style={{ fontSize: 12.5, color: "var(--red)" }}>{cloud.lastError}</span>
+          ) : null}
+          <label className="field">
+            <span>GitHub token (gist scope)</span>
+            <input
+              className="input"
+              type="password"
+              autoComplete="off"
+              placeholder={cloud?.configured ? "Saved — paste to replace" : "ghp_... or github_pat_..."}
+              value={cloudToken}
+              onChange={event => setCloudToken(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Gist ID (optional — auto-detected)</span>
+            <input
+              className="input"
+              autoComplete="off"
+              placeholder="Auto-created or found from your token"
+              value={cloudGistId}
+              onChange={event => setCloudGistId(event.target.value)}
+            />
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={cloud?.autoSync ?? true}
+              onChange={event => void run(() => api.saveCloudSyncConfig({ autoSync: event.target.checked }), setCloud)}
+            />
+            Sync with GitHub when I open the app
+          </label>
+          <div className="row">
+            <button type="button" className="btn solid small" disabled={cloudBusy} onClick={() => void runCloudSyncNow()}>
+              {cloudBusy ? "Syncing…" : "Sync with GitHub"}
+            </button>
+            <button type="button" className="btn small" disabled={cloudBusy || (!cloudToken.trim() && cloudGistId.trim() === (cloud?.gistId ?? ""))} onClick={() => void saveCloudConfig()}>
+              Save
+            </button>
+            {cloud?.configured ? (
+              <button type="button" className="btn small danger" disabled={cloudBusy} onClick={() => void run(() => api.clearCloudSyncConfig(), next => { setCloud(next); setCloudToken(""); setCloudGistId(""); notify("Cloud sync disconnected."); })}>
+                Disconnect
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <h2 className="display" style={{ margin: "6px 0 0", fontSize: 20 }}>Sync</h2>
         {sync ? (
           <>
             <div className="chips">

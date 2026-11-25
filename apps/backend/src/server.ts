@@ -16,6 +16,7 @@ import { registerReleaseRoutes } from "./routes/releaseRoutes";
 import { registerSettingsRoutes } from "./routes/settingsRoutes";
 import { registerPreferencesRoutes } from "./routes/preferencesRoutes";
 import { registerSyncRoutes } from "./routes/syncRoutes";
+import { registerCloudSyncRoutes } from "./routes/cloudSyncRoutes";
 import { registerAlertRoutes } from "./routes/alertRoutes";
 import { scheduleAutoSync } from "./sync/autoSyncSchedule";
 import { registerWallpaperRoutes } from "./routes/wallpaperRoutes";
@@ -88,6 +89,7 @@ export function createBackendApp({ db, autoSync = true, apiToken, logger = creat
   registerDemoRoutes(routeContext, { today });
   registerArtworkRoutes(routeContext, { fetchCover });
   registerSyncRoutes(routeContext);
+  registerCloudSyncRoutes(routeContext);
   registerAlertRoutes(routeContext, { today });
   registerSettingsRoutes(routeContext);
   registerPreferencesRoutes(routeContext);

@@ -96,6 +96,12 @@ export function CompletedView({ context }: { context: AcademyContext }) {
     return () => clearTimeout(timer);
   }, [load, search]);
 
+  useEffect(() => {
+    const onCloudSynced = () => void load(true);
+    window.addEventListener("grt:cloud-synced", onCloudSynced);
+    return () => window.removeEventListener("grt:cloud-synced", onCloudSynced);
+  }, [load]);
+
   const groups = useMemo(() => groupCompletedGames(items ?? []), [items]);
   const list = useMemo(() => groups.flatMap(group => group.items), [groups]);
   const certNumberById = useMemo(() => {

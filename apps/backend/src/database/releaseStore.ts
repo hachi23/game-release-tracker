@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { TrackerDatabase } from "./db";
+import { recordReleaseTombstone } from "../cloudSync/cloudSyncStore";
 import { getRelease, listReleases, type ReleaseFilters } from "./releaseReadModel";
 import type { DatePrecision, GameTrailer, NormalizedRelease, ReleaseArtwork, ReleaseCategory, ReleaseEligibility, ReleaseOverride } from "../../../../shared/types";
 import { computeSortDateAndEligibility, precisionOfDatedHuman } from "../sync/releasePolicy";
@@ -188,6 +189,7 @@ export function createReleaseStore(db: TrackerDatabase) {
         db.prepare("insert or replace into blocked_releases (id, igdb_id, normalized_title, title, reason) values (?, ?, ?, ?, ?)").run(randomUUID(), row.igdbId ?? null, row.normalizedTitle, row.title, "Manual delete");
       }
       db.prepare("delete from releases where id = ?").run(releaseId);
+      if (!releaseId.startsWith("demo-")) recordReleaseTombstone(db, releaseId);
       return { igdbId: row.igdbId ?? null, title: row.title, normalizedTitle: row.normalizedTitle, blocked: block };
     },
     listBlocked() {

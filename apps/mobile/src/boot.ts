@@ -4,6 +4,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import { createLibrarySaver, defaultLibraryStore, exportLibraryCopy } from "./libraryFile";
 import { prepareLibraryImport, type PreparedLibrary } from "./libraryImport";
 import { createMobileApiClient, prepareMobileDatabase, type MobileApiClient } from "./mobileApiClient";
+import { invalidateAllListCaches } from "./academy/listCache";
 import { asTrackerDatabase, openWasmDatabase } from "./wasmDatabase";
 
 // Starts the Android app's backend: opens the saved library, saves it after writes and when the app
@@ -63,8 +64,20 @@ export async function bootMobileApp(): Promise<MobileApp> {
   return app;
 }
 
-// On start and each return to the app: sync if due (Settings → Sync automatically), then notify.
+// On start and each return to the app: run GitHub Gist cloud sync if enabled, sync IGDB if due, then notify.
 async function checkIn(api: MobileApiClient) {
+  try {
+    const cloud = await api.getCloudSyncStatus();
+    if (cloud.configured && cloud.autoSync) {
+      const result = await api.runCloudSync();
+      if (result.ok) {
+        invalidateAllListCaches();
+        window.dispatchEvent(new CustomEvent("grt:cloud-synced"));
+      }
+    }
+  } catch (error) {
+    console.warn("Cloud sync check-in failed", error);
+  }
   try {
     const settings = await api.getSettings();
     if (settings.autoSyncDue) await waitForSync(api, await api.syncNow());

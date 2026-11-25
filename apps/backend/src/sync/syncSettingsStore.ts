@@ -1,5 +1,6 @@
 import { ALL_PLATFORM_FAMILIES, PLATFORM_FAMILIES } from "../../../../shared/constants";
 import type { PlatformFamily, SyncSettings, SyncSettingsPatch, TrackedPublisher } from "../../../../shared/types";
+import { createCloudSyncStore, recordPublisherTombstone } from "../cloudSync/cloudSyncStore";
 import type { TrackerDatabase } from "../database/db";
 
 const PLATFORMS_KEY = "SYNC_PLATFORMS";
@@ -36,11 +37,17 @@ export function createSyncSettingsStore(db: TrackerDatabase, today: () => Date =
 
     addPublishers(publishers: TrackedPublisher[]) {
       const insert = db.prepare("insert into tracked_publishers (company_id, name) values (?, ?) on conflict(company_id) do update set name = excluded.name");
-      for (const publisher of publishers) insert.run(publisher.id, publisher.name);
+      const cloudStore = createCloudSyncStore(db);
+      for (const publisher of publishers) {
+        insert.run(publisher.id, publisher.name);
+        cloudStore.clearPublisherRemoval(publisher.id);
+      }
     },
 
     removePublisher(id: number) {
-      return db.prepare("delete from tracked_publishers where company_id = ?").run(id).changes > 0;
+      const removed = db.prepare("delete from tracked_publishers where company_id = ?").run(id).changes > 0;
+      if (removed) recordPublisherTombstone(db, id);
+      return removed;
     }
   };
 }

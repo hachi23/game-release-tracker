@@ -514,3 +514,39 @@ export interface YearInReviewSettingsPatch {
   gotyCompletedId?: string | null;
   musicLink?: string | null;
 }
+
+export type CloudSyncState = "idle" | "syncing" | "success" | "error";
+
+export interface CloudSyncSummary {
+  pulledCompleted: number;
+  pushedCompleted: number;
+  deletedCompleted: number;
+  pulledReleases: number;
+  pushedReleases: number;
+  deletedReleases: number;
+  pulledWatchlist: number;
+  pulledPublishers: number;
+}
+
+export interface CloudSyncStatus {
+  configured: boolean;
+  gistId: string | null;
+  autoSync: boolean;
+  lastSyncedAt: string | null;
+  lastStatus: CloudSyncState;
+  lastSummary: CloudSyncSummary | null;
+  lastError: string | null;
+}
+
+export interface CloudSyncConfigPatch {
+  token?: string;
+  gistId?: string;
+  autoSync?: boolean;
+}
+
+export interface CloudSyncRunResult {
+  ok: boolean;
+  status: CloudSyncStatus;
+  summary?: CloudSyncSummary;
+  error?: string;
+}

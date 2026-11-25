@@ -56,6 +56,12 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
   }, [load, search]);
 
   useEffect(() => {
+    const onCloudSynced = () => void load(true);
+    window.addEventListener("grt:cloud-synced", onCloudSynced);
+    return () => window.removeEventListener("grt:cloud-synced", onCloudSynced);
+  }, [load]);
+
+  useEffect(() => {
     void api.getSyncStatus().then(setSync).catch(() => undefined);
   }, [api]);
 

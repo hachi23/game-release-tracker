@@ -1,5 +1,6 @@
 import type { TrackerDatabase } from "../database/db";
 import type { CompletedGameFilters } from "../../../../shared/types";
+import { createCloudSyncStore, recordCompletedTombstone } from "../cloudSync/cloudSyncStore";
 import { normalizeText } from "../text/normalizeText";
 import { completedGameId, completedIdentityKey } from "./completedIdentity";
 import type { CompletedMetadataPatch } from "./completedIgdbMatcher";
@@ -187,6 +188,7 @@ export function createCompletedGameStore(db: TrackerDatabase) {
         completion.completionPrecision,
         payload.notes ?? null
       );
+      createCloudSyncStore(db).clearCompletedDeletion(identityKey);
       return readModel.getByIdentity(identityKey)!;
     },
 
@@ -225,6 +227,7 @@ export function createCompletedGameStore(db: TrackerDatabase) {
       db.transaction(() => {
         db.prepare("delete from completed_match_overrides where identity_key = ?").run(row.identityKey);
         db.prepare("delete from completed_games where id = ?").run(id);
+        if (!id.startsWith("demo-")) recordCompletedTombstone(db, row.identityKey);
       })();
       return true;
     },

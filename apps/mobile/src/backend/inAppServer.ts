@@ -13,6 +13,7 @@ import { registerRandomizerRoutes } from "../../../backend/src/routes/randomizer
 import { registerReleaseRoutes } from "../../../backend/src/routes/releaseRoutes";
 import { registerSettingsRoutes } from "../../../backend/src/routes/settingsRoutes";
 import { registerSyncRoutes } from "../../../backend/src/routes/syncRoutes";
+import { registerCloudSyncRoutes } from "../../../backend/src/routes/cloudSyncRoutes";
 import { registerYearInReviewRoutes } from "../../../backend/src/routes/yearInReviewRoutes";
 import { createSettingsStore } from "../../../backend/src/settings/settingsStore";
 import { failInterruptedSyncRuns } from "../../../backend/src/sync/syncStatus";
@@ -134,6 +135,7 @@ export function createInAppBackend({
   registerYearInReviewRoutes(context, { today });
   registerDemoRoutes(context, { today });
   registerSyncRoutes(context);
+  registerCloudSyncRoutes(context);
   registerAlertRoutes(context, { today });
   registerSettingsRoutes(context);
   registerPreferencesRoutes(context);

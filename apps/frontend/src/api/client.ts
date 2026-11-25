@@ -1,5 +1,8 @@
 import { API_TOKEN_HEADER } from "../../../../shared/constants";
 import type {
+  CloudSyncConfigPatch,
+  CloudSyncRunResult,
+  CloudSyncStatus,
   CompletedGameDetail,
   CompletedGameFilters,
   CompletedGameListResponse,
@@ -73,6 +76,10 @@ export interface ApiClient {
   getPreferences(): Promise<{ palette: string | null; themeAutoplay: boolean }>;
   savePalette(palette: string): Promise<{ palette: string }>;
   saveThemeAutoplay(themeAutoplay: boolean): Promise<{ themeAutoplay: boolean }>;
+  getCloudSyncStatus(): Promise<CloudSyncStatus>;
+  saveCloudSyncConfig(patch: CloudSyncConfigPatch): Promise<CloudSyncStatus>;
+  clearCloudSyncConfig(): Promise<CloudSyncStatus>;
+  runCloudSync(): Promise<CloudSyncRunResult>;
 }
 
 // Appends the non-empty params as a query string; undefined and "" mean "not filtered".
@@ -246,6 +253,18 @@ export function createApiClient(baseUrl: string, apiToken?: string, fetcher: typ
     },
     logEvent(event, details = {}) {
       return request("/api/diagnostics/log", { method: "POST", body: JSON.stringify({ event, details }) });
+    },
+    getCloudSyncStatus() {
+      return request<CloudSyncStatus>("/api/cloud-sync/status");
+    },
+    saveCloudSyncConfig(patch) {
+      return request<CloudSyncStatus>("/api/cloud-sync/config", { method: "PUT", body: JSON.stringify(patch) });
+    },
+    clearCloudSyncConfig() {
+      return request<CloudSyncStatus>("/api/cloud-sync/config", { method: "DELETE" });
+    },
+    runCloudSync() {
+      return request<CloudSyncRunResult>("/api/cloud-sync/sync", { method: "POST", body: "{}" });
     }
   };
 }
