@@ -16,7 +16,21 @@ const DEFAULT_PALETTE: CoverPalette = {
 };
 
 const TINT_KEY = "academy.detailTint";
+const MAX_PALETTE_CACHE = 60;
 const paletteCache = new Map<string, CoverPalette>();
+
+function cachePalette(key: string, value: CoverPalette) {
+  if (paletteCache.size >= MAX_PALETTE_CACHE) {
+    const oldest = paletteCache.keys().next().value;
+    if (oldest !== undefined) paletteCache.delete(oldest);
+  }
+  paletteCache.set(key, value);
+}
+
+// Downshift IGDB detail covers to t_cover_small before sampling 24x32 palette pixels (30x less RAM & bandwidth).
+function smallSampleUrl(url: string): string {
+  return url.replace(/\/t_(?:cover_big_2x|cover_big|1080p)\//, "/t_cover_small/");
+}
 
 export function useDetailTint(): [DetailBgTint, (tint: DetailBgTint) => void] {
   const [tint, setTintState] = useState<DetailBgTint>(() => {
@@ -211,14 +225,15 @@ async function fetchNativeCoverPalette(url: string): Promise<CoverPalette> {
 }
 
 export function useCoverPalette(coverSrc?: string | null): CoverPalette {
-  const [palette, setPalette] = useState<CoverPalette>(() => (coverSrc ? paletteCache.get(coverSrc) : undefined) ?? DEFAULT_PALETTE);
+  const sampleSrc = coverSrc ? smallSampleUrl(coverSrc) : null;
+  const [palette, setPalette] = useState<CoverPalette>(() => (sampleSrc ? paletteCache.get(sampleSrc) : undefined) ?? DEFAULT_PALETTE);
 
   useEffect(() => {
-    if (!coverSrc || typeof Image === "undefined" || typeof document === "undefined") {
+    if (!sampleSrc || typeof Image === "undefined" || typeof document === "undefined") {
       setPalette(DEFAULT_PALETTE);
       return;
     }
-    const cached = paletteCache.get(coverSrc);
+    const cached = paletteCache.get(sampleSrc);
     if (cached) {
       setPalette(cached);
       return;
@@ -227,17 +242,17 @@ export function useCoverPalette(coverSrc?: string | null): CoverPalette {
     let cancelled = false;
     void (async () => {
       try {
-        const extracted = await loadImagePalette(coverSrc, "anonymous");
+        const extracted = await loadImagePalette(sampleSrc, "anonymous");
         if (!cancelled) {
-          paletteCache.set(coverSrc, extracted);
+          cachePalette(sampleSrc, extracted);
           setPalette(extracted);
         }
       } catch {
-        if (!cancelled && Capacitor.isNativePlatform() && /^https?:\/\//i.test(coverSrc)) {
+        if (!cancelled && Capacitor.isNativePlatform() && /^https?:\/\//i.test(sampleSrc)) {
           try {
-            const extracted = await fetchNativeCoverPalette(coverSrc);
+            const extracted = await fetchNativeCoverPalette(sampleSrc);
             if (!cancelled) {
-              paletteCache.set(coverSrc, extracted);
+              cachePalette(sampleSrc, extracted);
               setPalette(extracted);
             }
             return;
@@ -250,7 +265,7 @@ export function useCoverPalette(coverSrc?: string | null): CoverPalette {
     })();
 
     return () => { cancelled = true; };
-  }, [coverSrc]);
+  }, [sampleSrc]);
 
   return palette;
 }

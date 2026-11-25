@@ -3,6 +3,7 @@ import type { PreparedLibrary } from "../../libraryImport";
 import type { PlatformFamily, SettingsStatus, SyncSettings, TrackedPublisher } from "../../../../../shared/types";
 import type { AcademyContext } from "../AcademyApp";
 import type { DetailBgTint } from "../coverPalette";
+import { invalidateAllListCaches } from "../listCache";
 import type { TermChoice } from "../term";
 
 // Settings: Look (Day Term / Night Study, game cover tint, custom desk wallpaper), IGDB keys,
@@ -219,7 +220,7 @@ export function SettingsView({ context }: { context: AcademyContext }) {
 
         <h2 className="display" style={{ margin: "6px 0 0", fontSize: 20 }}>Sample library</h2>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Real games with made-up grades and finish dates, to try the app without IGDB keys.</p>
-        <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => void run(() => (sample ? api.removeDemo() : api.loadDemo()), answer => setSample(answer.loaded))}>
+        <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => void run(() => (sample ? api.removeDemo() : api.loadDemo()), answer => { invalidateAllListCaches(); setSample(answer.loaded); })}>
           {sample ? "Remove sample data" : "Load the sample library"}
         </button>
       </section>

@@ -5,6 +5,16 @@ import type { TrackerDatabase } from "../database/db";
 import { nullable, parseJson, toNumberOrNull } from "../database/rowHelpers";
 import { normalizeText } from "../text/normalizeText";
 
+// Lean column list for Completed list reads: skips large detail-only columns (summary,
+// screenshots_json, extra_json, themes/modes) so listing hundreds of games stays fast and light.
+const LIST_COLUMNS = `
+  id, title, normalized_title, user_platform,
+  rating_raw, rating_score, rating_story, rating_combat, rating_art, rating_pacing,
+  notes, completion_date, completion_month, completion_year, completion_precision,
+  developer, publisher, genres_json, igdb_genres_json, platforms_json,
+  cover_image_id, igdb_id, match_status
+`;
+
 export function createCompletedReadModel(db: TrackerDatabase) {
   return {
     getByIdentity(identityKey: string) {
@@ -38,7 +48,7 @@ export function createCompletedReadModel(db: TrackerDatabase) {
       if (filters.dateState === "dated") where.push("completion_precision in ('exact', 'month')");
       if (filters.dateState === "undated") where.push("completion_precision in ('none', 'year')");
       const rows = db.prepare(`
-        select * from completed_games
+        select ${LIST_COLUMNS} from completed_games
         where ${where.join(" and ")}
         order by coalesce(completion_month, '9999-99'), title
       `).all(params) as Array<Record<string, unknown>>;

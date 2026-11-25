@@ -15,9 +15,11 @@ const FILE = "tracker.db";
 const TEMP = "tracker.db.saving";
 
 export function toBase64(bytes: Uint8Array) {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + 0x8000)));
+  }
+  return btoa(chunks.join(""));
 }
 
 function fromBase64(text: string) {
@@ -75,7 +77,7 @@ function openIdb(): Promise<IDBDatabase> {
 export const defaultLibraryStore = () => (Capacitor.isNativePlatform() ? deviceFileStore : browserStore);
 
 // Saves after writes settle; flush() saves now (the app is going to the background).
-export function createLibrarySaver(store: LibraryStore, exportBytes: () => Uint8Array, delayMs = 400, onError: (error: unknown) => void = console.error) {
+export function createLibrarySaver(store: LibraryStore, exportBytes: () => Uint8Array, delayMs = 1200, onError: (error: unknown) => void = console.error) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let dirty = false;
   let saving: Promise<void> = Promise.resolve();

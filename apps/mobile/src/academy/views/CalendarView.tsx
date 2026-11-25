@@ -88,11 +88,11 @@ export function CalendarView({ context }: { context: AcademyContext }) {
         <div className="ruled">
           <h2>{picked} {monthName(month.getMonth() + 1)}</h2>
           {byDay.get(picked)!.map(item => {
-            const thumb = coverOf(item.artworks, "big");
+            const thumb = coverOf(item.artworks, "small");
             return (
               <button key={item.id} type="button" className="line-row" onClick={() => openRelease(item.id)}>
                 <span className="line-row__thumb">
-                  {thumb ? <img src={thumb} alt="" loading="lazy" /> : null}
+                  {thumb ? <img src={thumb} alt="" loading="lazy" decoding="async" /> : null}
                 </span>
                 <span className="line-row__info">
                   <span className="title">{item.title}</span>

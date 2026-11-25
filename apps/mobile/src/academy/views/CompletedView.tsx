@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   RATING_CATEGORIES,
@@ -17,6 +17,7 @@ import {
   formatScore,
   formatShortFinished
 } from "../CompletedBinderSlab";
+import { getCachedCompleted, setCachedCompleted, updateCachedCompletedItem } from "../listCache";
 import { Empty, Icon } from "../ui";
 
 // Completed: 9-Pocket Collector's Binder + Certified Graded Slab (side-by-side on wide screens,
@@ -39,11 +40,18 @@ const emptyCategories = (): Record<RatingCategoryKey, string> => ({
 
 export function CompletedView({ context }: { context: AcademyContext }) {
   const { api, today, wide, fail, openCompleted, notify } = context;
-  const [items, setItems] = useState<CompletedGameListItem[] | null>(null);
-  const [allYears, setAllYears] = useState<number[]>([]);
+  const initialCached = getCachedCompleted();
+  const [items, setItems] = useState<CompletedGameListItem[] | null>(initialCached);
+  const [allYears, setAllYears] = useState<number[]>(() =>
+    initialCached
+      ? [...new Set(initialCached.map(entry => entry.completionYear).filter((value): value is number => Boolean(value)))].sort((a, b) => b - a)
+      : []
+  );
   const [search, setSearch] = useState("");
   const [year, setYear] = useState<string>("");
   const [viewMode, setViewMode] = useState<ViewMode>("binder");
+  const [listMonths, setListMonths] = useState(5);
+  const listSentinelRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -56,7 +64,15 @@ export function CompletedView({ context }: { context: AcademyContext }) {
     categories: emptyCategories()
   });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    const unfiltered = !search.trim() && !year;
+    if (unfiltered && !force) {
+      const cached = getCachedCompleted();
+      if (cached) {
+        setItems(cached);
+        return;
+      }
+    }
     try {
       const result = await api.listCompletedGames({
         search: search.trim() || undefined,
@@ -64,7 +80,8 @@ export function CompletedView({ context }: { context: AcademyContext }) {
       });
       const ordered = sortNewestFirst(result.items);
       setItems(ordered);
-      if (!search.trim() && !year) {
+      if (unfiltered) {
+        setCachedCompleted(ordered);
         const distinct = [...new Set(ordered.map(entry => entry.completionYear).filter((value): value is number => Boolean(value)))]
           .sort((a, b) => b - a);
         setAllYears(distinct);
@@ -101,20 +118,22 @@ export function CompletedView({ context }: { context: AcademyContext }) {
 
   const thisYearCount = list.filter(entry => entry.completionYear === today.getFullYear()).length;
 
-  const saveRatings = async (gameId: string, breakdown: CompletedRatingBreakdown) => {
+  const saveRatings = useCallback(async (gameId: string, breakdown: CompletedRatingBreakdown) => {
     try {
       const { item } = await api.patchCompletedGame(gameId, { ratingBreakdown: breakdown });
-      setItems(current => current?.map(entry => (entry.id === item.id ? {
-        ...entry,
+      const patch = {
+        id: item.id,
         ratingScore: item.ratingScore,
         ratingRaw: item.ratingRaw,
         ratingBreakdown: item.ratingBreakdown,
         notes: item.notes
-      } : entry)) ?? null);
+      };
+      updateCachedCompletedItem(patch);
+      setItems(current => current?.map(entry => (entry.id === item.id ? { ...entry, ...patch } : entry)) ?? null);
     } catch (error) {
       fail(error);
     }
-  };
+  }, [api, fail]);
 
   const draftBreakdown: CompletedRatingBreakdown = {
     story: parseCategoryScore(draft.categories.story),
@@ -146,16 +165,37 @@ export function CompletedView({ context }: { context: AcademyContext }) {
       });
       notify(`${item.title} is in your Completed Library.`);
       setSelectedId(item.id);
-      void load();
+      void load(true);
     } catch (error) {
       fail(error);
     }
   };
 
-  const selectFromBinder = (game: CompletedGameListItem) => {
+  const selectFromBinder = useCallback((game: CompletedGameListItem) => {
     setSelectedId(game.id);
     if (!wide) setSheetOpen(true);
-  };
+  }, [wide]);
+
+  useEffect(() => {
+    setListMonths(5);
+  }, [search, year, viewMode]);
+
+  const hasMoreListMonths = viewMode === "list" && listMonths < groups.length;
+  useEffect(() => {
+    if (!hasMoreListMonths || typeof IntersectionObserver === "undefined") return;
+    const node = listSentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          setListMonths(current => Math.min(groups.length, current + 5));
+        }
+      },
+      { rootMargin: "420px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMoreListMonths, groups.length]);
 
   const stepSlab = (delta: number) => {
     const nextIdx = selectedIndex + delta;
@@ -221,7 +261,7 @@ export function CompletedView({ context }: { context: AcademyContext }) {
         />
       ) : items ? (
         <div className="ruled">
-          {groups.map(group => (
+          {groups.slice(0, listMonths).map(group => (
             <section key={group.key} aria-label={group.heading}>
               <h2>{group.heading} <small style={{ fontSize: 13, fontWeight: 600, opacity: 0.72 }}>· {group.items.length}</small></h2>
               {group.items.map(game => {
@@ -238,7 +278,7 @@ export function CompletedView({ context }: { context: AcademyContext }) {
                     }}
                   >
                     <span className="line-row__thumb">
-                      {game.coverImageId ? <img src={igdbCoverSrc(game.coverImageId, "big")} alt="" loading="lazy" /> : null}
+                      {game.coverImageId ? <img src={igdbCoverSrc(game.coverImageId, "small")} alt="" loading="lazy" decoding="async" /> : null}
                     </span>
                     <span className="line-row__info">
                       <span className="title">{game.title}</span>
@@ -250,6 +290,13 @@ export function CompletedView({ context }: { context: AcademyContext }) {
               })}
             </section>
           ))}
+          {hasMoreListMonths ? (
+            <div ref={listSentinelRef} className="m-binder__more">
+              <button type="button" className="btn tiny" onClick={() => setListMonths(c => Math.min(groups.length, c + 5))}>
+                Load more months ({groups.length - listMonths} remaining)
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

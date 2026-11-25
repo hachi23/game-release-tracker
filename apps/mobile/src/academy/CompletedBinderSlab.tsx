@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   RATING_CATEGORIES,
   computeAverageRating,
@@ -203,7 +203,59 @@ export function CategoryRatingBlock({
   );
 }
 
-// Monthly Collector's Binder: games grouped by completion month, 3-column pockets per month.
+const INITIAL_MONTHS = 4;
+const MONTH_STEP = 4;
+
+const BinderPocketCard = memo(function BinderPocketCard({
+  game,
+  certNumber,
+  isSelected,
+  eager,
+  onSelect
+}: {
+  game: CompletedGameListItem;
+  certNumber: number;
+  isSelected: boolean;
+  eager: boolean;
+  onSelect: (game: CompletedGameListItem) => void;
+}) {
+  const isMaster = (game.ratingScore ?? 0) >= 9.5;
+  const scoreLabel = formatScore(game.ratingScore, game.ratingRaw);
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={isSelected}
+      className={`m-tcg${isMaster ? " m-tcg--master" : ""}${isSelected ? " m-tcg--selected" : ""}`}
+      onClick={() => onSelect(game)}
+    >
+      <div className="m-tcg__art">
+        {game.coverImageId ? (
+          <img
+            src={igdbCoverSrc(game.coverImageId, "big")}
+            alt={`${game.title} cover`}
+            loading={eager ? undefined : "lazy"}
+            decoding="async"
+          />
+        ) : (
+          <div className="m-tcg__blank" aria-hidden="true">{game.title.slice(0, 1).toUpperCase()}</div>
+        )}
+        {game.userPlatform ? <span className="m-tcg__plat">{game.userPlatform}</span> : null}
+        {scoreLabel !== "–" ? <span className="m-tcg__score">{scoreLabel}</span> : null}
+      </div>
+      <div className="m-tcg__foot">
+        <span className="m-tcg__title">{game.title}</span>
+        <span className="m-tcg__meta">
+          <span>#{certNumber}</span>
+          <span>{formatShortFinished(game)}</span>
+        </span>
+      </div>
+    </button>
+  );
+});
+
+// Monthly Collector's Binder: games grouped by completion month, progressively windowed so even
+// 300+ game libraries stay light in DOM & RAM on 2GB Android devices.
 export function CompletedBinderGrid({
   groups,
   selectedId,
@@ -215,11 +267,38 @@ export function CompletedBinderGrid({
   certNumberById: Map<string, number>;
   onSelect: (game: CompletedGameListItem) => void;
 }) {
+  const [visibleMonths, setVisibleMonths] = useState(INITIAL_MONTHS);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const groupSignature = groups[0]?.key ?? "";
+
+  useEffect(() => {
+    setVisibleMonths(INITIAL_MONTHS);
+  }, [groupSignature, groups.length]);
+
+  const hasMore = visibleMonths < groups.length;
+
+  useEffect(() => {
+    if (!hasMore || typeof IntersectionObserver === "undefined") return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          setVisibleMonths(current => Math.min(groups.length, current + MONTH_STEP));
+        }
+      },
+      { rootMargin: "420px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, groups.length]);
+
+  const shownGroups = groups.slice(0, visibleMonths);
   let rendered = 0;
 
   return (
     <div className="m-binder" role="listbox" aria-label="Completed games binder by month">
-      {groups.map(group => (
+      {shownGroups.map(group => (
         <section key={group.key} className="m-binder__section" aria-label={group.heading}>
           <h2 className="m-binder__month">
             <span>{group.heading}</span>
@@ -228,45 +307,31 @@ export function CompletedBinderGrid({
           <div className="m-binder__grid">
             {group.items.map(game => {
               const cardIdx = rendered++;
-              const certNumber = certNumberById.get(game.id) ?? 1;
-              const isMaster = (game.ratingScore ?? 0) >= 9.5;
-              const isSelected = game.id === selectedId;
-              const scoreLabel = formatScore(game.ratingScore, game.ratingRaw);
               return (
-                <button
+                <BinderPocketCard
                   key={game.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  className={`m-tcg${isMaster ? " m-tcg--master" : ""}${isSelected ? " m-tcg--selected" : ""}`}
-                  onClick={() => onSelect(game)}
-                >
-                  <div className="m-tcg__art">
-                    {game.coverImageId ? (
-                      <img
-                        src={igdbCoverSrc(game.coverImageId, "big")}
-                        alt={`${game.title} cover`}
-                        loading={cardIdx < 12 ? undefined : "lazy"}
-                      />
-                    ) : (
-                      <div className="m-tcg__blank" aria-hidden="true">{game.title.slice(0, 1).toUpperCase()}</div>
-                    )}
-                    {game.userPlatform ? <span className="m-tcg__plat">{game.userPlatform}</span> : null}
-                    {scoreLabel !== "–" ? <span className="m-tcg__score">{scoreLabel}</span> : null}
-                  </div>
-                  <div className="m-tcg__foot">
-                    <span className="m-tcg__title">{game.title}</span>
-                    <span className="m-tcg__meta">
-                      <span>#{certNumber}</span>
-                      <span>{formatShortFinished(game)}</span>
-                    </span>
-                  </div>
-                </button>
+                  game={game}
+                  certNumber={certNumberById.get(game.id) ?? 1}
+                  isSelected={game.id === selectedId}
+                  eager={cardIdx < 9}
+                  onSelect={onSelect}
+                />
               );
             })}
           </div>
         </section>
       ))}
+      {hasMore ? (
+        <div ref={sentinelRef} className="m-binder__more">
+          <button
+            type="button"
+            className="btn tiny"
+            onClick={() => setVisibleMonths(current => Math.min(groups.length, current + MONTH_STEP))}
+          >
+            Load more months ({groups.length - visibleMonths} remaining)
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

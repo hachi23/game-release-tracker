@@ -7,6 +7,7 @@ import type { AcademyContext } from "../AcademyApp";
 import { CategoryRatingBlock, formatScore } from "../CompletedBinderSlab";
 import { coverTintStyle, useCoverPalette, type DetailBgTint } from "../coverPalette";
 import { parseDay, ratingLabel } from "../format";
+import { getCachedCompleted, invalidateCompletedCache, setCachedCompleted, updateCachedCompletedItem } from "../listCache";
 
 // Finished game detail page: cover-tinted frosted glass (40% / 60% / 70%) with harmonized cards,
 // prominent 16:9 "Screenshots" gallery + lightbox, single-row 10 pushpins + 4-category ratings,
@@ -31,7 +32,7 @@ const sortKey = (game: CompletedGameListItem) => game.completionDate ?? (game.co
 export function CompletedDetailView({ id, context }: { id: string; context: AcademyContext }) {
   const { api, fail, back, openCompleted, detailTint, setDetailTint } = context;
   const [game, setGame] = useState<CompletedGameDetail | null>(null);
-  const [library, setLibrary] = useState<CompletedGameListItem[]>([]);
+  const [library, setLibrary] = useState<CompletedGameListItem[]>(() => getCachedCompleted() ?? []);
   const [notes, setNotes] = useState("");
   const [shotIndex, setShotIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -43,7 +44,15 @@ export function CompletedDetailView({ id, context }: { id: string; context: Acad
       setGame(item);
       setNotes(item.notes ?? "");
     }).catch(fail);
-    api.listCompletedGames().then(answer => setLibrary(answer.items)).catch(() => undefined);
+    const cached = getCachedCompleted();
+    if (cached) {
+      setLibrary(cached);
+    } else {
+      api.listCompletedGames().then(answer => {
+        setCachedCompleted(answer.items);
+        setLibrary(answer.items);
+      }).catch(() => undefined);
+    }
   }, [api, id, fail]);
 
   const coverUrl = game?.coverImageId ? igdbCoverSrc(game.coverImageId, "detail") : null;
@@ -53,6 +62,7 @@ export function CompletedDetailView({ id, context }: { id: string; context: Acad
     try {
       const { item } = await api.patchCompletedGame(id, patch);
       setGame(item);
+      updateCachedCompletedItem(item);
       setLibrary(current => current.map(entry => (entry.id === item.id ? { ...entry, ...item } : entry)));
     } catch (error) {
       fail(error);
@@ -84,6 +94,7 @@ export function CompletedDetailView({ id, context }: { id: string; context: Acad
     if (!window.confirm(`Remove ${game?.title} from your Completed Library?`)) return;
     try {
       await api.deleteCompletedGame(id);
+      invalidateCompletedCache();
       back();
     } catch (error) {
       fail(error);

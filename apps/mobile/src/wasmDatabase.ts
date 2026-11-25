@@ -53,18 +53,41 @@ export function rollbackJournalHeader(bytes: Uint8Array) {
   return copy;
 }
 
+// Cache extracted named parameter tokens per SQL string so queries never compile RegExps in hot loops.
+const NAMED_PARAM_RE = /([@:$])([A-Za-z_][A-Za-z0-9_]*)\b/g;
+const sqlParamCache = new Map<string, Array<{ prefix: string; key: string; token: string }>>();
+
+function namedParamsFor(sql: string) {
+  let cached = sqlParamCache.get(sql);
+  if (cached) return cached;
+  const seen = new Set<string>();
+  cached = [];
+  for (const match of sql.matchAll(NAMED_PARAM_RE)) {
+    const token = match[0];
+    if (seen.has(token)) continue;
+    seen.add(token);
+    cached.push({ prefix: match[1], key: match[2], token });
+  }
+  if (sqlParamCache.size > 256) sqlParamCache.clear();
+  sqlParamCache.set(sql, cached);
+  return cached;
+}
+
 // Converts better-sqlite3 arguments to a sqlite-wasm binding. better-sqlite3 takes positional values
 // (spread or in arrays) or one object of named values keyed without the @ / : / $ prefix.
 function binding(sql: string, params: Params): unknown[] | Record<string, unknown> | undefined {
   if (params.length === 1 && isNamedObject(params[0])) {
+    const obj = params[0];
     const named: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(params[0])) {
-      for (const prefix of ["@", ":", "$"]) {
-        if (new RegExp(`\\${prefix}${key}\\b`).test(sql)) named[prefix + key] = bindValue(value);
+    let count = 0;
+    for (const { key, token } of namedParamsFor(sql)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        named[token] = bindValue(obj[key]);
+        count += 1;
       }
     }
     // better-sqlite3 ignores named values the statement doesn't use; sqlite-wasm refuses to bind none.
-    return Object.keys(named).length ? named : undefined;
+    return count > 0 ? named : undefined;
   }
   const flat = params.flat().map(bindValue);
   return flat.length ? flat : undefined;

@@ -6,6 +6,7 @@ import { youtubeEmbedSrc, youtubePosterSrc } from "../../../../frontend/src/yout
 import type { AcademyContext } from "../AcademyApp";
 import { coverTintStyle, useCoverPalette, type DetailBgTint } from "../coverPalette";
 import { countdown, longDate } from "../format";
+import { invalidateUpcomingCache } from "../listCache";
 import { coverOf, Icon } from "../ui";
 
 // Upcoming game detail page: cover-tinted frosted glass (40% / 60% / 70%) with harmonized cards,
@@ -39,6 +40,7 @@ export function ReleaseDetailView({ id, context }: { id: string; context: Academ
   const patch = async (payload: Record<string, unknown>) => {
     try {
       setRelease((await api.patchRelease(id, payload)).item);
+      invalidateUpcomingCache();
     } catch (error) {
       fail(error);
     }
@@ -48,6 +50,7 @@ export function ReleaseDetailView({ id, context }: { id: string; context: Academ
     if (!window.confirm(`Delete ${release?.title} from Upcoming? A sync may add it again; use Hide to keep it out.`)) return;
     try {
       await api.deleteRelease(id);
+      invalidateUpcomingCache();
       back();
     } catch (error) {
       fail(error);

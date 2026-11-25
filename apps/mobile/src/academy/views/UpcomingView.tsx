@@ -1,25 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReleaseListItem, SyncStatus } from "../../../../../shared/types";
 import type { AcademyContext } from "../AcademyApp";
 import { circledCountdown, countdown, groupByMonth, longDate } from "../format";
+import { getCachedUpcoming, invalidateUpcomingCache, setCachedUpcoming } from "../listCache";
 import { Circled, Empty, Icon, Polaroid, coverOf } from "../ui";
-import { AddReleaseSheet } from "./AddReleaseSheet";
+
+const AddReleaseSheet = lazy(() => import("./AddReleaseSheet").then(m => ({ default: m.AddReleaseSheet })));
+
+const INITIAL_UPCOMING_GROUPS = 4;
+const UPCOMING_GROUP_STEP = 4;
 
 // Upcoming: chronological releases grouped by month with crisp cover thumbnails for quick scanning
 // on phones. On wide screens the right-hand page previews the selected release.
 
 export function UpcomingView({ context }: { context: AcademyContext }) {
   const { api, today, wide, fail, openRelease } = context;
-  const [items, setItems] = useState<ReleaseListItem[] | null>(null);
+  const cachedInit = getCachedUpcoming();
+  const [items, setItems] = useState<ReleaseListItem[] | null>(cachedInit?.items ?? null);
   const [search, setSearch] = useState("");
   const [watchedOnly, setWatchedOnly] = useState(false);
   const [genre, setGenre] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus | null>(null);
   const [adding, setAdding] = useState(false);
-  const [sampleLoaded, setSampleLoaded] = useState(false);
+  const [sampleLoaded, setSampleLoaded] = useState(cachedInit?.sampleLoaded ?? false);
+  const [visibleGroups, setVisibleGroups] = useState(INITIAL_UPCOMING_GROUPS);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    const unfiltered = !search.trim() && !watchedOnly;
+    if (unfiltered && !force) {
+      const cached = getCachedUpcoming();
+      if (cached) {
+        setItems(cached.items);
+        setSampleLoaded(cached.sampleLoaded);
+        return;
+      }
+    }
     try {
       const [list, demo] = await Promise.all([
         api.listReleases({ search: search.trim() || undefined, watchedOnly: watchedOnly || undefined }),
@@ -27,6 +44,7 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
       ]);
       setItems(list.items);
       setSampleLoaded(demo.loaded);
+      if (unfiltered) setCachedUpcoming(list.items, demo.loaded);
     } catch (error) {
       fail(error);
     }
@@ -46,7 +64,10 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
     const timer = setInterval(async () => {
       const next = await api.getSyncStatus();
       setSync(next);
-      if (next.status !== "running") void load();
+      if (next.status !== "running") {
+        invalidateUpcomingCache();
+        void load(true);
+      }
     }, 2000);
     return () => clearInterval(timer);
   }, [api, sync?.status, load]);
@@ -67,6 +88,27 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
   const groups = useMemo(() => groupByMonth(visible, today), [visible, today]);
   const current = visible.find(item => item.id === selected) ?? (wide ? visible[0] : undefined);
   const sameDay = current?.releaseDate ? visible.filter(item => item.id !== current.id && item.releaseDate === current.releaseDate) : [];
+
+  useEffect(() => {
+    setVisibleGroups(INITIAL_UPCOMING_GROUPS);
+  }, [search, watchedOnly, genre]);
+
+  const hasMoreGroups = visibleGroups < groups.length;
+  useEffect(() => {
+    if (!hasMoreGroups || typeof IntersectionObserver === "undefined") return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          setVisibleGroups(current => Math.min(groups.length, current + UPCOMING_GROUP_STEP));
+        }
+      },
+      { rootMargin: "420px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMoreGroups, groups.length]);
 
   const syncNow = async () => {
     try {
@@ -128,7 +170,7 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
           <Empty>Nothing on this page matches.</Empty>
         ) : (
           <Empty action={
-            <button type="button" className="btn solid" onClick={async () => { try { await api.loadDemo(); await load(); } catch (error) { fail(error); } }}>
+            <button type="button" className="btn solid" onClick={async () => { try { await api.loadDemo(); invalidateUpcomingCache(); await load(true); } catch (error) { fail(error); } }}>
               Load the sample library
             </button>
           }>
@@ -137,12 +179,12 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
         )
       ) : (
         <div className="ruled">
-          {groups.map(group => (
+          {groups.slice(0, visibleGroups).map(group => (
             <div key={group.name}>
               <h2>{group.name}</h2>
               {group.items.map(item => {
                 const when = countdown(item, today);
-                const thumb = coverOf(item.artworks, "big");
+                const thumb = coverOf(item.artworks, "small");
                 return (
                   <button
                     key={item.id}
@@ -152,7 +194,7 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
                     onClick={() => choose(item)}
                   >
                     <span className="line-row__thumb">
-                      {thumb ? <img src={thumb} alt="" loading="lazy" /> : null}
+                      {thumb ? <img src={thumb} alt="" loading="lazy" decoding="async" /> : null}
                     </span>
                     <span className="line-row__info">
                       <span className="title">{item.watched ? "★ " : ""}{item.title}</span>
@@ -166,6 +208,13 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
               })}
             </div>
           ))}
+          {hasMoreGroups ? (
+            <div ref={sentinelRef} className="m-binder__more">
+              <button type="button" className="btn tiny" onClick={() => setVisibleGroups(c => Math.min(groups.length, c + UPCOMING_GROUP_STEP))}>
+                Load more months ({groups.length - visibleGroups} remaining)
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
       {sampleLoaded && items?.length ? <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>You're looking at the sample library. Remove it in Settings.</p> : null}
@@ -177,12 +226,16 @@ export function UpcomingView({ context }: { context: AcademyContext }) {
       {wide ? (
         <div className="two-pages">
           {list}
-          {current ? <SelectedPage item={current} sameDay={sameDay} context={context} onChanged={load} /> : <div />}
+          {current ? <SelectedPage item={current} sameDay={sameDay} context={context} onChanged={() => { invalidateUpcomingCache(); void load(true); }} /> : <div />}
         </div>
       ) : (
         list
       )}
-      {adding ? <AddReleaseSheet context={context} onClose={() => setAdding(false)} onAdded={id => { setAdding(false); void load(); openRelease(id); }} /> : null}
+      {adding ? (
+        <Suspense fallback={null}>
+          <AddReleaseSheet context={context} onClose={() => setAdding(false)} onAdded={id => { setAdding(false); invalidateUpcomingCache(); void load(true); openRelease(id); }} />
+        </Suspense>
+      ) : null}
     </>
   );
 }

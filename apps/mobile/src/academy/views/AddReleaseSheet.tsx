@@ -42,7 +42,7 @@ export function AddReleaseSheet({ context, onClose, onAdded }: { context: Academ
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Add game" style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(11,16,32,.6)", backdropFilter: "blur(6px)", display: "grid", alignItems: "end", justifyItems: "center" }} onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label="Add game" style={{ position: "fixed", inset: 0, zIndex: 55, background: "rgba(11,16,32,.68)", display: "grid", alignItems: "end", justifyItems: "center" }} onClick={onClose}>
       <div className="stack" style={{ width: "min(640px, 100%)", maxHeight: "88dvh", overflowY: "auto", background: "var(--page)", padding: "20px 16px calc(24px + env(safe-area-inset-bottom))", borderRadius: "14px 14px 0 0", boxShadow: "0 -4px 0 var(--gold)" }} onClick={event => event.stopPropagation()}>
         <div className="page-head">
           <h1>Add game</h1>

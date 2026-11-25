@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { MobileApiClient } from "../mobileApiClient";
 import type { LibraryTransfer } from "../boot";
 import { useDetailTint, type DetailBgTint } from "./coverPalette";
@@ -7,17 +7,15 @@ import { useTerm, type TermChoice } from "./term";
 import { Crest, Icon } from "./ui";
 import { useWallpaper } from "./wallpaper";
 import { UpcomingView } from "./views/UpcomingView";
-import { CalendarView } from "./views/CalendarView";
 import { CompletedView } from "./views/CompletedView";
-import { RandomizerView } from "./views/RandomizerView";
-import { YearView } from "./views/YearView";
-import { SettingsView } from "./views/SettingsView";
 import { ReleaseDetailView } from "./views/ReleaseDetailView";
 import { CompletedDetailView } from "./views/CompletedDetailView";
 
-// The Android app's UI: translucent frosted-glass Academy notebook with bottom bookmark dock on
-// phones and right-edge ribbons on tablets/landscape. Detail pages open over the current tab and
-// inherit subtle cover-art colours.
+// Lazy-load secondary tabs so cold start stays lean while core navigation (Upcoming, Completed, Details) is instant.
+const CalendarView = lazy(() => import("./views/CalendarView").then(m => ({ default: m.CalendarView })));
+const RandomizerView = lazy(() => import("./views/RandomizerView").then(m => ({ default: m.RandomizerView })));
+const YearView = lazy(() => import("./views/YearView").then(m => ({ default: m.YearView })));
+const SettingsView = lazy(() => import("./views/SettingsView").then(m => ({ default: m.SettingsView })));
 
 export type Tab = "upcoming" | "calendar" | "completed" | "randomizer" | "year" | "settings";
 type Screen = { tab: Tab } | { tab: Tab; release: string } | { tab: Tab; completed: string };
@@ -131,10 +129,13 @@ export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: 
 
   const isDetail = "release" in screen || "completed" in screen;
   const spread = wide && !isDetail && screen.tab !== "calendar";
-  const shellStyle = wallpaper ? ({ ["--a-wallpaper" as string]: `url(${wallpaper})` } as CSSProperties) : undefined;
+  const bgStyle = wallpaper ? ({ ["--a-wallpaper" as string]: `url(${wallpaper})` } as CSSProperties) : undefined;
 
   return (
-    <div className="academy" data-wallpaper={wallpaper ? "true" : undefined} style={shellStyle}>
+    <div className="academy">
+      {/* Static GPU-promoted backdrop layer (replaces body background-attachment: fixed & live full-page backdrop-filter). */}
+      <div className={`academy__bg${wallpaper ? " academy__bg--wallpaper" : ""}`} style={bgStyle} aria-hidden="true" />
+
       <header className="crest-bar">
         <Crest />
         <div>
@@ -154,23 +155,25 @@ export function AcademyApp({ api, library, registerOpenRelease, onBackButton }: 
       <div className="book-stage">
         <div className={`book${spread ? " spread" : ""}`} data-detail={isDetail ? "true" : undefined}>
           <main className={`page${isDetail ? " page--detail" : ""}`}>
-            {"release" in screen ? (
-              <ReleaseDetailView key={screen.release} id={screen.release} context={context} />
-            ) : "completed" in screen ? (
-              <CompletedDetailView key={screen.completed} id={screen.completed} context={context} />
-            ) : screen.tab === "upcoming" ? (
-              <UpcomingView context={context} />
-            ) : screen.tab === "calendar" ? (
-              <CalendarView context={context} />
-            ) : screen.tab === "completed" ? (
-              <CompletedView context={context} />
-            ) : screen.tab === "randomizer" ? (
-              <RandomizerView context={context} />
-            ) : screen.tab === "year" ? (
-              <YearView context={context} />
-            ) : (
-              <SettingsView context={context} />
-            )}
+            <Suspense fallback={<div className="empty"><p>Opening page…</p></div>}>
+              {"release" in screen ? (
+                <ReleaseDetailView key={screen.release} id={screen.release} context={context} />
+              ) : "completed" in screen ? (
+                <CompletedDetailView key={screen.completed} id={screen.completed} context={context} />
+              ) : screen.tab === "upcoming" ? (
+                <UpcomingView context={context} />
+              ) : screen.tab === "calendar" ? (
+                <CalendarView context={context} />
+              ) : screen.tab === "completed" ? (
+                <CompletedView context={context} />
+              ) : screen.tab === "randomizer" ? (
+                <RandomizerView context={context} />
+              ) : screen.tab === "year" ? (
+                <YearView context={context} />
+              ) : (
+                <SettingsView context={context} />
+              )}
+            </Suspense>
           </main>
         </div>
 

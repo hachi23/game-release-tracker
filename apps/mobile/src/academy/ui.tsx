@@ -45,7 +45,7 @@ export function Circled({ children }: { children: ReactNode }) {
   );
 }
 
-export const coverOf = (artworks: ReleaseArtwork[], size: "big" | "detail" = "big") => {
+export const coverOf = (artworks: ReleaseArtwork[], size: "small" | "big" | "detail" = "big") => {
   const cover = artworks.find(artwork => artwork.source === "cover") ?? artworks[0];
   if (!cover) return null;
   if ((cover.source === "steamgriddb" || cover.source === "local") && cover.url) return cover.url;

@@ -207,4 +207,16 @@ describe("library file", () => {
     prepareMobileDatabase(again);
     expect((await createMobileApiClient(again).listReleases()).items.length).toBeGreaterThan(0);
   });
+
+  test("toBase64 round-trips multi-chunk database buffers cleanly", async () => {
+    const { toBase64 } = await import("../../apps/mobile/src/libraryFile");
+    const big = new Uint8Array(96 * 1024);
+    for (let i = 0; i < big.length; i++) big[i] = (i * 31) & 0xff;
+    const encoded = toBase64(big);
+    const decoded = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+    expect(decoded.byteLength).toBe(big.byteLength);
+    expect(decoded[0]).toBe(big[0]);
+    expect(decoded[40000]).toBe(big[40000]);
+    expect(decoded[big.length - 1]).toBe(big[big.length - 1]);
+  });
 });
