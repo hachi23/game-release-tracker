@@ -49,7 +49,7 @@ function Card({ item, selected, onOpen, onSelect }: { item: CompletedGameListIte
   return <article className={`completed-card${item.ratingScore != null && item.ratingScore >= 9 ? " completed-card--gold" : ""}${selected ? " completed-card--selected" : ""}`} data-completed-game-id={item.id}>
     <label className="completed-card__check"><input className="check" aria-label={`Select ${item.title}`} type="checkbox" checked={selected} onChange={event => onSelect(event.target.checked)} /></label>
     <button type="button" className="completed-card__open" onClick={onOpen}>
-      <div className="completed-card__art">{item.coverImageId ? <img src={igdbCoverSrc(item.coverImageId)} srcSet={igdbCoverGridSrcSet(item.coverImageId)} sizes="132px" alt="" loading="lazy" draggable={false} /> : <span>No cover</span>}</div>
+      <div className="completed-card__art">{item.coverImageId ? <img src={igdbCoverSrc(item.coverImageId)} srcSet={igdbCoverGridSrcSet(item.coverImageId)} sizes="132px" alt="" loading="lazy" decoding="async" draggable={false} /> : <span>No cover</span>}</div>
       <div className="completed-card__title" title={item.title}>{item.title}</div>
       <div className="completed-card__meta">{item.ratingRaw && <span className="completed-card__rating">{item.ratingRaw}</span>}<span className="completed-card__date">{dateLabel(item)}</span></div>
       {item.matchStatus === "needsReview" && <div className="completed-card__flag warning">match needs review</div>}

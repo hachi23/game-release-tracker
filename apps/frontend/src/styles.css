@@ -86,8 +86,8 @@ textarea { height: auto; min-height: 80px; padding: 10px; resize: vertical; }
 .check:checked { background: var(--c-accent); box-shadow: inset 0 0 0 4px var(--c-on-accent); }
 .backdrop { position: absolute; inset: 0; overflow: hidden; background: var(--c-bg); z-index: 0; }
 .backdrop__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
-.backdrop--blur .backdrop__img { inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); filter: blur(18px) brightness(.6); }
-.backdrop--blur-heavy .backdrop__img { inset: -120px; width: calc(100% + 240px); height: calc(100% + 240px); filter: blur(48px) brightness(.55) saturate(1.25); }
+.backdrop--blur .backdrop__img { inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); filter: blur(14px) brightness(.6); }
+.backdrop--blur-heavy .backdrop__img { inset: -36px; width: calc(100% + 72px); height: calc(100% + 72px); filter: blur(24px) brightness(.55) saturate(1.25); }
 
 /* A detail page inside its game's cover (ui/CoverScene.tsx). --tint is the cover's colour as "r g b";
    the palette's surfaces lean toward it, its accent more, and the derived shades follow. */
@@ -131,7 +131,7 @@ textarea { height: auto; min-height: 80px; padding: 10px; resize: vertical; }
 .upcoming-list__scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 16px -10px 0; padding: 0 10px; scrollbar-width: thin; scrollbar-color: var(--c-border) transparent; }
 .upcoming-month { font-size: var(--fs-h3); color: var(--c-accent); margin: 18px 0 8px; }
 .upcoming-list__scroll section:first-child .upcoming-month { margin-top: 4px; }
-.release-row { position: relative; display: flex; align-items: center; border: 1px solid transparent; }
+.release-row { position: relative; display: flex; align-items: center; border: 1px solid transparent; content-visibility: auto; contain-intrinsic-size: auto 60px; }
 .release-row + .release-row { margin-top: 4px; }
 .release-row__marker { width: 18px; flex: none; text-align: center; color: var(--c-accent); font-size: 11px; }
 .release-row__open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 6px 10px 6px 4px; background: none; border: 0; color: inherit; text-align: left; cursor: pointer; }
@@ -182,7 +182,7 @@ textarea { height: auto; min-height: 80px; padding: 10px; resize: vertical; }
 .completed-month { font-size: var(--fs-h3); color: var(--c-text); margin: 16px 0 10px; }
 .diamond { color: var(--c-accent); font: 11px/1 var(--font-body); margin-right: 10px; }
 .completed-grid { display: grid; grid-template-columns: repeat(auto-fill, 132px); gap: 18px 14px; }
-.completed-card { position: relative; width: 132px; }
+.completed-card { position: relative; width: 132px; content-visibility: auto; contain-intrinsic-size: auto 236px; }
 .completed-card__open { display: block; width: 100%; padding: 0; background: none; border: 0; color: inherit; text-align: left; cursor: pointer; }
 .completed-card__art { width: 132px; aspect-ratio: 3 / 4; padding: 3px; border: 1px solid var(--c-border-soft); background: var(--c-input); display: flex; align-items: center; justify-content: center; color: var(--c-muted); font-size: var(--fs-tiny); }
 .completed-card__art img { width: 100%; height: 100%; object-fit: cover; }

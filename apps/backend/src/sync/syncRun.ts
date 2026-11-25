@@ -153,6 +153,7 @@ class SyncRun {
     const message = counters.failed > 0 ? `Sync complete with ${counters.failed} ${counters.failed === 1 ? "failure" : "failures"}; see the sync log` : "Sync complete";
     this.db.prepare("update sync_runs set status = ?, finished_at = current_timestamp, added = ?, repaired = ?, skipped = ?, failed = ?, message = ? where id = ?").run(status, counters.added, counters.repaired, counters.skipped, counters.failed, message, syncRunId);
     trimSyncLog(this.db);
+    try { this.db.pragma("shrink_memory"); } catch { /* ignore on adapters without shrink_memory */ }
     return getSyncStatus(this.db);
   }
 

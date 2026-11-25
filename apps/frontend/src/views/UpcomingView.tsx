@@ -106,7 +106,7 @@ export function UpcomingView({ apiBaseUrl, wallpaperUrl, releases, groups, statu
             <span className="release-row__marker">{featured?.id === item.id ? "◆" : ""}</span>
             <label className="release-row__check"><input className="check" aria-label={`Select ${item.title}`} type="checkbox" checked={selectedReleaseIds.has(item.id)} onChange={event => onToggleReleaseSelection(item.id, event.target.checked)} /></label>
             <button type="button" className="release-row__open" onClick={() => setFeaturedId(item.id)} onDoubleClick={() => onOpenDetail(item)} onKeyDown={event => { if (event.key === "Enter") { event.stopPropagation(); onOpenDetail(item); } }}>
-              <span className="release-row__cover">{rowCover && <img src={artworkSrc(rowCover, "small", apiBaseUrl)} alt="" loading="lazy" draggable={false} />}</span>
+              <span className="release-row__cover">{rowCover && <img src={artworkSrc(rowCover, "small", apiBaseUrl)} alt="" loading="lazy" decoding="async" draggable={false} />}</span>
               <span className="release-row__text"><strong>{item.watched && <span className="watch-star" title="Watching">★ </span>}{item.title}</strong><small>{rowSubLine(item)}</small>{badge && <small className={`date-badge date-badge--${badge.kind}`}>{badge.label}</small>}</span>
               <span className="release-row__when">{rowWhenLabel(item, today)}</span>
             </button>

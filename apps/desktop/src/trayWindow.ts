@@ -38,6 +38,38 @@ export function bringWindowBack(window: TrayableWindow | null) {
   window.focus();
 }
 
+// Creates the app tray icon once, independent of whether a BrowserWindow is currently open.
+// Destroying the window while minimized to tray drops renderer & GPU RAM to ~0 while keeping
+// the tray icon, auto-sync, and release alerts alive.
+export function setupAppTray({
+  createTray,
+  onOpen,
+  quit,
+  log
+}: {
+  createTray: () => AppTray;
+  onOpen: () => void;
+  quit: () => void;
+  log?: (message: string) => void;
+}): AppTray | null {
+  let tray: AppTray;
+  try {
+    tray = createTray();
+  } catch (error) {
+    log?.(`tray unavailable, minimize stays normal: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+  tray.setToolTip(TRAY_TOOLTIP);
+  tray.setContextMenu([
+    { label: "Open Game Release Tracker", click: onOpen },
+    { type: "separator" },
+    { label: "Quit", click: quit }
+  ]);
+  tray.on("click", onOpen);
+  tray.on("double-click", onOpen);
+  return tray;
+}
+
 // Creates the tray icon and hides the window to it on minimize. When the tray cannot be created the
 // window minimizes normally, so it can never be hidden with no way back.
 export function installMinimizeToTray({
@@ -51,22 +83,8 @@ export function installMinimizeToTray({
   quit: () => void;
   log?: (message: string) => void;
 }): AppTray | null {
-  let tray: AppTray;
-  try {
-    tray = createTray();
-  } catch (error) {
-    log?.(`tray unavailable, minimize stays normal: ${error instanceof Error ? error.message : String(error)}`);
-    return null;
-  }
-  const open = () => bringWindowBack(window);
-  tray.setToolTip(TRAY_TOOLTIP);
-  tray.setContextMenu([
-    { label: "Open Game Release Tracker", click: open },
-    { type: "separator" },
-    { label: "Quit", click: quit }
-  ]);
-  tray.on("click", open);
-  tray.on("double-click", open);
+  const tray = setupAppTray({ createTray, onOpen: () => bringWindowBack(window), quit, log });
+  if (!tray) return null;
   window.on("minimize", () => {
     if (!window.isDestroyed()) window.hide();
   });
